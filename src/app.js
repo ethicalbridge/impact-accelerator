@@ -1,3 +1,4 @@
+import { aboutAlliance } from "./alliance.js";
 import { conversation } from "./messages.js";
 import {
   db,
@@ -44,7 +45,6 @@ async function render() {
   const [raw = "home", id] = location.hash.slice(1).split("/");
   const route =
     {
-      about: "home",
       organisations: "needs",
       pool: "workspace",
       "organisation-view": "organisation",
@@ -64,6 +64,7 @@ async function render() {
   try {
     let html;
     if (route === "home") html = await home();
+    else if (route === "about") html = aboutAlliance();
     else if (["needs", "talent"].includes(route)) html = await directory(route);
     else if (route === "profile" && id) html = await profilePage(id);
     else if (route === "need" && id) html = await needPage(id);

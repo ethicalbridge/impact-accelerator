@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { escapeHTML, safeURL, filterRecords, list } from "../src/utils.js";
+import {
+  escapeHTML,
+  safeURL,
+  filterRecords,
+  list,
+  supportLanguages,
+} from "../src/utils.js";
 test("untrusted text cannot become executable markup", () => {
   assert.equal(
     escapeHTML('<img onerror="x">&\''),
@@ -62,4 +68,25 @@ test("portfolio type filter distinguishes publications from research", () => {
 test("skill parsing trims empties and bounds input", () => {
   assert.deepEqual(list(" Design, , Research "), ["Design", "Research"]);
   assert.equal(list(Array(100).fill("skill").join(",")).length, 30);
+});
+
+test("support languages accept local names, deduplicate and reject empty lists", () => {
+  assert.deepEqual(supportLanguages(" English, Swahili, english, العربية "), [
+    "English",
+    "Swahili",
+    "العربية",
+  ]);
+  assert.throws(() => supportLanguages(" , , "), /at least one/);
+  assert.throws(() => supportLanguages("a".repeat(81)), /80 characters/);
+  const rows = [
+    { languages: ["English", "Spanish"], skills: ["Research"] },
+    { languages: ["French"], skills: ["Research"] },
+    { skills: ["Research"] },
+  ];
+  assert.equal(
+    filterRecords(rows, { language: "SPANISH", skill: "research" }).length,
+    1,
+  );
+  assert.equal(filterRecords(rows, { language: "Swahili" }).length, 0);
+  assert.equal(filterRecords(rows, {}).length, 3);
 });

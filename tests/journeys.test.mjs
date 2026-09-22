@@ -109,11 +109,13 @@ test("profile editing saves availability and explicit privacy choice", async () 
     q(w, "[data-action=edit-profile]").click();
     await until(w, () => q(w, "[name=hours_available]"));
     set(w, "hours_available", "6");
+    set(w, "languages", "English, Spanish, english");
     q(w, "[name=published]").checked = false;
     await submit(w);
     const p = JSON.parse(w.localStorage.getItem("accelerator-qa-records-v1"))
       .ia_profiles[0];
     assert.equal(p.hours_available, 6);
+    assert.deepEqual(p.languages, ["English", "Spanish"]);
     assert.equal(p.published, false);
     assert.match(q(w, "main").textContent, /Your profile is private/);
   } finally {
@@ -169,13 +171,46 @@ test("organisation creates a draft need with correct ownership", async () => {
     );
     set(w, "output", "A toolkit and staff handover");
     set(w, "skills", "Research, Training");
+    set(w, "languages", "French, Swahili");
     await submit(w);
     assert.equal(q(w, ".form-error")?.textContent || "", "");
     const n = JSON.parse(
       w.localStorage.getItem("accelerator-qa-records-v1"),
     ).ia_needs.at(-1);
     assert.equal(n.status, "draft");
+    assert.deepEqual(n.languages, ["French", "Swahili"]);
     assert.equal(n.organisation_id, "20000000-0000-4000-8000-000000000001");
+  } finally {
+    w.close();
+  }
+});
+
+test("home introduces the Alliance, protects sensitive information and links all pathways", async () => {
+  const dom = await setup(),
+    w = dom.window;
+  try {
+    assert.match(
+      q(w, ".alliance-intro").textContent,
+      /Part of Local Impact Alliance/,
+    );
+    assert.equal(w.document.querySelectorAll(".journey-card").length, 3);
+    assert.match(
+      q(w, ".trust-panel").textContent,
+      /Never share passwords, payment-card details/,
+    );
+    assert.match(
+      q(w, ".responsibility").textContent,
+      /no breach of our own duties/,
+    );
+    await navigate(w, "about");
+    assert.equal(w.document.querySelectorAll(".platform-card").length, 3);
+    assert.ok(q(w, 'a[href="https://ethicalbridge.github.io/mobilise/"]'));
+    assert.ok(q(w, 'a[href="https://julimapea.com/"]'));
+    await navigate(w, "talent");
+    q(w, "#filters [name=language]").value = "Spanish";
+    q(w, "#filters").dispatchEvent(new w.Event("input", { bubbles: true }));
+    assert.match(q(w, "#example-results").textContent, /Maria Lopez/);
+    assert.doesNotMatch(q(w, "#example-results").textContent, /Samira Khan/);
   } finally {
     w.close();
   }

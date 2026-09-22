@@ -16,6 +16,10 @@ Existing account, profile, application, invitation, messaging, organisation work
 
 ## Development
 
+Support languages are stored as arrays on both talent profiles and needs. The additive `languages.sql` change has been applied through Supabase MCP. New/edited forms require at least one language and accept local and sign languages. Existing unspecified records are not assumed to support English. Both directories filter by support language.
+
+The homepage and About page explain the Alliance's Mobilise, Strengthen and Connect pathways using its published pathway directory. The data-sharing responsibility notice is narrowly scoped, preserves statutory rights and does not exclude the platform's own negligence or data-protection duties. It needs jurisdiction-specific legal review; publishing the notice does not establish enforceability worldwide.
+
 Node 22+ and pnpm 11:
 
 ```sh

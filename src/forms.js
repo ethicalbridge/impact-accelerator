@@ -21,7 +21,7 @@ import {
   errorMessage,
   safeURL,
 } from "./core.js";
-import { types, list } from "./utils.js";
+import { types, list, supportLanguages } from "./utils.js";
 export function requireUser() {
   if (!state.user) {
     authForm();
@@ -46,7 +46,7 @@ export async function editProfile() {
   const p = (await profile()) || {};
   showDialog(
     p.name ? "Edit your profile" : "Create your profile",
-    `<p class="muted">Describe your professional background. Your impact portfolio grows from contributions through the platform.</p><form data-form="profile" class="form-grid">${field("name", "Full / professional name", p.name, "text", true, 'minlength="2" maxlength="120" autocomplete="name"')}${field("headline", "Professional headline", p.headline, "text", true, 'maxlength="160" placeholder="e.g. Researcher & monitoring specialist"')}${area("bio", "Professional introduction", p.bio, true)}${field("location", "Location / time zone", p.location, "text", false, 'maxlength="160" placeholder="City, country or time zone"')}${select("arrangement", "Work arrangement", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}${field("skills", "Skills, separated by commas", (p.skills || []).join(", "), "text", true, 'maxlength="800"')}${field("languages", "Languages, separated by commas", (p.languages || []).join(", "), "text", false, 'maxlength="300"')}${area("experience", "Experience & achievements", p.experience, false, 8000)}${field("hours_available", "Available hours per month", p.hours_available ?? 0, "number", true, 'min="0" max="160" step="1"')}${field("website", "LinkedIn profile or professional website", p.website, "url", false, 'placeholder="https://…" maxlength="2000"')}${check("published", "Publish my profile in the talent directory. My professional information will be visible to anyone.", p.published)}${formEnd()}</form>`,
+    `<p class="muted">Describe your professional background. Your impact portfolio grows from contributions through the platform.</p><form data-form="profile" class="form-grid">${field("name", "Full / professional name", p.name, "text", true, 'minlength="2" maxlength="120" autocomplete="name"')}${field("headline", "Professional headline", p.headline, "text", true, 'maxlength="160" placeholder="e.g. Researcher & monitoring specialist"')}${area("bio", "Professional introduction", p.bio, true)}${field("location", "Location / time zone", p.location, "text", false, 'maxlength="160" placeholder="City, country or time zone"')}${select("arrangement", "Work arrangement", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}${field("skills", "Skills, separated by commas", (p.skills || []).join(", "), "text", true, 'maxlength="800"')}${field("languages", "Languages I can support in (separate with commas)", (p.languages || []).join(", "), "text", true, 'maxlength="800" placeholder="e.g. English, Spanish, Swahili"')}<p class="hint full">List languages you can confidently use for meetings, written communication and the contribution itself. Include local or sign languages where relevant.</p>${area("experience", "Experience & achievements", p.experience, false, 8000)}${field("hours_available", "Available hours per month", p.hours_available ?? 0, "number", true, 'min="0" max="160" step="1"')}${field("website", "LinkedIn profile or professional website", p.website, "url", false, 'placeholder="https://…" maxlength="2000"')}${check("published", "Publish my profile in the talent directory. My professional information will be visible to anyone.", p.published)}${formEnd()}</form>`,
   );
 }
 export async function editWork(id) {
@@ -90,7 +90,7 @@ export async function editNeed(id) {
         m.organisation?.public_name || m.organisation?.registered_name,
       ]),
       n.organisation_id,
-    )}${field("title", "Need title", n.title, "text", true, 'minlength="5" maxlength="160"')}${area("description", "Context & support needed", n.description, true, 6000)}${area("output", "Expected output & definition of success", n.output, true, 2000)}${field("skills", "Skills needed, separated by commas", (n.skills || []).join(", "), "text", true, 'maxlength="800"')}${field("hours", "Estimated hours", n.hours || 8, "number", true, 'min="1" max="500" step="1"')}${select("arrangement", "Work arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}${field("location", "Location / time zone", n.location, "text", false, 'maxlength="160"')}${field("deadline", "Application deadline", n.deadline, "date")}${select(
+    )}${field("title", "Need title", n.title, "text", true, 'minlength="5" maxlength="160"')}${area("description", "Context & support needed", n.description, true, 6000)}${area("output", "Expected output & definition of success", n.output, true, 2000)}${field("skills", "Skills needed, separated by commas", (n.skills || []).join(", "), "text", true, 'maxlength="800"')}${field("languages", "Languages we can receive support in (separate with commas)", (n.languages || []).join(", "), "text", true, 'maxlength="800" placeholder="e.g. Arabic, French, English"')}<p class="hint full">List the languages your team can work in for this need. Support in any one of these languages is welcome. Describe any task that requires multiple languages in the support brief.</p>${field("hours", "Estimated hours", n.hours || 8, "number", true, 'min="1" max="500" step="1"')}${select("arrangement", "Work arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}${field("location", "Location / time zone", n.location, "text", false, 'maxlength="160"')}${field("deadline", "Application deadline", n.deadline, "date")}${select(
       "status",
       "Visibility / status",
       [
@@ -309,7 +309,7 @@ export async function submit(event) {
         bio: v("bio"),
         location: v("location"),
         skills: list(v("skills")),
-        languages: list(v("languages")).slice(0, 20),
+        languages: supportLanguages(v("languages")),
         experience: v("experience"),
         hours_available: Number(v("hours_available")),
         arrangement: v("arrangement"),
@@ -368,6 +368,7 @@ export async function submit(event) {
         description: v("description"),
         output: v("output"),
         skills: list(v("skills")),
+        languages: supportLanguages(v("languages")),
         hours: Number(v("hours")),
         arrangement: v("arrangement"),
         location: v("location"),
