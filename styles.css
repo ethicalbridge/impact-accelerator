@@ -1515,6 +1515,117 @@ summary {
 .responsibility p {
   font-size: 13px;
 }
+.trust-resources {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.5fr);
+  gap: 34px;
+  padding-top: 30px;
+  border-top: 1px solid #c4cfbf;
+}
+.trust-resources h3 {
+  margin: 0 0 10px;
+  font:
+    27px Georgia,
+    serif;
+}
+.trust-resources > div > p {
+  color: var(--muted);
+}
+.trust-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.trust-links a {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  column-gap: 10px;
+  padding: 17px;
+  border: 1px solid #c4cfbf;
+  border-radius: 7px;
+  background: #fffdf7;
+  text-decoration: none;
+}
+.trust-links a:hover {
+  border-color: var(--green);
+  transform: translateY(-1px);
+}
+.trust-links span {
+  grid-row: 1 / 3;
+  font:
+    18px Georgia,
+    serif;
+  color: var(--green);
+}
+.trust-links strong {
+  font-size: 14px;
+}
+.trust-links small {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.agreement-status {
+  padding: 20px;
+  background: #f5ead0;
+  border-radius: 8px;
+  margin: 15px 0 24px;
+}
+.agreement-status.complete {
+  background: #e3efe4;
+}
+.agreement-status h3 {
+  margin: 8px 0 16px;
+}
+.agreement-status > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.agreement-status span {
+  font-size: 13px;
+}
+.agreement-status b {
+  display: block;
+  margin-top: 4px;
+}
+.agreement-document {
+  border: 1px solid var(--line);
+  padding: 24px;
+  background: #fffdf8;
+  max-height: 48vh;
+  overflow: auto;
+}
+.agreement-document h3 {
+  margin: 26px 0 8px;
+  font-size: 20px;
+}
+.agreement-document p {
+  font-size: 14px;
+}
+.agreement-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.agreement-facts span {
+  padding: 12px;
+  background: #eef2ea;
+  font-size: 12px;
+}
+.agreement-facts b {
+  display: block;
+  font-size: 14px;
+}
+.agreement-note {
+  padding: 14px;
+  border-left: 3px solid #be9b45;
+  background: #f7f0dd;
+}
+.agreement-sign {
+  margin-top: 22px;
+}
 .alliance-hero {
   max-width: 850px;
   padding: 22px 0 38px;
@@ -1649,6 +1760,20 @@ summary {
   }
   .trust-heading {
     flex-direction: column;
+  }
+  .trust-resources {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .trust-links {
+    grid-template-columns: 1fr;
+  }
+  .agreement-status > div,
+  .agreement-facts {
+    grid-template-columns: 1fr;
+  }
+  .agreement-document {
+    padding: 18px;
   }
   .partner-panel {
     flex-direction: column;

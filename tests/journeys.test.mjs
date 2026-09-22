@@ -155,6 +155,55 @@ test("application and private message are saved with correct participants", asyn
     w.close();
   }
 });
+test("accepted match requires both agreement signatures before time entry", async () => {
+  const dom = await setup(),
+    w = dom.window;
+  try {
+    await login(w);
+    await navigate(w, "need/40000000-0000-4000-8000-000000000001");
+    q(w, "[data-action=apply]").click();
+    await until(w, () => q(w, "[name=message]"));
+    set(w, "message", "I can prepare the report and accessible handover.");
+    await submit(w);
+    q(w, "#account").click();
+    q(w, "[data-action=signout]").click();
+    await until(w, () => q(w, "#account").textContent === "Sign in / Join");
+    await login(w, "org@example.test");
+    await navigate(w, "organisation");
+    q(w, "[data-action=accept-application]").click();
+    await until(w, () => q(w, 'form[data-form="accept-application"]'));
+    q(w, 'form[data-form="accept-application"]').dispatchEvent(
+      new w.Event("submit", { bubbles: true, cancelable: true }),
+    );
+    await until(w, () => q(w, 'form[data-form="agreement"]'));
+    assert.match(q(w, ".agreement-document").textContent, /Never be shared/iu);
+    for (const name of ["scope", "security", "terms"])
+      q(w, `[name="${name}"]`).checked = true;
+    set(w, "signature_name", "Organisation Reviewer");
+    await submit(w);
+    q(w, "#account").click();
+    q(w, "[data-action=signout]").click();
+    await until(w, () => q(w, "#account").textContent === "Sign in / Join");
+    await login(w);
+    await navigate(w, "workspace");
+    q(w, "[data-action=agreement]").click();
+    await until(w, () => q(w, 'form[data-form="agreement"]'));
+    for (const name of ["scope", "security", "terms"])
+      q(w, `[name="${name}"]`).checked = true;
+    set(w, "signature_name", "Amina Okoro");
+    await submit(w);
+    await navigate(w, "hours");
+    q(w, "[data-action=log-time]").click();
+    await until(w, () => q(w, 'form[data-form="hours"]'));
+    const records = JSON.parse(
+      w.localStorage.getItem("accelerator-qa-records-v1"),
+    );
+    assert.ok(records.ia_agreements[0].talent_signed_at);
+    assert.ok(records.ia_agreements[0].organisation_signed_at);
+  } finally {
+    w.close();
+  }
+});
 test("organisation creates a draft need with correct ownership", async () => {
   const dom = await setup(),
     w = dom.window;
@@ -197,6 +246,14 @@ test("home introduces the Alliance, protects sensitive information and links all
     assert.match(
       q(w, ".trust-panel").textContent,
       /Never share passwords, payment-card details/,
+    );
+    assert.match(
+      q(w, ".trust-resources").textContent,
+      /Please read these sections before participating/,
+    );
+    assert.deepEqual(
+      [...w.document.querySelectorAll(".trust-links a")].map((a) => a.hash),
+      ["#guide", "#privacy", "#safeguarding", "#about"],
     );
     assert.match(
       q(w, ".responsibility").textContent,

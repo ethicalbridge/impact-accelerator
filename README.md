@@ -14,6 +14,8 @@ Final public contribution publishing, organisation endorsements and ratings rema
 
 Existing account, profile, application, invitation, messaging, organisation workspace and hour-review workflows remain available. Database boundaries and ownership rules are unchanged.
 
+Accepted matches now open a versioned contribution agreement for both parties. Its immutable scope snapshot records the need, expected output, estimated hours, languages and working arrangement. Talent and organisation must separately confirm the scope, safe data handling and terms, then sign with their names. New time records are blocked by RLS until both signatures exist. The agreement is a practical record and safety control; it does not replace jurisdiction-specific legal advice or additional terms for paid, regulated or higher-risk work.
+
 ## Development
 
 Support languages are stored as arrays on both talent profiles and needs. The additive `languages.sql` change has been applied through Supabase MCP. New/edited forms require at least one language and accept local and sign languages. Existing unspecified records are not assumed to support English. Both directories filter by support language.
@@ -33,9 +35,9 @@ pnpm start
 
 ## Backend and testing
 
-Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, and `media-ownership.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
+Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, `media-ownership.sql`, `languages.sql`, and `agreements.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
 
-`tests/rls.sql` exercises the live database policies within a rolled-back transaction, creating no durable test users or public records. It tests profile and image visibility, cross-user writes, organisation isolation, application decisions, messages, daily hour totals and immutable review evidence.
+`tests/rls.sql` exercises the live database policies within a rolled-back transaction, creating no durable test users or public records. It tests profile and image visibility, cross-user writes, organisation isolation, application decisions, dual-signature agreements, messages, daily hour totals and immutable review evidence.
 
 `pnpm test` includes DOM workflow tests using an isolated mock service, plus escaping, URL and filter tests. For manual UI testing, `node scripts/qa.mjs` builds a mock-backed site outside the repository into `../qa-site`. Run `node scripts/serve.mjs ../qa-site 4174`. This QA bundle never enters `dist` or the production bundle. It uses fictional records stored only in that local browser origin. Sign in with `talent@example.test` or `org@example.test` and any nonempty password in this local harness only.
 

@@ -156,7 +156,7 @@ export async function invite(id) {
 }
 export async function logTime() {
   if (!requireUser()) return;
-  const [apps, invites] = await Promise.all([
+  const [apps, invites, agreements] = await Promise.all([
     result(
       db
         .from("ia_applications")
@@ -171,14 +171,25 @@ export async function logTime() {
         .eq("user_id", state.user.id)
         .eq("status", "accepted"),
     ),
+    result(
+      db
+        .from("ia_agreements")
+        .select("need_id,talent_signed_at,organisation_signed_at")
+        .eq("user_id", state.user.id),
+    ),
   ]);
+  const ready = new Set(
+    agreements
+      .filter((a) => a.talent_signed_at && a.organisation_signed_at)
+      .map((a) => a.need_id),
+  );
   const accepted = [
     ...new Map([...apps, ...invites].map((a) => [a.need_id, a])).values(),
-  ];
+  ].filter((a) => ready.has(a.need_id));
   if (!accepted.length) {
     showDialog(
-      "An accepted contribution comes first",
-      '<p>You can log time after an organisation accepts your application or you accept its invitation. Explore needs or check your workspace.</p><a class="button" href="#workspace" data-action="close">Open workspace</a>',
+      "A signed contribution agreement comes first",
+      '<p>You can log time after a match is accepted and both the talent and organisation have signed its contribution agreement. Open your workspace to review any agreement awaiting your signature.</p><a class="button" href="#workspace" data-action="close">Open workspace</a>',
     );
     return;
   }
@@ -287,6 +298,36 @@ export async function submit(event) {
     }
     if (!state.user) throw Error("Your session ended. Please sign in again.");
     let query;
+    if (kind === "agreement") {
+      if (!on("scope") || !on("security") || !on("terms"))
+        throw Error("Read and accept all three agreement confirmations.");
+      const signature = v("signature_name");
+      if (signature.length < 2) throw Error("Type your full name to sign.");
+      const organisation = form.dataset.party === "organisation";
+      await result(
+        db
+          .from("ia_agreements")
+          .update(
+            organisation
+              ? {
+                  organisation_signed_name: signature,
+                  organisation_signed_at: new Date().toISOString(),
+                  organisation_signed_by: state.user.id,
+                }
+              : {
+                  talent_signed_name: signature,
+                  talent_signed_at: new Date().toISOString(),
+                },
+          )
+          .eq("id", id)
+          .select()
+          .single(),
+      );
+      closeDialog();
+      notify("Agreement signed. The signature record cannot be edited.");
+      await state.render();
+      return;
+    }
     if (kind === "message") {
       const [need_id, user_id] = id.split("/");
       await result(
@@ -451,7 +492,7 @@ export async function submit(event) {
         .select()
         .single();
     } else throw Error("This form is not available.");
-    await result(query);
+    const saved = await result(query);
     if (cleanupImage) await removeImage(cleanupImage);
     newImage = "";
     closeDialog();
@@ -460,6 +501,10 @@ export async function submit(event) {
     else if (kind === "profile" && !location.hash.includes("profile"))
       location.hash = "workspace";
     await state.render();
+    if (["accept-application", "accept-invite"].includes(kind)) {
+      const { agreement } = await import("./agreements.js");
+      await agreement(`${saved.need_id}/${saved.user_id}`);
+    }
   } catch (error) {
     if (newImage) await removeImage(newImage);
     err.textContent = errorMessage(error);

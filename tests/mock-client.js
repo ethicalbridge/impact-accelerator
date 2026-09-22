@@ -85,6 +85,7 @@ const seed = {
       arrangement: "Remote",
       location: "East Africa",
       skills: ["Research", "Design"],
+      languages: ["English", "Swahili"],
       deadline: null,
       status: "open",
     },
@@ -94,8 +95,11 @@ const seed = {
   ia_hours: [],
   ia_saved: [],
   ia_messages: [],
+  ia_agreements: [],
 };
 let records = JSON.parse(localStorage.getItem(key) || "null") || seed;
+records.ia_agreements ||= [];
+for (const n of records.ia_needs || []) n.languages ||= [];
 let session = JSON.parse(localStorage.getItem(key + "-session") || "null");
 const listeners = [];
 function save() {
@@ -205,6 +209,45 @@ class Query {
 export function createClient() {
   return {
     from: (t) => new Query(t),
+    rpc: async (name, args) => {
+      if (name !== "ia_prepare_agreement")
+        return { data: null, error: new Error("Unknown local QA function") };
+      let agreement = records.ia_agreements.find(
+        (a) => a.need_id === args.p_need_id && a.user_id === args.p_user_id,
+      );
+      if (!agreement) {
+        const n = records.ia_needs.find((x) => x.id === args.p_need_id),
+          p = records.ia_profiles.find((x) => x.user_id === args.p_user_id),
+          o = records.organisations.find((x) => x.id === n.organisation_id);
+        agreement = {
+          id: crypto.randomUUID(),
+          need_id: n.id,
+          user_id: p.user_id,
+          terms_version: "2026-09-22-v1",
+          scope_snapshot: {
+            need_title: n.title,
+            description: n.description,
+            output: n.output,
+            skills: n.skills,
+            languages: n.languages,
+            estimated_hours: n.hours,
+            arrangement: n.arrangement,
+            location: n.location,
+            organisation: o.public_name,
+            talent: p.name,
+          },
+          talent_signed_name: "",
+          talent_signed_at: null,
+          organisation_signed_name: "",
+          organisation_signed_by: null,
+          organisation_signed_at: null,
+          created_at: new Date().toISOString(),
+        };
+        records.ia_agreements.push(agreement);
+        save();
+      }
+      return { data: agreement.id, error: null };
+    },
     auth: {
       getSession: async () => ({ data: { session }, error: null }),
       onAuthStateChange: (fn) => {

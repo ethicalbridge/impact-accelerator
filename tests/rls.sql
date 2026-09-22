@@ -44,6 +44,16 @@ update public.ia_applications set status='accepted' where id='50000000-0000-4000
 insert into public.ia_invitations(id,need_id,user_id,message) values ('70000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Please help our team with research and reporting.');
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 update public.ia_invitations set status='accepted' where id='70000000-0000-4000-8000-000000000001';
+select public.ia_prepare_agreement('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001');
+do $$ begin
+ begin insert into public.ia_hours(need_id,user_id,work_date,hours,description) values ('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',current_date,1,'Work before both signatures');raise exception 'FAIL unsigned agreement allowed time';exception when insufficient_privilege then null;end;
+end $$;
+update public.ia_agreements set talent_signed_name='Transaction talent',talent_signed_at=now() where need_id='40000000-0000-4000-8000-000000000001' and user_id='10000000-0000-4000-8000-000000000001';
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+do $$ begin if exists(select 1 from public.ia_agreements where need_id='40000000-0000-4000-8000-000000000001') then raise exception 'FAIL agreement leaked to another user';end if;end $$;
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+update public.ia_agreements set organisation_signed_name='Organisation owner',organisation_signed_at=now(),organisation_signed_by='10000000-0000-4000-8000-000000000002' where need_id='40000000-0000-4000-8000-000000000001' and user_id='10000000-0000-4000-8000-000000000001';
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 insert into public.ia_saved(user_id,need_id) values ('10000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000001');
 insert into public.ia_messages(need_id,user_id,sender_id,body) values ('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Can we agree on the handover?');
 insert into public.ia_hours(id,need_id,user_id,work_date,hours,description) values ('60000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',current_date,2,'Research and analysis completed');
@@ -66,4 +76,4 @@ do $$ begin
  begin perform * from public.ia_hours;raise exception 'FAIL anon can read time records';exception when insufficient_privilege then null;end;
 end $$;
 rollback;
-select 'PASS: private/public visibility, ownership, tenant isolation, application decisions, private messages, image visibility, daily time cap and immutable approval audit' as result;
+select 'PASS: visibility, ownership, tenant isolation, decisions, dual-signature agreements, messages, images, daily cap and immutable approval audit' as result;

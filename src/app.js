@@ -1,5 +1,6 @@
 import { aboutAlliance } from "./alliance.js";
 import { conversation } from "./messages.js";
+import { agreement } from "./agreements.js";
 import {
   db,
   state,
@@ -150,6 +151,7 @@ async function exportPortfolio() {
 }
 const actions = {
   conversation,
+  agreement,
   auth: () => authForm(),
   signup: () => authForm("signup"),
   reset: () => authForm("reset"),
@@ -198,7 +200,7 @@ const actions = {
   "accept-application": (id) =>
     decision(
       "Accept this application?",
-      "The professional will see the decision in their workspace and can submit contribution hours. Agree on scope and contact arrangements before starting.",
+      "This creates a match. Both parties must review and sign the contribution agreement before work begins or hours can be submitted.",
       "accept-application",
       id,
     ),
@@ -212,7 +214,7 @@ const actions = {
   "accept-invite": (id) =>
     decision(
       "Accept this invitation?",
-      "Confirm that the scope and availability fit. You can then record contribution hours.",
+      "This creates a match. Both parties must review and sign the contribution agreement before work begins or hours can be submitted.",
       "accept-invite",
       id,
     ),
