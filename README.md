@@ -2,15 +2,17 @@
 
 The Strengthen platform of Local Impact Alliance. A static, bundled web client on GitHub Pages connects to the existing Ethical Bridge Supabase service. Organisational needs, professional portfolios and contribution records are the core product.
 
-## Features
+## Current product direction
 
-- Shared Ethical Bridge authentication; private-by-default professional profiles with explicit publishing.
-- Portfolio case studies with type, description, role, outcomes, organisation/client, date, skills, supporting link, featured status and draft/public visibility.
-- JPEG/PNG/WebP thumbnail uploads (5 MB maximum) to a private bucket, or external HTTPS thumbnails. Signed viewing URLs expire after one hour.
-- Searchable talent and needs directories, shareable profile/work/need routes, saved needs, JSON export and print-to-PDF profile layouts.
-- Organisation workspaces based on existing membership, with draft and open/closed needs. Only published organisations may open needs.
-- Applications, invitations, participant-only conversations, contribution logging and auditable organisation review.
-- Database-enforced ownership, role boundaries, decision transitions, daily time limits and immutable hour decisions.
+Talent profiles contain a living impact CV generated from contribution records. Portfolio is no longer a standalone section and manual portfolio creation has been removed from the user interface. Existing manual records are retained in storage.
+
+Talent and Needs examples must remain visible and clearly labelled **Example**, even when live records exist. `src/examples.js` provides isolated design fixtures, never inserted into Supabase. Maria Lopez's public example route is `#profile/example-maria-lopez`. Her summary is computed from seven verified example records (86 hours, five organisations, 4.9 average rating). Ongoing and awaiting-review examples are excluded from verified totals. Every restored talent card opens its own profile and contribution example.
+
+Profiles support shareable URLs, copy-link, print and a LinkedIn share composer. The optional professional URL field accepts a member-supplied LinkedIn profile link. Links are external context, not verified identity. Maria's fictional LinkedIn control explains the example instead of linking to a real person. OAuth/identity verification and imported LinkedIn data are not implemented.
+
+Final public contribution publishing, organisation endorsements and ratings remain a **design preview**. Real contribution hours and messages remain private under existing RLS; this frontend change does not expose private records. Final implementation must preserve participant consent and organisation review before public publication.
+
+Existing account, profile, application, invitation, messaging, organisation workspace and hour-review workflows remain available. Database boundaries and ownership rules are unchanged.
 
 ## Development
 

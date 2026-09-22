@@ -61,34 +61,46 @@ async function login(w, email = "talent@example.test") {
   await submit(w);
   await until(w, () => q(w, "#account").textContent === "Account");
 }
-test("talent creates a portfolio case study and untrusted text remains text", async () => {
+test("example directories lead to generated, filterable impact records without manual editing", async () => {
   const dom = await setup(),
     w = dom.window;
   try {
-    assert.match(q(w, "main").textContent, /Good work/);
-    await login(w);
-    await navigate(w, "portfolio");
-    q(w, "[data-action=add-work]").click();
-    await until(w, () => q(w, "[name=title]"));
-    set(w, "title", "<img src=x onerror=alert(1)>");
-    set(w, "description", "A detailed research and evidence case study.");
-    set(w, "role", "Lead researcher");
-    set(w, "skills", "Research, Data analysis");
-    q(w, "[name=published]").checked = true;
-    await submit(w);
-    assert.match(q(w, "main").textContent, /<img src=x onerror=alert\(1\)>/);
-    assert.equal(q(w, "main img[onerror]"), null);
-    const records = JSON.parse(
-      w.localStorage.getItem("accelerator-qa-records-v1"),
+    assert.equal(q(w, '#navigation a[href="#portfolio"]'), null);
+    await navigate(w, "talent");
+    assert.equal(q(w, "#example-count").textContent, "7 examples");
+    q(w, "#filters [name=search]").value = "Maria";
+    q(w, "#filters").dispatchEvent(new w.Event("input", { bubbles: true }));
+    assert.equal(q(w, "#example-count").textContent, "1 example");
+    q(w, 'a[href="#profile/example-maria-lopez"]').click();
+    await until(w, () => q(w, "#contribution-list"));
+    assert.match(q(w, "h1").textContent, /Maria Lopez/);
+    assert.equal(q(w, "[data-action=add-work]"), null);
+    const metrics = [
+      ...w.document.querySelectorAll(".impact-metrics strong"),
+    ].map((x) => x.textContent);
+    assert.deepEqual(metrics, ["7", "5", "86", "4.9 / 5"]);
+    assert.equal(w.document.querySelectorAll(".contribution-card").length, 9);
+    q(w, "#contribution-status").value = "ongoing";
+    q(w, "#contribution-status").dispatchEvent(new w.Event("change"));
+    assert.equal(w.document.querySelectorAll(".contribution-card").length, 1);
+    assert.equal(q(w, ".endorsement"), null);
+    q(w, "[data-action=example-linkedin]").click();
+    await until(w, () => q(w, "dialog").open);
+    assert.match(q(w, "dialog").textContent, /fictional/);
+    q(w, "dialog .close").click();
+    await navigate(w, "needs");
+    assert.equal(q(w, "#example-count").textContent, "7 examples");
+    q(w, 'a[href="#need/example-accessibility"]').click();
+    await until(w, () =>
+      q(w, "main h1")?.textContent.includes("accessibility"),
     );
-    const created = records.ia_portfolio.at(-1);
-    assert.equal(created.published, true);
-    assert.deepEqual(created.skills, ["Research", "Data analysis"]);
-    assert.equal(created.user_id, records.ia_profiles[0].user_id);
+    assert.match(q(w, "main").textContent, /does not accept applications/);
+    assert.equal(q(w, "[data-action=apply]"), null);
   } finally {
     w.close();
   }
 });
+
 test("profile editing saves availability and explicit privacy choice", async () => {
   const dom = await setup(),
     w = dom.window;

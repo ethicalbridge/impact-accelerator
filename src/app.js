@@ -155,8 +155,11 @@ const actions = {
   close: closeDialog,
   reload: render,
   "edit-profile": editProfile,
-  "add-work": () => editWork(),
-  "edit-work": editWork,
+  "example-linkedin": () =>
+    showDialog(
+      "LinkedIn ' Example",
+      "<p>This example shows where a talent's LinkedIn profile appears. Maria is fictional, so no real person's profile is linked.</p><p>Real members can add a LinkedIn URL in Edit profile. A supplied link is not proof of identity. LinkedIn identity verification is not connected.</p>",
+    ),
   "add-need": () => editNeed(),
   "edit-need": editNeed,
   apply,
