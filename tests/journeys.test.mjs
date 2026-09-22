@@ -65,6 +65,11 @@ test("example directories lead to generated, filterable impact records without m
   const dom = await setup(),
     w = dom.window;
   try {
+    assert.equal(q(w, '#navigation a[href="#home"]').textContent, "Home");
+    assert.equal(
+      q(w, '#navigation a[href="#home"]').getAttribute("aria-current"),
+      "page",
+    );
     assert.equal(q(w, '#navigation a[href="#portfolio"]'), null);
     await navigate(w, "talent");
     assert.equal(q(w, "#example-count").textContent, "7 examples");
