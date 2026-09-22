@@ -10,7 +10,7 @@ Talent and Needs examples must remain visible and clearly labelled **Example**, 
 
 Profiles support shareable URLs, copy-link, print and a LinkedIn share composer. The optional professional URL field accepts a member-supplied LinkedIn profile link. Links are external context, not verified identity. Maria's fictional LinkedIn control explains the example instead of linking to a real person. OAuth/identity verification and imported LinkedIn data are not implemented.
 
-Final public contribution publishing, organisation endorsements and ratings remain a **design preview**. Real contribution hours and messages remain private under existing RLS; this frontend change does not expose private records. Final implementation must preserve participant consent and organisation review before public publication.
+Organisation-approved contributions can now become real portfolio records. The organisation supplies deliverables, a rating and written feedback when approving the work; the talent then chooses whether to publish that verified record. Pending work, private approved work, agreements and messages remain restricted to the participants by RLS. The labelled examples remain available as design references while real portfolios grow.
 
 Existing account, profile, application, invitation, messaging, organisation workspace and hour-review workflows remain available. Database boundaries and ownership rules are unchanged.
 
@@ -35,7 +35,7 @@ pnpm start
 
 ## Backend and testing
 
-Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, `media-ownership.sql`, `languages.sql`, and `agreements.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
+Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, `media-ownership.sql`, `languages.sql`, `agreements.sql`, and `verified-contributions.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
 
 `tests/rls.sql` exercises the live database policies within a rolled-back transaction, creating no durable test users or public records. It tests profile and image visibility, cross-user writes, organisation isolation, application decisions, dual-signature agreements, messages, daily hour totals and immutable review evidence.
 

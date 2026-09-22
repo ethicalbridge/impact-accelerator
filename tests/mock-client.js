@@ -171,6 +171,10 @@ class Query {
           const row = {
             id: crypto.randomUUID(),
             status: "pending",
+            public: false,
+            deliverables: "",
+            feedback: "",
+            rating: null,
             created_at: new Date().toISOString(),
             ...this.value,
           };
@@ -195,7 +199,17 @@ class Query {
           (o) => o.id === r.organisation_id,
         ),
         person: records.ia_profiles.find((p) => p.user_id === r.user_id),
-        need: records.ia_needs.find((n) => n.id === r.need_id),
+        need: (() => {
+          const n = records.ia_needs.find((n) => n.id === r.need_id);
+          return n
+            ? {
+                ...n,
+                organisation: records.organisations.find(
+                  (o) => o.id === n.organisation_id,
+                ),
+              }
+            : undefined;
+        })(),
       }));
       return Promise.resolve({
         data: this.returnOne ? out[0] || null : out,

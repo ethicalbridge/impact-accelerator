@@ -62,18 +62,21 @@ do $$ declare n integer; begin
  update public.ia_hours set status='approved' where id='60000000-0000-4000-8000-000000000001';get diagnostics n=row_count;if n<>0 then raise exception 'FAIL self-approval';end if;
 end $$;
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
-update public.ia_hours set status='approved' where id='60000000-0000-4000-8000-000000000001';
+update public.ia_hours set status='approved',deliverables='A reusable report and team handover',rating=5,feedback='Clear, practical work that our team can use immediately.' where id='60000000-0000-4000-8000-000000000001';
 do $$ begin
  if not exists(select 1 from public.ia_messages where body='Can we agree on the handover?') then raise exception 'FAIL organisation cannot read participant message';end if;
  if not exists(select 1 from public.ia_hours where id='60000000-0000-4000-8000-000000000001' and status='approved' and reviewed_by='10000000-0000-4000-8000-000000000002' and reviewed_at is not null) then raise exception 'FAIL review audit missing';end if;
  begin update public.ia_hours set status='changes_requested',review_note='overwrite' where id='60000000-0000-4000-8000-000000000001';raise exception 'FAIL approval overwritten';exception when raise_exception then if sqlerrm like 'FAIL%' then raise;end if;end;
 end $$;
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+update public.ia_hours set public=true where id='60000000-0000-4000-8000-000000000001';
+insert into public.ia_hours(need_id,user_id,work_date,hours,description) values ('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',current_date,1,'A second private pending contribution');
 set local role anon;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 do $$ begin
  if not exists(select 1 from storage.objects where bucket_id='accelerator-portfolio') then raise exception 'FAIL public image not readable';end if;
  if not exists(select 1 from public.ia_portfolio where id='30000000-0000-4000-8000-000000000001') then raise exception 'FAIL published portfolio unavailable';end if;
- begin perform * from public.ia_hours;raise exception 'FAIL anon can read time records';exception when insufficient_privilege then null;end;
+ if (select count(*) from public.ia_hours)<>1 or not exists(select 1 from public.ia_hours where id='60000000-0000-4000-8000-000000000001' and public and status='approved') then raise exception 'FAIL public contribution visibility';end if;
 end $$;
 rollback;
-select 'PASS: visibility, ownership, tenant isolation, decisions, dual-signature agreements, messages, images, daily cap and immutable approval audit' as result;
+select 'PASS: visibility, ownership, tenant isolation, decisions, agreements, verified public contributions, messages, images, daily cap and immutable approval audit' as result;

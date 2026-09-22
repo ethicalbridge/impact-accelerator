@@ -200,11 +200,37 @@ test("accepted match requires both agreement signatures before time entry", asyn
     await navigate(w, "hours");
     q(w, "[data-action=log-time]").click();
     await until(w, () => q(w, 'form[data-form="hours"]'));
+    set(w, "hours", "3");
+    set(w, "description", "Completed the accessible report and handover session.");
+    await submit(w);
+    q(w, "#account").click();
+    q(w, "[data-action=signout]").click();
+    await until(w, () => q(w, "#account").textContent === "Sign in / Join");
+    await login(w, "org@example.test");
+    await navigate(w, "organisation");
+    q(w, "[data-action=approve-hours]").click();
+    await until(w, () => q(w, 'form[data-form="approve-hours"]'));
+    set(w, "deliverables", "Accessible report, reusable template and team handover.");
+    set(w, "rating", "5");
+    set(w, "feedback", "Amina delivered clear, practical work that our team can use immediately.");
+    await submit(w);
+    q(w, "#account").click();
+    q(w, "[data-action=signout]").click();
+    await until(w, () => q(w, "#account").textContent === "Sign in / Join");
+    await login(w);
+    await navigate(w, "hours");
+    q(w, "[data-action=publish-contribution]").click();
+    await until(w, () => q(w, 'form[data-form="publish-contribution"]'));
+    await submit(w);
+    await navigate(w, "profile/10000000-0000-4000-8000-000000000001");
+    assert.match(q(w, ".verified-portfolio").textContent, /Accessible report/);
+    assert.match(q(w, ".verified-portfolio").textContent, /★★★★★ 5.0/);
     const records = JSON.parse(
       w.localStorage.getItem("accelerator-qa-records-v1"),
     );
     assert.ok(records.ia_agreements[0].talent_signed_at);
     assert.ok(records.ia_agreements[0].organisation_signed_at);
+    assert.equal(records.ia_hours[0].public, true);
   } finally {
     w.close();
   }

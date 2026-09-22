@@ -1172,6 +1172,18 @@ main:focus {
   margin-bottom: 24px;
   overflow-wrap: anywhere;
 }
+.verified-portfolio {
+  margin-top: 56px;
+}
+.private-contribution {
+  border-style: dashed;
+  background: #f7f5ef;
+}
+.hours-badge {
+  color: var(--deep);
+  font-size: 20px;
+  white-space: nowrap;
+}
 .contribution-top {
   display: flex;
   flex-wrap: wrap;
@@ -1235,6 +1247,18 @@ summary {
   background: #edf3ed;
   padding: 22px;
   border-radius: 6px;
+}
+.endorsement > strong {
+  color: #84651c;
+  font-size: 19px;
+  letter-spacing: 1px;
+}
+.endorsement cite {
+  color: #34524a;
+  display: block;
+  font-size: 13px;
+  font-style: normal;
+  margin-top: 12px;
 }
 .endorsement .rating {
   color: #84651c;

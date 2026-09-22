@@ -10,6 +10,7 @@ import {
   empty,
   head,
   area,
+  select,
   result,
   profile,
   notify,
@@ -227,10 +228,11 @@ const actions = {
     ),
   "approve-hours": (id) =>
     decision(
-      "Approve these contribution hours?",
-      "Confirm you have reviewed the work. Approval records your account and the review date and cannot be edited.",
+      "Approve and endorse this contribution",
+      "Confirm the work, describe the outcome and add feedback. Your endorsement becomes available for the talent to publish in their impact portfolio. Approval cannot be edited.",
       "approve-hours",
       id,
+      `${area("deliverables", "Deliverables or outcomes", "", true, 3000)}${select("rating", "Organisation rating", [["", "Choose a rating"],["5", "★★★★★ 5 — Excellent"],["4", "★★★★☆ 4 — Very good"],["3", "★★★☆☆ 3 — Good"],["2", "★★☆☆☆ 2 — Needs improvement"],["1", "★☆☆☆☆ 1 — Unsatisfactory"]], "")}${area("feedback", "Written endorsement / feedback", "", true, 3000)}<p class="hint full">Be specific and fair. The talent decides whether this verified record appears publicly.</p>`,
     ),
   "changes-hours": (id) =>
     decision(
@@ -239,6 +241,20 @@ const actions = {
       "changes-hours",
       id,
       area("review_note", "Changes needed", "", true, 2000),
+    ),
+  "publish-contribution": (id) =>
+    decision(
+      "Add this verified contribution to your public profile?",
+      "The need, organisation, approved hours, deliverables, rating, feedback and evidence link will become public while your talent profile is published.",
+      "publish-contribution",
+      id,
+    ),
+  "hide-contribution": (id) =>
+    decision(
+      "Remove this contribution from your public profile?",
+      "The verified record remains private in your impact hours and can be published again later.",
+      "hide-contribution",
+      id,
     ),
   signout: async () => {
     await result(db.auth.signOut());

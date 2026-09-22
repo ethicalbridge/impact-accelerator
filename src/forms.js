@@ -482,13 +482,31 @@ export async function submit(event) {
         .select()
         .single();
     } else if (kind.endsWith("hours")) {
+      if (kind === "approve-hours") {
+        if (!/^[1-5]$/.test(v("rating")))
+          throw Error("Choose an organisation rating from 1 to 5.");
+        if (v("feedback").length < 10)
+          throw Error("Add at least 10 characters of useful written feedback.");
+      }
       query = db
         .from("ia_hours")
         .update({
           status: kind === "approve-hours" ? "approved" : "changes_requested",
           review_note: v("review_note"),
+          deliverables: v("deliverables"),
+          rating: kind === "approve-hours" ? Number(v("rating")) : null,
+          feedback: v("feedback"),
         })
         .eq("id", id)
+        .select()
+        .single();
+    } else if (["publish-contribution", "hide-contribution"].includes(kind)) {
+      query = db
+        .from("ia_hours")
+        .update({ public: kind === "publish-contribution" })
+        .eq("id", id)
+        .eq("user_id", state.user.id)
+        .eq("status", "approved")
         .select()
         .single();
     } else throw Error("This form is not available.");
