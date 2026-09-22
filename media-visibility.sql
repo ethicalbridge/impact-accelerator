@@ -1,0 +1,1 @@
+alter policy ia_image_read on storage.objects using(bucket_id='accelerator-portfolio' and ((storage.foldername(name))[1]=(select auth.uid())::text or exists(select 1 from public.ia_portfolio p join public.ia_profiles u on u.user_id=p.user_id where p.image='storage:'||storage.objects.name and p.published and u.published)));
