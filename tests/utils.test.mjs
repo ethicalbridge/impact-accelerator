@@ -26,14 +26,14 @@ test("supporting links reject executable protocols and relative URLs", () => {
     "https://example.org/report",
   );
 });
-test("directory filters combine search, skills, arrangement and availability", () => {
+test("directory filters combine text, country, area, arrangement and availability", () => {
   const rows = [
     {
       name: "Amina",
       skills: ["Data analysis"],
       hours_available: 4,
       arrangement: "Remote",
-      location: "Accra",
+      location: "Accra, Ghana",
     },
     {
       name: "Bela",
@@ -45,14 +45,18 @@ test("directory filters combine search, skills, arrangement and availability", (
   assert.equal(
     filterRecords(rows, {
       search: "accra",
-      skill: "DATA",
+      country: "Ghana",
+      area: "Data analysis & visualisation",
       availability: "available",
       arrangement: "Remote",
     }).length,
     1,
   );
   assert.equal(
-    filterRecords(rows, { skill: "Design", availability: "available" }).length,
+    filterRecords(rows, {
+      area: "UX & UI design",
+      availability: "available",
+    }).length,
     0,
   );
   assert.equal(filterRecords(rows, {}).length, 2);

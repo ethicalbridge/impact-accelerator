@@ -33,12 +33,20 @@ import {
   gate,
   profileGate,
 } from "./core.js";
-import { filterRecords, types } from "./utils.js";
+import {
+  filterRecords,
+  types,
+  countries,
+  filterLanguages,
+  professionalAreas,
+} from "./utils.js";
 export async function home() {
   return `${allianceIntro}<section class="hero"><div><span class="eyebrow">Expertise in service of local change</span><h1>Good work.<br>Greater impact.</h1><p>Bring your skills to the organisations moving their communities forward. Share what you know, build meaningful experience, and show what you can do.</p><div class="actions"><a class="button" href="#needs">Explore organisational needs →</a><a class="button secondary" href="#talent">Explore talent & impact</a></div></div><div class="showcase"><span class="eyebrow">More than a list of skills</span><h2>Let your work<br>speak for you.</h2><p>A portfolio that connects your expertise to the difference it makes.</p><div class="evidence-stack"><div class="evidence-row"><span class="evidence-icon">01</span><div><b>The work</b><small>Needs solved and contributions completed</small></div></div><div class="evidence-row"><span class="evidence-icon">02</span><div><b>Your contribution</b><small>Your role, approach and professional skills</small></div></div><div class="evidence-row"><span class="evidence-icon">03</span><div><b>The outcome</b><small>Organisation reviews, hours and outcomes.</small></div></div></div></div></section>${contributionSteps}<section class="split"><div><span class="eyebrow">A different way to support</span><h2>Supporting change is not only about money.</h2><p class="muted">Your professional experience can help an organisation solve a problem, strengthen a team, or create something it can keep using. It can also open a meaningful path into the social-impact sector.</p><a href="#guide">See how Impact Accelerator works →</a></div><aside class="side-card"><h3>For organisations</h3><p>Find people through the work they have done, the skills they bring, and the time they can offer.</p><a href="#talent" class="button secondary">Discover talent →</a></aside></section>${safetyNotice}`;
 }
 function filters(kind) {
-  return `<form class="filters" id="filters"><label class="search">Search<input name="search" type="search" placeholder="${kind === "talent" ? "Name, expertise or location" : "Need, organisation or location"}"></label><label>Skill<input name="skill" placeholder="e.g. Research"></label><label>Support language<input name="language" type="search" placeholder="e.g. Spanish"></label>${select("arrangement", "Work arrangement", [["", "All arrangements"], "Remote", "Hybrid", "In person"])}${
+  const typeahead = (name, label, values, placeholder) =>
+    `<label>${label}<input name="${name}" type="search" list="${name}-options" placeholder="${placeholder}" autocomplete="off"><datalist id="${name}-options">${values.map((value) => `<option value="${e(value)}"></option>`).join("")}</datalist></label>`;
+  return `<form class="filters" id="filters"><label class="search">Written text<input name="search" type="search" placeholder="${kind === "talent" ? "Name, experience or keyword" : "Need, organisation or keyword"}"></label>${typeahead("country", "Country", countries, "Type a country")}${typeahead("language", "Support language", filterLanguages, "Type a language")}${select("arrangement", "Work arrangement", [["", "All arrangements"], "Remote", "Hybrid", "In person"])}${typeahead("area", "Professional area", professionalAreas.map((item) => item.label), "Type an area")}${
     kind === "talent"
       ? select("availability", "Availability", [
           ["", "Everyone"],
@@ -80,7 +88,7 @@ export async function directory(kind) {
         ? examples.map(isTalent ? talentCard : needCard).join("")
         : empty(
             "No example matches",
-            "Try another skill or clear the filters.",
+            "Try another country, language or professional area.",
           );
       $("#example-count").textContent =
         `${examples.length} ${examples.length === 1 ? "example" : "examples"}`;
@@ -95,7 +103,7 @@ export async function directory(kind) {
                 ? "A network built by its people"
                 : "Space for the next meaningful contribution",
             activeRows.length
-              ? "Try another skill, location or work arrangement."
+              ? "Try another country, language, professional area or work arrangement."
               : isTalent
                 ? "Publish your profile and be among the first professionals organisations can discover."
                 : "Organisations can publish a clear support need here. Browse talent or prepare your profile while new needs are added.",

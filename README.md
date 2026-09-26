@@ -20,6 +20,8 @@ Accepted matches now open a versioned contribution agreement for both parties. I
 
 Support languages are stored as arrays on both talent profiles and needs. The additive `languages.sql` change has been applied through Supabase MCP. New/edited forms require at least one language and accept local and sign languages. Existing unspecified records are not assumed to support English. Both directories filter by support language.
 
+Talent profiles and needs also have a structured country field. Directory filters provide searchable country, support-language and professional-area lists alongside written text and work arrangement. Professional areas map broad categories such as design, software, legal, finance and communications to the detailed skills stored on each record.
+
 The homepage and About page explain the Alliance's Mobilise, Strengthen and Connect pathways using its published pathway directory. The data-sharing responsibility notice is narrowly scoped, preserves statutory rights and does not exclude the platform's own negligence or data-protection duties. It needs jurisdiction-specific legal review; publishing the notice does not establish enforceability worldwide.
 
 Node 22+ and pnpm 11:
@@ -35,7 +37,7 @@ pnpm start
 
 ## Backend and testing
 
-Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, `media-ownership.sql`, `languages.sql`, `agreements.sql`, and `verified-contributions.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
+Applied migrations, in order, are recorded as `schema.sql`, `hardening.sql`, `media-visibility.sql`, `media-ownership.sql`, `languages.sql`, `agreements.sql`, `verified-contributions.sql`, and `countries.sql`. They create only Accelerator tables (`ia_*`), functions and a separate Storage bucket/policies. Existing organisation and account records are referenced, not copied. Do not rerun these SQL files against an already migrated database.
 
 `tests/rls.sql` exercises the live database policies within a rolled-back transaction, creating no durable test users or public records. It tests profile and image visibility, cross-user writes, organisation isolation, application decisions, dual-signature agreements, messages, daily hour totals and immutable review evidence.
 

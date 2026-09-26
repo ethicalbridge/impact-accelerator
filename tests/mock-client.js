@@ -12,6 +12,7 @@ const seed = {
       headline: "Research & impact measurement specialist",
       bio: "I turn complex evidence into clear decisions for community-led organisations. My work spans research design, accessible reporting and practical data tools.",
       location: "Nairobi · UTC+3",
+      country: "Kenya",
       skills: ["Research", "Data analysis", "Training"],
       languages: ["English", "Swahili"],
       experience:
@@ -84,6 +85,7 @@ const seed = {
       hours: 8,
       arrangement: "Remote",
       location: "East Africa",
+      country: "Kenya",
       skills: ["Research", "Design"],
       languages: ["English", "Swahili"],
       deadline: null,

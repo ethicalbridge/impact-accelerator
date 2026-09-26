@@ -115,12 +115,14 @@ test("profile editing saves availability and explicit privacy choice", async () 
     await until(w, () => q(w, "[name=hours_available]"));
     set(w, "hours_available", "6");
     set(w, "languages", "English, Spanish, english");
+    set(w, "country", "Spain");
     q(w, "[name=published]").checked = false;
     await submit(w);
     const p = JSON.parse(w.localStorage.getItem("accelerator-qa-records-v1"))
       .ia_profiles[0];
     assert.equal(p.hours_available, 6);
     assert.deepEqual(p.languages, ["English", "Spanish"]);
+    assert.equal(p.country, "Spain");
     assert.equal(p.published, false);
     assert.match(q(w, "main").textContent, /Your profile is private/);
   } finally {
@@ -252,6 +254,7 @@ test("organisation creates a draft need with correct ownership", async () => {
     set(w, "output", "A toolkit and staff handover");
     set(w, "skills", "Research, Training");
     set(w, "languages", "French, Swahili");
+    set(w, "country", "Kenya");
     await submit(w);
     assert.equal(q(w, ".form-error")?.textContent || "", "");
     const n = JSON.parse(
@@ -259,6 +262,7 @@ test("organisation creates a draft need with correct ownership", async () => {
     ).ia_needs.at(-1);
     assert.equal(n.status, "draft");
     assert.deepEqual(n.languages, ["French", "Swahili"]);
+    assert.equal(n.country, "Kenya");
     assert.equal(n.organisation_id, "20000000-0000-4000-8000-000000000001");
   } finally {
     w.close();
@@ -295,6 +299,14 @@ test("home introduces the Alliance, protects sensitive information and links all
     assert.ok(q(w, 'a[href="https://ethicalbridge.github.io/mobilise/"]'));
     assert.ok(q(w, 'a[href="https://julimapea.com/"]'));
     await navigate(w, "talent");
+    assert.ok(q(w, '#filters [name="country"][list="country-options"]'));
+    assert.ok(q(w, '#filters [name="language"][list="language-options"]'));
+    assert.ok(q(w, '#filters [name="area"][list="area-options"]'));
+    q(w, "#filters [name=country]").value = "Spain";
+    q(w, "#filters").dispatchEvent(new w.Event("input", { bubbles: true }));
+    assert.match(q(w, "#example-results").textContent, /Maria Lopez/);
+    assert.doesNotMatch(q(w, "#example-results").textContent, /Amara Mensah/);
+    q(w, "#filters").reset();
     q(w, "#filters [name=language]").value = "Spanish";
     q(w, "#filters").dispatchEvent(new w.Event("input", { bubbles: true }));
     assert.match(q(w, "#example-results").textContent, /Maria Lopez/);

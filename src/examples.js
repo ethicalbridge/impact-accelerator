@@ -71,6 +71,15 @@ export const exampleTalents = [
   ],
 ].map(([id, name, headline, location, hours_available, skills]) => ({
   user_id: `example-${id}`,
+  country: {
+    "maria-lopez": "Spain",
+    "amara-mensah": "Ghana",
+    "daniel-okafor": "Nigeria",
+    "lucia-navarro": "Spain",
+    "samira-khan": "Bangladesh",
+    "jonas-mbeki": "South Africa",
+    "elena-araya": "Chile",
+  }[id],
   languages: {
     "maria-lopez": ["English", "Spanish"],
     "amara-mensah": ["English", "Twi"],
@@ -148,6 +157,15 @@ export const exampleNeeds = [
   ],
 ].map(([id, title, org, output, hours, skills]) => ({
   id: `example-${id}`,
+  country: {
+    accessibility: "Spain",
+    "water-data": "Kenya",
+    "donor-research": "France",
+    "inclusive-training": "Ghana",
+    "youth-campaign": "Nigeria",
+    "finance-toolkit": "South Africa",
+    recruitment: "Kenya",
+  }[id],
   languages: {
     accessibility: ["English", "Spanish"],
     "water-data": ["English", "Swahili"],
