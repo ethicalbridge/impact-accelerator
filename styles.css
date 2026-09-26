@@ -1544,8 +1544,11 @@ summary {
   display: grid;
   grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.5fr);
   gap: 34px;
-  padding-top: 30px;
-  border-top: 1px solid #c4cfbf;
+  margin: 6px -36px -36px;
+  padding: 32px 36px 36px;
+  background: #f3ead8;
+  border-top: 1px solid #d8c9aa;
+  border-radius: 0 0 9px 9px;
 }
 .trust-resources h3 {
   margin: 0 0 10px;
@@ -1788,6 +1791,8 @@ summary {
   .trust-resources {
     grid-template-columns: 1fr;
     gap: 18px;
+    margin: 0 -24px -24px;
+    padding: 28px 24px 24px;
   }
   .trust-links {
     grid-template-columns: 1fr;
