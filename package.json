@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.mjs",
+    "qa": "MOCK=1 OUT=../qa-site node scripts/build.mjs && node scripts/serve.mjs ../qa-site",
     "start": "node scripts/serve.mjs"
   },
   "dependencies": {

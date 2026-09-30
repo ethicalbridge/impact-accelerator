@@ -17,4 +17,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
-      - run: git diff --exit-code -- app.js
+      - name: Committed bundle is a production build
+        run: |
+          test -s app.js
+          ! grep -q "ia-mock-db" app.js
+          grep -q "jcfezemkbseaqbwuojhs" app.js

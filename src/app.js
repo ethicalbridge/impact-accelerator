@@ -1,328 +1,195 @@
-import { aboutAlliance } from "./alliance.js";
-import { conversation } from "./messages.js";
-import { agreement } from "./agreements.js";
-import {
-  db,
-  state,
-  $,
-  e,
-  btn,
-  empty,
-  head,
-  area,
-  select,
-  result,
-  profile,
-  notify,
-  showDialog,
-  closeDialog,
-  errorMessage,
-} from "./core.js";
-import {
-  home,
-  directory,
-  profilePage,
-  portfolio,
-  workPage,
-  needPage,
-} from "./pages.js";
-import { workspace, organisation, hours } from "./workspace.js";
-import { guides } from "./guides.js";
-import {
-  authForm,
-  requireUser,
-  editProfile,
-  editWork,
-  editNeed,
-  apply,
-  invite,
-  logTime,
-  decision,
-  recoveryForm,
-  submit,
-} from "./forms.js";
-let routeVersion = 0;
+import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result, homeFor, e } from "./core.js";
+import { header, footer } from "./ui.js";
+import { config } from "./config.js";
+import { initConsent, trackPage } from "./consent.js";
+import * as pub from "./pages/public.js";
+import * as acc from "./pages/account.js";
+import * as ws from "./pages/workspace.js";
+import * as eng from "./pages/engagement.js";
+import * as adm from "./pages/admin.js";
+import * as legal from "./pages/legal.js";
+
+const LEGACY = { about: "how", guide: "how", safeguarding: "safety", organisation: "org", hours: "workspace", portfolio: "workspace", dashboard: "workspace", pool: "workspace", projects: "needs", "organisation-view": "org" };
+const ACTIVE = { needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#organisations" };
+
+function parse() {
+  const raw = decodeURIComponent(location.hash.slice(1) || "home");
+  const [path, query = ""] = raw.split("?");
+  const parts = path.split("/").filter(Boolean);
+  const name = LEGACY[parts[0]] || parts[0] || "home";
+  return { name, a: parts[1], b: parts[2], params: new URLSearchParams(query) };
+}
+
+async function page(r) {
+  switch (r.name) {
+    case "home": return pub.home();
+    case "organisations": return pub.organisations();
+    case "needs": return pub.needs();
+    case "need": return r.a ? pub.need(r.a) : { redirect: "#needs" };
+    case "talent": return pub.talent();
+    case "profile": return r.a ? pub.profile(r.a) : { redirect: "#talent" };
+    case "how": return pub.how();
+    case "join": return acc.join(r.params);
+    case "signin": return acc.signin(r.params);
+    case "reset": return acc.reset();
+    case "onboarding": return acc.onboarding();
+    case "account": return acc.account();
+    case "workspace": return ws.workspace(r.a);
+    case "org": return ws.org(r.a, r.b);
+    case "agreement": return r.a ? eng.agreement(r.a) : { redirect: homeFor() };
+    case "conversation": return r.a ? eng.conversation(r.a) : { redirect: homeFor() };
+    case "conversation-for": return eng.conversationFor(r.a, r.b);
+    case "notifications": return adm.notifications();
+    case "admin": return adm.admin();
+    case "privacy": return legal.privacy();
+    case "terms": return legal.terms();
+    case "cookies": return legal.cookies();
+    case "safety": return legal.safety();
+    case "report": return legal.report();
+    default: return pub.notFound();
+  }
+}
+
+let version = 0;
 async function render() {
-  const version = ++routeVersion;
-  const [raw = "home", id] = location.hash.slice(1).split("/");
-  const route =
-    {
-      organisations: "needs",
-      pool: "workspace",
-      "organisation-view": "organisation",
-      projects: "needs",
-      dashboard: "workspace",
-    }[raw] ||
-    raw ||
-    "home";
-  state.afterRender = () => {};
-  $("#main").innerHTML = '<div class="loading" role="status">Loading…</div>';
-  $("#navigation").classList.remove("open");
-  $("#menu").setAttribute("aria-expanded", "false");
-  document.querySelectorAll("#navigation a").forEach((a) => {
-    if (a.hash === `#${route}`) a.setAttribute("aria-current", "page");
-    else a.removeAttribute("aria-current");
-  });
+  const v = ++version;
+  const r = parse();
+  if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
+  $("#site-header").innerHTML = header(ACTIVE[r.name]);
+  const main = $("#main");
+  main.setAttribute("aria-busy", "true");
   try {
-    let html;
-    if (route === "home") html = await home();
-    else if (route === "about") html = aboutAlliance();
-    else if (["needs", "talent"].includes(route)) html = await directory(route);
-    else if (route === "profile" && id) html = await profilePage(id);
-    else if (route === "need" && id) html = await needPage(id);
-    else if (route === "work" && id) html = await workPage(id);
-    else if (route === "portfolio") html = await portfolio();
-    else if (route === "workspace") html = await workspace();
-    else if (route === "organisation") html = await organisation();
-    else if (route === "hours") html = await hours();
-    else if (guides[route]) {
-      const [title, copy, body] = guides[route];
-      html = `<article class="reading">${head("Impact Accelerator", title, copy)}${body}</article>`;
-    } else
-      html = empty(
-        "Page not found",
-        "Use the navigation to find your way back.",
-        '<a href="#home" class="button">Go home</a>',
-      );
-    if (version !== routeVersion) return;
-    $("#main").innerHTML = html;
-    state.afterRender();
-    document.title = `${$("#main h1")?.textContent || "Impact Accelerator"} · Impact Accelerator`;
-    $("#main").focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: "instant" });
+    const out = await page(r);
+    if (v !== version) return;
+    if (out.redirect) { location.replace(out.redirect.startsWith("#") ? out.redirect : "#" + out.redirect); return; }
+    main.innerHTML = out.html;
+    document.title = `${out.title} · Impact Accelerator`;
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.content = out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.";
+    out.after?.();
+    trackPage(out.title);
   } catch (err) {
-    if (version !== routeVersion) return;
-    $("#main").innerHTML = empty(
-      "We could not load this page",
-      e(errorMessage(err)),
-      btn("Try again", "reload"),
-    );
-  }
-}
-state.render = render;
-async function saveNeed(id) {
-  if (!requireUser()) return;
-  const existing = await result(
-    db
-      .from("ia_saved")
-      .select("need_id")
-      .eq("user_id", state.user.id)
-      .eq("need_id", id)
-      .maybeSingle(),
-  );
-  await result(
-    existing
-      ? db
-          .from("ia_saved")
-          .delete()
-          .eq("user_id", state.user.id)
-          .eq("need_id", id)
-      : db.from("ia_saved").insert({ user_id: state.user.id, need_id: id }),
-  );
-  notify(
-    existing ? "Removed from saved needs." : "Need saved to your workspace.",
-  );
-  await render();
-}
-async function exportPortfolio() {
-  if (!requireUser()) return;
-  const p = await profile();
-  const items = await result(
-    db.from("ia_portfolio").select("*").eq("user_id", state.user.id),
-  );
-  const blob = new Blob(
-    [
-      JSON.stringify(
-        { exported_at: new Date().toISOString(), profile: p, portfolio: items },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
-  );
-  const url = URL.createObjectURL(blob),
-    a = document.createElement("a");
-  a.href = url;
-  a.download = "impact-accelerator-portfolio.json";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  notify(
-    "Portfolio exported. For a PDF, use Print / Save PDF on your profile.",
-  );
-}
-const actions = {
-  conversation,
-  agreement,
-  auth: () => authForm(),
-  signup: () => authForm("signup"),
-  reset: () => authForm("reset"),
-  close: closeDialog,
-  reload: render,
-  "edit-profile": editProfile,
-  "example-linkedin": () =>
-    showDialog(
-      "LinkedIn ' Example",
-      "<p>This example shows where a talent's LinkedIn profile appears. Maria is fictional, so no real person's profile is linked.</p><p>Real members can add a LinkedIn URL in Edit profile. A supplied link is not proof of identity. LinkedIn identity verification is not connected.</p>",
-    ),
-  "add-need": () => editNeed(),
-  "edit-need": editNeed,
-  apply,
-  invite,
-  "log-time": logTime,
-  "save-need": saveNeed,
-  export: exportPortfolio,
-  print: () => window.print(),
-  "clear-filters": () => $("#filters")?.reset(),
-  share: async (url) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      notify("Link copied.");
-    } catch {
-      showDialog(
-        "Share this page",
-        `<label>Page link<input readonly value="${e(url)}"></label><p>Select and copy this link.</p>`,
-      );
-    }
-  },
-  "delete-work": (id) =>
-    decision(
-      "Delete this portfolio entry?",
-      "This permanently removes this work entry. You can cancel to keep it.",
-      "delete-work",
-      id,
-    ),
-  withdraw: (id) =>
-    decision(
-      "Withdraw your application?",
-      "The organisation will see it as withdrawn. The original application is kept for your records.",
-      "withdraw",
-      id,
-    ),
-  "accept-application": (id) =>
-    decision(
-      "Accept this application?",
-      "This creates a match. Both parties must review and sign the contribution agreement before work begins or hours can be submitted.",
-      "accept-application",
-      id,
-    ),
-  "decline-application": (id) =>
-    decision(
-      "Decline this application?",
-      "The professional will see the decision in their workspace. This decision is final.",
-      "decline-application",
-      id,
-    ),
-  "accept-invite": (id) =>
-    decision(
-      "Accept this invitation?",
-      "This creates a match. Both parties must review and sign the contribution agreement before work begins or hours can be submitted.",
-      "accept-invite",
-      id,
-    ),
-  "decline-invite": (id) =>
-    decision(
-      "Decline this invitation?",
-      "The organisation will see your decision.",
-      "decline-invite",
-      id,
-    ),
-  "approve-hours": (id) =>
-    decision(
-      "Approve and endorse this contribution",
-      "Confirm the work, describe the outcome and add feedback. Your endorsement becomes available for the talent to publish in their impact portfolio. Approval cannot be edited.",
-      "approve-hours",
-      id,
-      `${area("deliverables", "Deliverables or outcomes", "", true, 3000)}${select("rating", "Organisation rating", [["", "Choose a rating"],["5", "★★★★★ 5 — Excellent"],["4", "★★★★☆ 4 — Very good"],["3", "★★★☆☆ 3 — Good"],["2", "★★☆☆☆ 2 — Needs improvement"],["1", "★☆☆☆☆ 1 — Unsatisfactory"]], "")}${area("feedback", "Written endorsement / feedback", "", true, 3000)}<p class="hint full">Be specific and fair. The talent decides whether this verified record appears publicly.</p>`,
-    ),
-  "changes-hours": (id) =>
-    decision(
-      "Request changes",
-      "Explain what needs correcting. The original record is retained and the professional can submit a corrected entry.",
-      "changes-hours",
-      id,
-      area("review_note", "Changes needed", "", true, 2000),
-    ),
-  "publish-contribution": (id) =>
-    decision(
-      "Add this verified contribution to your public profile?",
-      "The need, organisation, approved hours, deliverables, rating, feedback and evidence link will become public while your talent profile is published.",
-      "publish-contribution",
-      id,
-    ),
-  "hide-contribution": (id) =>
-    decision(
-      "Remove this contribution from your public profile?",
-      "The verified record remains private in your impact hours and can be published again later.",
-      "hide-contribution",
-      id,
-    ),
-  signout: async () => {
-    await result(db.auth.signOut());
-    state.user = null;
-    closeDialog();
-    $("#account").textContent = "Sign in / Join";
-    location.hash = "home";
-    await render();
-    notify("Signed out.");
-  },
-};
-document.addEventListener("click", async (event) => {
-  const target = event.target.closest("[data-action]");
-  if (!target) return;
-  if (target.tagName === "BUTTON") event.preventDefault();
-  const action = actions[target.dataset.action];
-  if (!action) return;
-  target.disabled = true;
-  try {
-    await action(target.dataset.id);
-  } catch (err) {
-    notify(errorMessage(err));
+    if (v !== version) return;
+    console.error(err);
+    main.innerHTML = `<div class="wrap page-head" style="padding-bottom:120px"><span class="eyebrow">Something went wrong</span><h1>We couldn’t load this page</h1><p class="lead">${e(errorMessage(err))}</p><div class="row"><button class="btn" type="button" data-action="reload">Try again</button><a class="btn secondary" href="#home">Go home</a></div></div>`;
+    document.title = "Something went wrong · Impact Accelerator";
   } finally {
-    target.disabled = false;
+    main.removeAttribute("aria-busy");
+  }
+  if (!r.params.has("keep-scroll")) window.scrollTo({ top: 0, behavior: "instant" });
+  if (!firstRender) main.focus({ preventScroll: true });
+  firstRender = false;
+}
+let firstRender = true;
+
+// ---------- actions ----------
+const rpc = async (fn, args, message, next) => { await result(db.rpc(fn, args)); await loadSession(); if (message) toast(message); go(next || location.hash); };
+const actions = {
+  reload: () => render(),
+  close: () => closeDialog(),
+  menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); },
+  signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
+  "clear-filters": () => $("#filters")?.reset(),
+  "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
+  print: () => window.print(),
+  apply: (el) => pub.applyDialog(el.dataset.id),
+  "save-need": async (el) => {
+    if (!state.user) return go("#signin");
+    const id = el.dataset.id;
+    const existing = await result(db.from("saved_needs").select("need_id").eq("user_id", state.user.id).eq("need_id", id).maybeSingle());
+    await result(existing ? db.from("saved_needs").delete().eq("user_id", state.user.id).eq("need_id", id) : db.from("saved_needs").insert({ user_id: state.user.id, need_id: id }));
+    toast(existing ? "Removed from saved needs." : "Saved to your workspace.");
+    render();
+  },
+  invite: (el) => ws.inviteDialog(el.dataset.id),
+  report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
+  withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),
+  "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
+  "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
+  "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need closes to new applications.", "app-accept", el.dataset.id, "", "Accept"),
+  "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
+  "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
+  "hours-changes": (el) => ws.decisionDialog("Request changes", "Explain what needs to change. The professional can submit a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
+  complete: (el) => ws.completeDialog(el.dataset.id),
+  "end-engagement": (el) => ws.decisionDialog("End this engagement?", "Use this if the work can’t go ahead. Both of you will be notified and the conversation will close.", "end-engagement", el.dataset.id, "", "End engagement", true),
+  "close-need": (el) => ws.decisionDialog("Close this need?", "It will stop accepting applications. Existing applications and engagements are kept.", "close-need", el.dataset.id, "", "Close need"),
+  "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
+  followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this engagement was completed. Your answer helps show what lasts. It is not shown publicly.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
+  "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your public CV." : "Removed from your public CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
+  "switch-org": (el) => { sessionStorage.setItem("ia-org", el.value); render(); },
+  "switch-role": async (el) => { await db.auth.updateUser({ data: { role: el.dataset.id } }); await loadSession(); render(); },
+  "read-one": async (el) => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", el.dataset.id); state.unread = Math.max(0, state.unread - 1); },
+  "read-all": async () => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", state.user.id).is("read_at", null); state.unread = 0; render(); },
+  "admin-org": (el) => adm.adminDecision("org", el.dataset.id, el.dataset.decision),
+  "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
+  "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
+  "delete-account": () => acc.deleteAccount(),
+  "cookie-settings": () => initConsent(true),
+};
+
+const forms = {
+  signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
+  "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f),
+  "org-create": (f) => acc.submitAccount("org-create", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
+  "confirm-delete": (f) => acc.confirmDelete(f),
+  apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
+  sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f),
+};
+const confirmRpc = {
+  withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
+  "invite-accept": ["respond_invitation", (id) => ({ p_id: id, p_accept: true }), "Invitation accepted. Please sign the agreement."],
+  "invite-decline": ["respond_invitation", (id) => ({ p_id: id, p_accept: false }), "Invitation declined."],
+  "app-accept": ["decide_application", (id) => ({ p_id: id, p_accept: true }), "Application accepted. Please sign the agreement."],
+  "app-decline": ["decide_application", (id) => ({ p_id: id, p_accept: false }), "Application declined."],
+  "hours-changes": ["review_hours", (id, fd) => ({ p_id: id, p_approve: false, p_note: String(fd.get("note") || "") }), "Changes requested."],
+  "end-engagement": ["end_engagement", (id) => ({ p_id: id, p_reason: "" }), "Engagement ended."],
+  "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
+  complete: ["complete_engagement", (id, fd) => ({ p_id: id, p_deliverables: String(fd.get("deliverables") || ""), p_endorsement: String(fd.get("endorsement") || ""), p_role: String(fd.get("role") || ""), p_rating: Number(fd.get("rating")) }), "Engagement completed and endorsed. Thank you."],
+  followup: ["answer_followup", (id, fd) => ({ p_id: id, p_in_use: fd.get("in_use") === "yes", p_note: String(fd.get("note") || "") }), "Thank you. Your answer is saved."],
+};
+
+document.addEventListener("click", async (ev) => {
+  const el = ev.target.closest("[data-action]");
+  if (!el) {
+    if (!ev.target.closest(".account-menu")) document.querySelectorAll(".account-menu[open]").forEach((d) => d.removeAttribute("open"));
+    return;
+  }
+  const fn = actions[el.dataset.action];
+  if (!fn || el.tagName === "SELECT") return;
+  if (el.tagName === "BUTTON" || el.tagName === "A" && el.dataset.action !== "read-one") ev.preventDefault();
+  if (el.dataset.action === "read-one") { fn(el); return; }
+  if (el.type === "checkbox") { fn(el); return; }
+  el.setAttribute("aria-disabled", "true");
+  try { await fn(el); } catch (err) { toast(errorMessage(err)); } finally { el.removeAttribute("aria-disabled"); }
+});
+document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) actions[ev.target.dataset.action]?.(ev.target); });
+document.addEventListener("submit", async (ev) => {
+  const f = ev.target;
+  const kind = f.dataset.form;
+  if (!kind) return;
+  ev.preventDefault();
+  if (forms[kind]) return forms[kind](f);
+  if (confirmRpc[kind]) {
+    const [fn, args, msg] = confirmRpc[kind];
+    const { withForm } = await import("./core.js");
+    return withForm(f, async (fd) => { if (!f.checkValidity()) { f.reportValidity(); throw Error("Please complete the form."); } await result(db.rpc(fn, args(f.dataset.id, fd))); closeDialog(); await loadSession(); toast(msg); render(); });
+  }
+  if (kind === "close-need") {
+    const { withForm } = await import("./core.js");
+    return withForm(f, async () => { await result(db.from("needs").update({ status: "closed" }).eq("id", f.dataset.id)); closeDialog(); toast("Need closed."); render(); });
   }
 });
-document.addEventListener(
-  "error",
-  (event) => {
-    if (event.target.tagName === "IMG") event.target.hidden = true;
-  },
-  true,
-);
-document.addEventListener("submit", submit);
-$(".skip").addEventListener("click", (event) => {
-  event.preventDefault();
-  $("#main").focus();
-  $("#main").scrollIntoView();
+
+$("#dialog").addEventListener("click", (ev) => { if (ev.target.closest(".dialog-close") || ev.target === $("#dialog")) closeDialog(); });
+window.addEventListener("hashchange", () => { if ($("#dialog").open) $("#dialog").close(); render(); });
+db.auth.onAuthStateChange(async (event) => {
+  if (event === "PASSWORD_RECOVERY") setTimeout(acc.newPasswordDialog, 50);
+  if (event === "SIGNED_IN" && state.ready && !state.user) { await loadSession(); render(); }
 });
-$("#menu").addEventListener("click", () => {
-  const open = $("#navigation").classList.toggle("open");
-  $("#menu").setAttribute("aria-expanded", String(open));
-});
-$("#account").addEventListener("click", () =>
-  state.user
-    ? showDialog(
-        "Your account",
-        `<p>${e(state.user.email)}</p><p>Your account is shared with Ethical Bridge. Your Accelerator profile and portfolio visibility are managed separately.</p><div class="actions">${btn("Edit profile", "edit-profile")}${btn("Sign out", "signout", "", "secondary")}</div>`,
-      )
-    : authForm(),
-);
-$("#dialog .close").addEventListener("click", closeDialog);
-window.addEventListener("hashchange", () => {
-  if ($("#dialog").open) closeDialog();
-  render();
-});
-db.auth.onAuthStateChange((event, session) => {
-  state.user = session?.user || null;
-  $("#account").textContent = state.user ? "Account" : "Sign in / Join";
-  if (event === "PASSWORD_RECOVERY") setTimeout(recoveryForm, 0);
-  if (event === "SIGNED_OUT") setTimeout(render, 0);
-});
-try {
-  const { data, error } = await db.auth.getSession();
-  if (error) throw error;
-  state.user = data.session?.user || null;
-  $("#account").textContent = state.user ? "Account" : "Sign in / Join";
-} catch {
-  notify("Your session could not be restored. Please sign in again.");
-}
-await render();
+
+$(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
+$("#site-footer").innerHTML = footer(config);
+try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
+initConsent();
+render();
