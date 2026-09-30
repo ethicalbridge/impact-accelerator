@@ -1,151 +1,79 @@
-export const escapeHTML = (value) =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
-export function safeURL(value) {
+// Pure helpers: no DOM, no network. Covered by tests/utils.test.mjs.
+export const e = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+export function safeURL(value, httpsOnly = false) {
   if (!value) return "";
   try {
-    const u = new URL(value);
-    return u.protocol === "https:" || u.protocol === "http:" ? u.href : "";
-  } catch {
-    return "";
-  }
+    const u = new URL(String(value).trim());
+    if (u.protocol === "https:" || (!httpsOnly && u.protocol === "http:")) return u.href;
+  } catch {}
+  return "";
 }
-export const list = (value) =>
-  String(value || "")
+
+export const list = (value, max = 30) =>
+  [...new Set(String(value || "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, max);
+
+export function languages(value) {
+  const seen = new Set();
+  const out = String(value || "")
     .split(",")
     .map((x) => x.trim())
-    .filter(Boolean)
-    .slice(0, 30);
+    .filter((x) => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()));
+  if (!out.length) throw Error("Add at least one language you can work in.");
+  if (out.length > 20 || out.some((x) => x.length > 80)) throw Error("Use up to 20 languages, each under 80 characters.");
+  return out;
+}
 
 export const professionalAreas = [
-  ["Accessibility & inclusion", "accessibility inclusive inclusion disability universal design"],
-  ["Accounting & bookkeeping", "accounting bookkeeping accounts payroll"],
-  ["Administration & operations", "administration operations office process coordination"],
-  ["Artificial intelligence", "artificial intelligence ai machine learning automation"],
-  ["Branding & graphic design", "branding brand graphic design illustration visual identity"],
-  ["Business development", "business development partnerships sales growth"],
-  ["Campaigns & advocacy", "campaign advocacy campaigning mobilisation mobilization"],
-  ["Communications & public relations", "communications communication public relations pr media"],
-  ["Community engagement", "community engagement participation outreach facilitation"],
-  ["Content & copywriting", "content copywriting writing editing storytelling"],
-  ["Data analysis & visualisation", "data analysis analytics visualisation visualization dashboard"],
-  ["Digital marketing", "digital marketing seo social media email marketing"],
-  ["Environmental & climate", "environment environmental climate sustainability conservation"],
-  ["Event planning", "event events planning production logistics"],
-  ["Finance & financial planning", "finance financial budgeting forecasting investment"],
-  ["Fundraising & grant writing", "fundraising grant writing donor philanthropy"],
-  ["Governance & board support", "governance board policy compliance trustee"],
-  ["Human resources & people", "human resources hr people recruitment talent wellbeing"],
-  ["Information technology support", "information technology it support systems helpdesk"],
-  ["Legal & compliance", "legal law compliance contracts regulatory policy"],
-  ["Monitoring, evaluation & learning", "monitoring evaluation learning mel impact measurement"],
-  ["Photography & video", "photography video film animation editing"],
-  ["Product management", "product management product strategy roadmap agile"],
-  ["Programme & project management", "programme program project management delivery planning"],
-  ["Research & insights", "research insights user research qualitative quantitative survey"],
-  ["Service design", "service design journey mapping systems design co-design"],
-  ["Software development", "software development engineering programming developer mobile app"],
-  ["Strategy & organisational development", "strategy organisational organizational development change management"],
-  ["Training & facilitation", "training facilitation workshop coaching mentoring learning"],
-  ["Translation & interpretation", "translation interpretation localisation localization language"],
-  ["UX & UI design", "ux ui user experience interface figma prototyping design"],
-  ["Web design & development", "web website frontend backend wordpress webflow development"],
-].map(([label, keywords]) => ({ label, keywords }));
+  ["Accessibility & inclusion", "accessibility inclusive inclusion disability"],
+  ["Accounting & finance", "accounting bookkeeping finance financial budgeting budget payroll"],
+  ["Communications & storytelling", "communications communication storytelling media social content copywriting writing"],
+  ["Data, MEL & research", "data analysis analytics monitoring evaluation learning mel research survey dashboard"],
+  ["Design & UX", "design ux ui user experience figma graphic branding illustration"],
+  ["Fundraising & grants", "fundraising grant grants donor donors philanthropy"],
+  ["HR & people", "human resources recruitment people wellbeing hr"],
+  ["Legal & policy", "legal law policy compliance governance contracts"],
+  ["Strategy & operations", "strategy operations planning project management programme"],
+  ["Technology & web", "software web website development developer technology digital it"],
+  ["Training & facilitation", "training facilitation workshop coaching mentoring"],
+  ["Translation & languages", "translation interpretation localisation localization"],
+  ["Video & photography", "video photography film editing animation"],
+].map(([label, keywords]) => ({ label, keywords: keywords.split(" ") }));
 
-export const countries = `Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbuda|Argentina|Armenia|Australia|Austria|Azerbaijan|Bahamas|Bahrain|Bangladesh|Barbados|Belarus|Belgium|Belize|Benin|Bhutan|Bolivia|Bosnia and Herzegovina|Botswana|Brazil|Brunei|Bulgaria|Burkina Faso|Burundi|Cabo Verde|Cambodia|Cameroon|Canada|Central African Republic|Chad|Chile|China|Colombia|Comoros|Costa Rica|Croatia|Cuba|Cyprus|Czechia|Democratic Republic of the Congo|Denmark|Djibouti|Dominica|Dominican Republic|Ecuador|Egypt|El Salvador|Equatorial Guinea|Eritrea|Estonia|Eswatini|Ethiopia|Fiji|Finland|France|Gabon|Gambia|Georgia|Germany|Ghana|Greece|Grenada|Guatemala|Guinea|Guinea-Bissau|Guyana|Haiti|Honduras|Hungary|Iceland|India|Indonesia|Iran|Iraq|Ireland|Israel|Italy|Ivory Coast|Jamaica|Japan|Jordan|Kazakhstan|Kenya|Kiribati|Kuwait|Kyrgyzstan|Laos|Latvia|Lebanon|Lesotho|Liberia|Libya|Liechtenstein|Lithuania|Luxembourg|Madagascar|Malawi|Malaysia|Maldives|Mali|Malta|Marshall Islands|Mauritania|Mauritius|Mexico|Micronesia|Moldova|Monaco|Mongolia|Montenegro|Morocco|Mozambique|Myanmar|Namibia|Nauru|Nepal|Netherlands|New Zealand|Nicaragua|Niger|Nigeria|North Korea|North Macedonia|Norway|Oman|Pakistan|Palau|Palestine|Panama|Papua New Guinea|Paraguay|Peru|Philippines|Poland|Portugal|Qatar|Republic of the Congo|Romania|Russia|Rwanda|Saint Kitts and Nevis|Saint Lucia|Saint Vincent and the Grenadines|Samoa|San Marino|Sao Tome and Principe|Saudi Arabia|Senegal|Serbia|Seychelles|Sierra Leone|Singapore|Slovakia|Slovenia|Solomon Islands|Somalia|South Africa|South Korea|South Sudan|Spain|Sri Lanka|Sudan|Suriname|Sweden|Switzerland|Syria|Taiwan|Tajikistan|Tanzania|Thailand|Timor-Leste|Togo|Tonga|Trinidad and Tobago|Tunisia|Türkiye|Turkmenistan|Tuvalu|Uganda|Ukraine|United Arab Emirates|United Kingdom|United States|Uruguay|Uzbekistan|Vanuatu|Vatican City|Venezuela|Vietnam|Yemen|Zambia|Zimbabwe`.split("|");
+const words = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+const norm = (text) => words(text).join(" ");
 
-export const filterLanguages = `Arabic|Bengali|British Sign Language|Bulgarian|Burmese|Cantonese|Catalan|Croatian|Czech|Danish|Dutch|English|Estonian|Finnish|French|German|Greek|Gujarati|Hausa|Hebrew|Hindi|Hungarian|Indonesian|Irish|Italian|Japanese|Korean|Latvian|Lithuanian|Malay|Mandarin Chinese|Marathi|Nepali|Norwegian|Persian|Polish|Portuguese|Punjabi|Romanian|Russian|Serbian|Slovak|Slovenian|Somali|Spanish|Swahili|Swedish|Tamil|Telugu|Thai|Turkish|Ukrainian|Urdu|Vietnamese|Welsh|Yoruba|American Sign Language|International Sign`.split("|");
-export function filterRecords(
-  rows,
-  {
-    search = "",
-    skill = "",
-    area = "",
-    country = "",
-    type = "",
-    availability = "",
-    arrangement = "",
-    language = "",
-  } = {},
-) {
-  const areaQuery = professionalAreas.find(
-    (item) => item.label.toLocaleLowerCase() === area.trim().toLocaleLowerCase(),
-  );
-  const areaTerms = areaQuery
-    ? `${areaQuery.label} ${areaQuery.keywords}`.toLocaleLowerCase().split(/\s+/)
-    : [area.trim().toLocaleLowerCase()];
-  return rows.filter(
-    (r) =>
-      (!search ||
-        JSON.stringify([
-          r.name,
-          r.title,
-          r.headline,
-          r.location,
-          r.description,
-          r.skills,
-          r.languages,
-          r.organisation?.public_name,
-        ])
-          .toLowerCase()
-          .includes(search.toLowerCase())) &&
-      (!skill ||
-        (r.skills || []).some((x) =>
-          x.toLowerCase().includes(skill.toLowerCase()),
-        )) &&
-      (!area ||
-        areaTerms.some((term) =>
-          JSON.stringify([r.skills, r.headline, r.title, r.description])
-            .toLocaleLowerCase()
-            .includes(term),
-        )) &&
-      (!country ||
-        `${r.country || ""} ${r.location || ""}`
-          .toLocaleLowerCase()
-          .includes(country.trim().toLocaleLowerCase())) &&
-      (!language ||
-        (r.languages || []).some((x) =>
-          x.toLocaleLowerCase().includes(language.trim().toLocaleLowerCase()),
-        )) &&
-      (!type || r.work_type === type) &&
-      (!availability || r.hours_available > 0) &&
-      (!arrangement || r.arrangement === arrangement),
-  );
+// Whole-word matching so short keywords like "it" or "ui" never match inside other words.
+export function filterRecords(rows, f = {}) {
+  const area = professionalAreas.find((a) => a.label === f.area);
+  return rows.filter((r) => {
+    const hay = norm([r.name, r.title, r.headline, r.description, r.output, r.bio, (r.skills || []).join(" "), r.organisation?.name, r.country, r.location].join(" "));
+    const hayWords = new Set(hay.split(" "));
+    if (f.search && !norm(f.search).split(" ").every((w) => hay.includes(w))) return false;
+    if (area && !area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))))) return false;
+    if (f.country && norm(`${r.country} ${r.location}`).indexOf(norm(f.country)) === -1) return false;
+    if (f.language && !(r.languages || []).some((l) => norm(l).includes(norm(f.language)))) return false;
+    if (f.arrangement && r.arrangement !== f.arrangement) return false;
+    if (f.hours === "short" && !(r.hours <= 8)) return false;
+    if (f.hours === "medium" && !(r.hours > 8 && r.hours <= 16)) return false;
+    if (f.hours === "long" && !(r.hours > 16)) return false;
+    if (f.available && !(r.hours_available > 0)) return false;
+    return true;
+  });
 }
-export const types = [
-  "Research",
-  "Report",
-  "Publication",
-  "Campaign",
-  "Design",
-  "Website",
-  "Video",
-  "Training",
-  "Strategy",
-  "Data & technology",
-  "Other",
-];
 
-export function supportLanguages(value) {
-  const values = String(value || "")
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-  const unique = values.filter(
-    (x, i) =>
-      values.findIndex(
-        (y) => y.toLocaleLowerCase() === x.toLocaleLowerCase(),
-      ) === i,
-  );
-  if (!unique.length) throw Error("Add at least one language you can work in.");
-  if (unique.length > 20 || unique.some((x) => x.length > 80))
-    throw Error(
-      "Use up to 20 languages, with names no longer than 80 characters.",
-    );
-  return unique;
+export function date(value, opts = { day: "numeric", month: "short", year: "numeric" }) {
+  if (!value) return "";
+  const d = new Date(String(value).length === 10 ? value + "T12:00:00" : value);
+  return isNaN(d) ? "" : d.toLocaleDateString("en-GB", opts);
+}
+
+export const today = () => new Date().toISOString().slice(0, 10);
+export const initials = (name) => (String(name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+export const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+export function hashOf(text) {
+  let h = 0;
+  for (const c of String(text)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h;
 }

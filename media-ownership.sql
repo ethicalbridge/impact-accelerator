@@ -1,2 +1,0 @@
-alter table public.ia_portfolio add constraint ia_portfolio_image_owner check(image not like 'storage:%' or image like 'storage:'||user_id::text||'/%');
-alter policy ia_image_read on storage.objects using(bucket_id='accelerator-portfolio' and ((storage.foldername(name))[1]=(select auth.uid())::text or exists(select 1 from public.ia_portfolio p join public.ia_profiles u on u.user_id=p.user_id where p.image='storage:'||storage.objects.name and p.user_id::text=(storage.foldername(storage.objects.name))[1] and p.published and u.published)));

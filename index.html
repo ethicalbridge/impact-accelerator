@@ -2,96 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta
-      name="description"
-      content="Share professional expertise with mission-driven organisations. Discover support needs, showcase your work, and build meaningful connections through Impact Accelerator."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Impact Accelerator · Skills for locally led change</title>
+    <meta name="description" content="Skilled professionals contributing to the needs locally led organisations define. Free for everyone." />
     <meta name="theme-color" content="#123e3a" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self' https://jyvralzxqftdextjowwf.supabase.co wss://jyvralzxqftdextjowwf.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'"
-    />
-    <title>Impact Accelerator · Local Impact Alliance</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://jcfezemkbseaqbwuojhs.supabase.co wss://jcfezemkbseaqbwuojhs.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Impact Accelerator" />
+    <meta property="og:title" content="Impact Accelerator · Good work. Greater impact." />
+    <meta property="og:description" content="Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone." />
+    <meta property="og:image" content="https://ethicalbridge.github.io/impact-accelerator/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="fonts/newsreader.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="fonts/instrument-sans.woff" as="font" type="font/woff" crossorigin />
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="app.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
-    <div class="ecosystem">
-      <a href="#about">LOCAL IMPACT ALLIANCE</a> <span>/</span> STRENGTHEN
-    </div>
-    <header>
-      <nav aria-label="Main navigation" class="nav">
-        <a href="#home" class="brand"
-          ><span class="mark" aria-hidden="true">✽</span> Impact Accelerator</a
-        ><button
-          class="menu secondary"
-          aria-expanded="false"
-          aria-controls="navigation"
-          id="menu"
-        >
-          Menu
-        </button>
-        <div id="navigation">
-          <a href="#home">Home</a><a href="#about">About us</a
-          ><a href="#needs">Needs</a
-          ><a href="#talent">Talent</a><a href="#workspace">My workspace</a
-          ><a href="#organisation" class="org-link">For organisations</a
-          ><button id="account" class="primary">Sign in / Join</button>
-        </div>
-      </nav>
-    </header>
-    <main id="main" tabindex="-1">
-      <div class="loading" role="status">Opening Impact Accelerator…</div>
-    </main>
-    <footer>
-      <div class="footer-grid">
-        <div>
-          <a href="#home" class="brand">✽ Impact Accelerator</a>
-          <p>
-            Professional expertise.<br />Locally led change.<br />Capability
-            that stays.
-          </p>
-          <a
-            href="https://local-impact-alliance.open-pike-3973.chatgpt.site/"
-            target="_blank"
-            rel="noopener"
-            >Local Impact Alliance ↗</a
-          >
-        </div>
-        <div>
-          <h3>Participate</h3>
-          <a href="#needs">Explore needs</a><a href="#talent">Discover talent</a
-          ><a href="#organisation">Organisation workspace</a>
-        </div>
-        <div>
-          <h3>Trust & support</h3>
-          <a href="#about">About Local Impact Alliance</a>
-          <a href="#guide">How it works</a
-          ><a href="#privacy">Privacy & storage</a
-          ><a href="#safeguarding">Working responsibly</a
-          ><a href="https://ethicalbridge.org/" target="_blank" rel="noopener"
-            >Ethical Bridge ↗</a
-          >
-        </div>
-      </div>
-      <div class="footer-bottom">
-        © 2026 Impact Accelerator · Local Impact Alliance
-        <span>Ethical practice · Transparency · Mutual benefit</span>
-      </div>
-    </footer>
+    <header class="site-header" id="site-header"></header>
+    <main id="main" tabindex="-1"><div class="loading" role="status">Loading Impact Accelerator…</div></main>
+    <footer class="site-footer" id="site-footer"></footer>
     <dialog id="dialog" aria-labelledby="dialog-title">
-      <button class="close secondary" aria-label="Close dialog">×</button>
-      <div id="dialog-body"></div>
+      <button type="button" class="icon-btn dialog-close" aria-label="Close">✕</button>
+      <div class="dialog-inner" id="dialog-body"></div>
     </dialog>
-    <div id="notice" role="status" aria-live="polite"></div>
-    <noscript
-      ><p class="banner">
-        Enable JavaScript to browse talent, manage your profile and save your
-        work. Visit <a href="https://ethicalbridge.org/">Ethical Bridge</a> for
-        organisation information.
-      </p></noscript
-    >
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript><p style="padding:24px;font-family:sans-serif">Impact Accelerator needs JavaScript to run. Please enable it, or write to info@ethicalbridge.org.</p></noscript>
   </body>
 </html>
