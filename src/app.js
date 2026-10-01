@@ -129,7 +129,7 @@ const actions = {
 
 const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
-  "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f),
+  "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
   "org-create": (f) => acc.submitAccount("org-create", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),

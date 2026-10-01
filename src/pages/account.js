@@ -109,9 +109,12 @@ export function profileForm(p = {}) {
 // ---------- account settings ----------
 export async function account() {
   if (!state.user) return { redirect: "#signin?next=%23account" };
+  const pref = await result(db.from("user_settings").select("email_notifications").eq("user_id", state.user.id).maybeSingle()).catch(() => null);
+  const emailOn = pref ? pref.email_notifications !== false : true;
   const html = `<div class="wrap" style="max-width:820px;padding-block:48px 80px"><div class="stack" style="--gap:28px">
     ${eyebrow("Account and privacy")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Your account</h1>
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${formEnd("Change password")}</form></div>
+    <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show only a short title and a link, never message content.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
     <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
@@ -137,6 +140,13 @@ export async function submitAccount(kind, form) {
   if (kind === "reset") return withForm(form, async (fd) => {
     await result(db.auth.resetPasswordForEmail(val(fd, "email"), { redirectTo: config.siteUrl }));
     form.outerHTML = `<div class="stack card" role="status"><h2 style="font-size:2rem">Check your email</h2><p>If an account exists for that address, you will receive a link to choose a new password.</p></div>`;
+  });
+  if (kind === "email-settings") return withForm(form, async (fd) => {
+    const on = fd.has("email_notifications");
+    const existing = await result(db.from("user_settings").select("user_id").eq("user_id", state.user.id).maybeSingle());
+    if (existing) await result(db.from("user_settings").update({ email_notifications: on, updated_at: new Date().toISOString() }).eq("user_id", state.user.id));
+    else await result(db.from("user_settings").insert({ user_id: state.user.id, email_notifications: on }));
+    toast(on ? "Email notifications are on." : "Email notifications are off. You will still see updates in the bell.");
   });
   if (kind === "new-password" || kind === "change-password") return withForm(form, async (fd) => {
     await result(db.auth.updateUser({ password: String(fd.get("password")) }));
