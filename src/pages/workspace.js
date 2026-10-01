@@ -152,6 +152,18 @@ export async function inviteDialog(userId) {
   if (!open.length) return openDialog("Open a need first", `<p>An invitation connects a professional to one specific need. Post or open a need, then come back.</p>${btn("Post a need", "#org/need")}`);
   openDialog("Invite to a need", `<form class="form" data-form="invite" data-id="${e(userId)}">${select("need_id", "Need", open.map((n) => [n.id, n.title]), "", { required: true })}${field("message", "Personal message", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "Why their work fits, and what you need. At least 30 characters." })}${formEnd("Send invitation", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
+export async function introduceDialog(userId, name) {
+  const open = await result(db.from("needs").select("id,title,organisation:organisations(name)").eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
+  if (!open.length) return openDialog("No open needs", "<p>There are no open needs to introduce this professional to yet.</p>");
+  openDialog(`Introduce ${e(name || "this professional")}`, `<form class="form" data-form="introduce" data-id="${e(userId)}"><p class="muted">The professional receives an invitation marked “Introduced by Impact Accelerator” and can accept or decline. The organisation is told. Nothing is shared until both sign the agreement.</p>${select("need_id", "Open need", open.map((n) => [n.id, `${n.title} · ${n.organisation?.name || ""}`]), "", { required: true })}${field("message", "Why this is a good match", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="3900" autofocus', hint: "Shown to the professional and the organisation. At least 30 characters." })}${formEnd("Send introduction", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitIntroduce(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("admin_introduce", { p_need: val(fd, "need_id"), p_user: form.dataset.id, p_message: val(fd, "message") }));
+    closeDialog();
+    toast("Introduction sent.");
+  });
+}
 export async function submitInvite(form) {
   await withForm(form, async (fd) => {
     await result(db.from("invitations").insert({ need_id: val(fd, "need_id"), user_id: form.dataset.id, message: val(fd, "message") }));

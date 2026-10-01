@@ -102,6 +102,7 @@ const actions = {
     render();
   },
   invite: (el) => ws.inviteDialog(el.dataset.id),
+  introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
   withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),
   "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
@@ -132,7 +133,7 @@ const forms = {
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
   "org-create": (f) => acc.submitAccount("org-create", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
   "confirm-delete": (f) => acc.confirmDelete(f),
-  apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
+  apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f),
 };
