@@ -1,7 +1,7 @@
 import { config } from "./config.js";
 
 const KEY = "ia-consent-v1";
-const get = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+const get = () => { try { const v = localStorage.getItem(KEY); return config.gaMeasurementId && v === "essential" ? null : v; } catch { return null; } };
 const set = (v) => { try { localStorage.setItem(KEY, v); } catch {} };
 
 function loadAnalytics() {
@@ -22,16 +22,17 @@ export function trackPage(title) {
 }
 
 export function initConsent(show = false) {
-  if (!config.gaMeasurementId) return;
   const choice = get();
-  if (choice === "accepted") loadAnalytics();
+  if (config.gaMeasurementId && choice === "accepted") loadAnalytics();
   if (choice && !show) return;
   document.querySelector(".consent")?.remove();
   const el = document.createElement("div");
   el.className = "consent";
   el.setAttribute("role", "region");
-  el.setAttribute("aria-label", "Cookie choice");
-  el.innerHTML = `<p>We’d like to use analytics cookies to understand which pages help people. No advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn secondary sm" type="button" data-consent="declined">Decline</button><button class="btn sm" type="button" data-consent="accepted">Accept analytics</button></div>`;
+  el.setAttribute("aria-label", "Cookies");
+  el.innerHTML = config.gaMeasurementId
+    ? `<p><strong>Cookies.</strong> We use essential storage to keep you signed in. With your permission we’d also use analytics cookies to understand which pages help people. No advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn secondary sm" type="button" data-consent="declined">Decline</button><button class="btn sm" type="button" data-consent="accepted">Accept analytics</button></div>`
+    : `<p><strong>Cookies.</strong> We only use essential storage to keep you signed in and remember this choice. No analytics, tracking or advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn sm" type="button" data-consent="essential">OK, got it</button></div>`;
   el.addEventListener("click", (ev) => {
     const v = ev.target.closest("[data-consent]")?.dataset.consent;
     if (!v) return;

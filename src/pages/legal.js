@@ -61,7 +61,7 @@ export function cookies() {
   <h2>Necessary storage</h2><p>When you sign in, your browser stores a secure session so you stay signed in. We also remember your cookie choice. These are needed for the service to work and are not used to track you.</p>
   <h2>Analytics (optional)</h2><p>${config.gaMeasurementId ? "If you accept, we use Google Analytics to understand which pages are useful. It sets cookies such as <code>_ga</code> and sends information about your visit to Google. We don’t use it for advertising." : "We do not use analytics at the moment. If we add analytics, we will ask for your consent first."}</p>
   <h2>No advertising</h2><p>We don’t use advertising or social-media tracking cookies.</p>
-  <h2>Your choice</h2><p>${config.gaMeasurementId ? `You can change your choice at any time: <button class="link-btn" type="button" data-action="cookie-settings">Cookie settings</button>.` : "There is nothing to accept or decline."} You can also clear your browser storage.</p>`;
+  <h2>Your choice</h2><p>${config.gaMeasurementId ? "You can change your choice at any time." : "We only use essential storage, so there is nothing to accept or decline; the cookie box simply tells you this."} <button class="link-btn" type="button" data-action="cookie-settings">Show the cookie box again</button>. You can also clear your browser storage.</p>`;
   return { title: "Cookies", html: page("Cookies", "Cookie notice", "What we store on your device, and your choices.", body) };
 }
 
