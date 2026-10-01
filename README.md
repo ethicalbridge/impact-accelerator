@@ -53,13 +53,18 @@ pnpm qa          # builds a mock-backed copy into ../qa-site and serves it
 
 In the QA copy, sign in as `admin@example.test`, `org@example.test` or `talent@example.test` with any password. Data lives only in that browser's local storage. `MOCK` builds refuse to run without `OUT`, so the mock can never replace the production `app.js`; CI also checks this.
 
+## Email notifications
+
+Every in-app notification also triggers the `notify-email` Edge Function (`supabase/functions/notify-email`) through a database trigger. It sends a short title and a link, never message content; at most one message email per person every 30 minutes; nothing to people who turned emails off in Account and privacy. A daily job (`ia-followup-reminders`) creates the six-month "is the work still in use?" reminder for organisations.
+
 ## Database changes
 
-Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQL editor). Then run `supabase/tests/permissions.sql`; it must print `PASS: all permission checks` and leaves no data behind.
+Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQL editor). Then run `supabase/tests/permissions.sql`; it must print `PASS: …` and leaves no data behind. Do the same with `supabase/tests/email-notifications.sql`.
 
 ## Before launch: actions only the owner can do
 
 1. **Email sender.** Create a Resend (or similar) account, verify a sending domain, and add its SMTP details in Supabase → Authentication → Emails → SMTP. Without this, confirmation and reset emails are rate-limited to a few per hour.
+   Then, for notification emails, add two secrets in Supabase → Edge Functions → Secrets: `RESEND_API_KEY` (the same key) and `NOTIFY_FROM` (for example `Impact Accelerator <no-reply@your-domain>`). Until both exist, the `notify-email` function skips sending and in-app notifications still work.
 2. **Auth URLs.** In Supabase → Authentication → URL configuration set the Site URL to the live address and add it to Redirect URLs (plus the custom domain if you move to one).
 3. **Leaked-password protection.** Supabase → Authentication → Passwords: turn it on.
 4. **First admin.** Sign up with the admin email, confirm it, then run `insert into public.admins (user_id) select id from auth.users where email = 'YOUR-EMAIL';`

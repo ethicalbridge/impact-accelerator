@@ -17,11 +17,12 @@ function seed() {
     organisations: [{ id: ORG, name: "Community Research Lab", country: "Kenya", city: "Kisumu", website: "https://example.org", summary: "A community research group helping village committees use evidence.", org_type: "Community organisation", locally_led_confirmed: true, status: "approved", approved_at: now(), created_at: now() }],
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", created_at: now(), updated_at: now() }],
-    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [],
+    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [],
   };
 }
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { return seed(); } };
 let D = load();
+D.user_settings ||= [];
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
 const session = () => { try { return JSON.parse(localStorage.getItem(SKEY)); } catch { return null; } };
 const me = () => session()?.user?.id || null;
@@ -47,7 +48,7 @@ function visible(table, r) {
     case "engagements": return r.user_id === u || isMember(r.organisation_id) || admin;
     case "hours": { const e = D.engagements.find((x) => x.id === r.engagement_id); return r.user_id === u || (e && isMember(e.organisation_id)) || admin; }
     case "reports": return r.reporter_id === u || admin;
-    case "saved_needs": case "notifications": return r.user_id === u;
+    case "saved_needs": case "notifications": case "user_settings": return r.user_id === u;
     case "organisation_members": return r.user_id === u || isMember(r.organisation_id) || admin;
     default: return false;
   }
@@ -117,6 +118,7 @@ function insertRow(t, v) {
   const u = me();
   if (!u) fail("Please sign in.", "42501");
   const row = { id: uid(), created_at: now(), ...v };
+  if (t === "user_settings") { if (v.user_id && v.user_id !== u) fail("new row violates row-level security policy", "42501"); row.user_id = u; delete row.id; }
   if (t === "profiles") {
     if (v.user_id !== u) fail("permission", "42501");
     if (v.published && !(v.age_confirmed && v.unpaid_confirmed)) fail("check", "23514");
