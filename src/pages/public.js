@@ -241,7 +241,7 @@ export async function profile(id) {
       <div class="stack" style="--gap:12px">${eyebrow("Impact CV")}<h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
         <div class="meta"><span>${icon("map", 19, "#0f6f63")}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("globe", 19, "#0f6f63")}${e(p.arrangement)}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : "Not available right now"}</span></div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
-        ${canInvite ? `<button class="btn" type="button" data-action="invite" data-id="${e(p.user_id)}">Invite to a need</button>` : owner ? btn("Edit profile", "#workspace/profile") : ""}
+        ${canInvite ? `<button class="btn" type="button" data-action="invite" data-id="${e(p.user_id)}">Invite to a need</button>` : owner ? btn("Edit profile", "#workspace/profile") : ""}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
         <button class="btn secondary" type="button" data-action="copy-link">${icon("link", 18)}Copy profile link</button>
         <button class="btn secondary" type="button" data-action="print">${icon("download", 18)}Save as PDF</button>
       </div>

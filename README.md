@@ -59,7 +59,7 @@ Every in-app notification also triggers the `notify-email` Edge Function (`supab
 
 ## Database changes
 
-Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQL editor). Then run `supabase/tests/permissions.sql`; it must print `PASS: …` and leaves no data behind. Do the same with `supabase/tests/email-notifications.sql`.
+Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQL editor). Then run `supabase/tests/permissions.sql`; it must print `PASS: …` and leaves no data behind. Do the same with `supabase/tests/email-notifications.sql` and `supabase/tests/admin-introductions.sql`.
 
 ## Before launch: actions only the owner can do
 
