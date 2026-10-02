@@ -229,7 +229,7 @@ export const TIMEZONES = Array.from({ length: 27 }, (_, i) => i - 12).map((h) =>
 function tzNum(t) { const m = t.replace("−", "-").match(/UTC([+-]\d+)?(?::(\d+))?/); const h = Number(m?.[1] || 0); return h + Math.sign(h || 1) * (Number(m?.[2] || 0) / 60); }
 
 const opt = (v, cur, label = v) => `<option value="${e(v)}" ${String(v) === String(cur ?? "") ? "selected" : ""}>${e(label)}</option>`;
-const withCurrent = (list, cur) => (cur && !list.includes(cur) ? [cur, ...list] : list);
+const withCurrent = (list, cur) => (cur && !list.some((x) => String(Array.isArray(x) ? x[0] : x) === String(cur)) ? [cur, ...list] : list);
 // A plain dropdown for profile and need forms.
 export function dropdown(name, label, list, value = "", { required = false, full = false, empty = "Choose", hint = "" } = {}) {
   return `<label class="field ${full ? "full" : ""}" for="f-${name}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select id="f-${name}" name="${name}" ${required ? "required" : ""}><option value="">${empty}</option>${withCurrent(list, value).map((x) => (Array.isArray(x) ? opt(x[0], value, x[1]) : opt(x, value))).join("")}</select>${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;

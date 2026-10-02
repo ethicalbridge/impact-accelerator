@@ -17,7 +17,7 @@ function seed() {
     organisations: [{ id: ORG, name: "Community Research Lab", country: "Kenya", city: "Kisumu", website: "https://example.org", summary: "A community research group helping village committees use evidence.", org_type: "Community organisation", locally_led_confirmed: true, status: "approved", approved_at: now(), created_at: now() }],
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", created_at: now(), updated_at: now() }],
-    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [],
+    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [],
   };
 }
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { return seed(); } };
@@ -49,6 +49,7 @@ function visible(table, r) {
     case "hours": { const e = D.engagements.find((x) => x.id === r.engagement_id); return r.user_id === u || (e && isMember(e.organisation_id)) || admin; }
     case "reports": return r.reporter_id === u || admin;
     case "saved_needs": case "notifications": case "user_settings": return r.user_id === u;
+    case "agreement_signatures": return r.user_id === u || admin;
     case "organisation_members": return r.user_id === u || isMember(r.organisation_id) || admin;
     default: return false;
   }
@@ -182,6 +183,14 @@ function updateRow(t, r, v) {
 
 // ---------- server functions ----------
 const rpcs = {
+  sign_agreement({ p_kind, p_version, p_name, p_text, p_hours }) {
+    if (!me()) throw Error("Please sign in first.");
+    if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");
+    if (String(p_text || "").length < 500) throw Error("The agreement text is missing.");
+    D.agreement_signatures = D.agreement_signatures || [];
+    const row = { id: uid(), user_id: me(), kind: p_kind, version: p_version, full_name: p_name.trim(), hours_committed: p_hours, agreement_text: p_text, signed_at: now() };
+    D.agreement_signatures.push(row); return row.id;
+  },
   is_admin: () => D.admins.some((a) => a.user_id === me()),
   create_organisation: (a) => { if (!me()) fail("Please sign in first."); if (!a.p_locally_led) fail("Handova is for locally led organisations."); const id = uid(); D.organisations.push({ id, name: a.p_name, country: a.p_country, city: a.p_city || "", website: a.p_website || "", summary: a.p_summary || "", org_type: a.p_org_type, locally_led_confirmed: true, status: "pending", created_at: now() }); D.organisation_members.push({ organisation_id: id, user_id: me(), role: "owner", full_name: a.p_full_name || "", created_at: now() }); notifyAdmins("org_review", "Organisation to review", a.p_name, "#admin"); return id; },
   admin_review_organisation: (a) => { if (!rpcs.is_admin()) fail("Administrator access required."); const o = D.organisations.find((x) => x.id === a.p_org); o.status = a.p_decision; if (a.p_decision === "approved") o.approved_at = now(); notifyOrg(o.id, "org_decision", a.p_decision === "approved" ? "Your organisation is approved" : "Please update your organisation details", a.p_note || "", "#org"); },

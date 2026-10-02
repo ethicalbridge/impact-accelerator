@@ -1,9 +1,10 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
 import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
-const HOURS_MONTH = [["0", "Not available right now"], ...[2, 4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`])];
+const HOURS_MONTH = [4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
+import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 const ORG_TYPES = ["Community organisation", "Local NGO", "Cooperative", "Social enterprise", "Collective or informal group (fiscally hosted)", "Other"];
@@ -138,6 +139,7 @@ export function profileForm(p = {}) {
   // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
   const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="full notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
   return `<form class="form card" data-form="profile" data-edit="${edit ? 1 : 0}"><div class="form-grid">
+    ${p.closed_reason === "inactive" && !p.published ? `<div class="full banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no endorsed work for three months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
     ${sec("Profile", "What appears at the top of your impact CV.")}
     <div class="field full photo-field" data-photo-field>
       <span>Profile photo</span>
@@ -157,7 +159,7 @@ export function profileForm(p = {}) {
     ${countrySelect("country", "Country", p.country || "")}
     ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
     ${select("arrangement", "How you can work", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}
-    ${dropdown("hours_available", "Hours a month you can give", HOURS_MONTH, String(p.hours_available ?? 8), { required: true, empty: "Choose" })}
+    ${dropdown("hours_available", "Hours you commit to each month", HOURS_MONTH, String(Math.max(Number(p.hours_available) || 4, 4)), { required: true, empty: "Choose", hint: "At least 4 hours a month. Organisations plan around this, so choose what you can really give." })}
     ${sec("About")}
     ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
     ${sec("Skills")}
@@ -170,12 +172,33 @@ export function profileForm(p = {}) {
     ${sec("Links")}
     ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name, photo and experience match." })}
     ${field("website", "Other professional website", { value: p.website, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}
+    ${sec("Agreement", "Handova only works if organisations can count on the people they find here.")}
+    ${agreementBlock()}
     <div class="checkbox-box full">
-      ${check("age_confirmed", "I am 18 or older.", p.age_confirmed ?? true, true)}
-      ${check("unpaid_confirmed", "I understand contributions are unpaid and voluntary.", p.unpaid_confirmed, true)}
       ${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}
     </div>
   </div>${formEnd(edit ? "Save profile" : "Create profile")}</form>`;
+}
+
+// The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.
+const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
+const agreementBody = () => `<div class="agreement-text" tabindex="0" aria-label="Handova professional agreement">${PRO_AGREEMENT.map(([h, items], i) => `<h3>${e(h)}</h3>${i === 0 ? `<p>${e(items[0])}</p>` : `<ul>${items.map((t) => `<li>${e(t)}</li>`).join("")}</ul>`}`).join("")}</div>`;
+function agreementBlock() {
+  if (signedCurrent()) {
+    const a = state.proAgreement;
+    return `<div class="full agreement signed"><p>${icon("check", 20, "#0f6f63", 2.4)}<span>You signed the Handova professional agreement as <strong>${e(a.full_name)}</strong> on ${new Date(a.signed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.</span></p><details><summary>Read the agreement again</summary>${agreementBody()}</details></div>`;
+  }
+  return `<div class="full agreement">
+    ${state.proAgreement ? `<p class="notice" role="note">We updated the agreement. Please read it and sign again.</p>` : ""}
+    <p class="muted">Please read the whole agreement. It includes your monthly commitment and the three-month activity rule.</p>
+    ${agreementBody()}
+    <div class="checkbox-box">
+      ${check("age_confirmed", "I am 18 or older.", false, true)}
+      ${check("unpaid_confirmed", "I understand contributions are unpaid and voluntary.", false, true)}
+      ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment and that my profile is closed after three months without endorsed work.", false, true)}
+    </div>
+    ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with the date, time and the exact text you agreed to." })}
+  </div>`;
 }
 
 // Profile photo: cropped to a 480px square and re-encoded as JPEG in the browser (this also drops
@@ -317,11 +340,19 @@ export async function submitAccount(kind, form) {
     const linkedin = val(fd, "linkedin");
     if (!linkedin) throw Error("Add your LinkedIn profile. We use it to check who you are before approving your profile.");
     if (linkedin && !/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) throw Error("Use your LinkedIn profile address, starting with https://www.linkedin.com/");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: fd.has("age_confirmed"), unpaid_confirmed: fd.has("unpaid_confirmed"), published: fd.has("published") };
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) throw Error("Add at least one skill.");
     if (!row.languages.length) throw Error("Choose at least one language you can work in.");
     if (!row.experience_items.length) throw Error("Add at least one role under Experience.");
     if (!row.education_items.length) throw Error("Add at least one qualification under Education.");
+    if (row.hours_available < 4) throw Error("Choose at least 4 hours a month.");
+    if (!signedCurrent()) {
+      if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed")) throw Error("Read the agreement and tick the three boxes to sign it.");
+      const signName = val(fd, "sign_name");
+      if (signName.length < 2) throw Error("Type your full name to sign the agreement.");
+      await result(db.rpc("sign_agreement", { p_kind: "professional", p_version: PRO_AGREEMENT_VERSION, p_name: signName, p_text: proAgreementText(), p_hours: row.hours_available }));
+      state.proAgreement = { version: PRO_AGREEMENT_VERSION, signed_at: new Date().toISOString(), full_name: signName, hours_committed: row.hours_available };
+    }
     const exists = !!state.profile;
     const oldPhoto = state.profile?.photo_url;
     if (exists) { const { user_id, ...upd } = row; await result(db.from("profiles").update(upd).eq("user_id", state.user.id)); }

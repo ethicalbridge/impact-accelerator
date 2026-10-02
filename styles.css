@@ -808,3 +808,13 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .stat-avail .stat-note { color: #fde9df !important; font-weight: 700; }
 .stat-avail .stat-more { color: #fff; text-decoration: underline; }
 .stats-btns .stat-btn { justify-content: flex-start; }
+/* Professional agreement */
+.agreement { display: flex; flex-direction: column; gap: 14px; }
+.agreement-text { max-height: 360px; overflow-y: auto; padding: 18px 22px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; font-size: 0.93rem; line-height: 1.55; }
+.agreement-text h3 { font: 700 1rem var(--sans); color: var(--deep); margin: 16px 0 6px; }
+.agreement-text h3:first-child { margin-top: 0; }
+.agreement-text ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.agreement-text p { margin: 0; }
+.agreement.signed > p { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--mint-2); }
+.agreement.signed summary { cursor: pointer; color: var(--teal); font-weight: 600; margin-bottom: 10px; }
+@media print { .agreement-text { max-height: none; overflow: visible; } }
