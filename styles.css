@@ -761,3 +761,34 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .entry-opt textarea { width: 100%; min-height: 80px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; font: 400 1rem var(--sans); }
 .skill-areas { display: flex; flex-direction: column; gap: 12px; }
 .skill-area { display: block; margin-bottom: 6px; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+
+/* Profile: CV / Contributions tabs, and stat tiles that open Contributions */
+.stats-btns .stat-btn { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; padding: 26px 28px; cursor: pointer; border-radius: 22px; transition: background 0.2s; }
+.stats-btns .stat-btn + .stat-btn { border-left: 1px solid rgba(255, 253, 248, 0.18); border-radius: 0; }
+.stats-btns .stat-btn:last-child { border-radius: 0 22px 22px 0; }
+.stats-btns .stat-btn:first-child { border-radius: 22px 0 0 22px; }
+.stats-btns .stat-btn:hover { background: rgba(255, 253, 248, 0.07); }
+.stats-btns .stat-btn:focus-visible { outline: 3px solid #e0a07f; outline-offset: -3px; }
+.stats-btns strong { display: block; font: 500 3.4rem/1 var(--serif); color: var(--paper); }
+.stat-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.8rem !important; font-weight: 600; color: #e0a07f !important; opacity: 0.85; }
+.stat-btn:hover .stat-more { opacity: 1; text-decoration: underline; }
+.ptabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+.ptabs [role="tab"] { all: unset; cursor: pointer; padding: 10px 16px 12px; font: 500 1.6rem/1.1 var(--serif); color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 8px; }
+.ptabs [role="tab"][aria-selected="true"] { color: var(--deep); border-bottom-color: var(--teal); }
+.ptabs [role="tab"]:hover { color: var(--deep); }
+.ptabs [role="tab"]:focus-visible { outline: 3px solid rgba(15, 111, 99, 0.35); border-radius: 6px; }
+.ptab-count { font: 700 0.8rem var(--sans); background: var(--mint-2, #e3efe9); color: var(--deep); padding: 3px 9px; border-radius: 999px; }
+#profile-main { scroll-margin-top: 96px; }
+#profile-main [role="tabpanel"][hidden] { display: none; }
+@media (max-width: 760px) {
+  .stats-btns .stat-btn, .stats-btns .stat-btn:first-child, .stats-btns .stat-btn:last-child { border-radius: 0; padding: 20px; }
+  .stats-btns strong { font-size: 2.6rem; }
+}
+@media print {
+  #profile-main [role="tabpanel"][hidden] { display: flex !important; }
+  .ptabs, .stat-more { display: none !important; }
+}
+.xp-logo.has-img { background: #fff; border: 1px solid var(--line); overflow: hidden; }
+.xp-logo.has-img img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.entry-logo .logo-pick { cursor: pointer; }
+.entry-logo .logo-pick:focus-within { outline: 3px solid rgba(15, 111, 99, 0.35); outline-offset: 2px; }

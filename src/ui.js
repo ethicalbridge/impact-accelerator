@@ -252,6 +252,7 @@ export function entryRow(kind, it = {}) {
       ${sel("en-title", "Qualification", DEGREES, it.title, "Choose a qualification", true)}
       ${sel("en-field", "Field of study", FIELDS, it.field, "Choose a field", true)}
       <label class="field"><span>University or institution <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. University of Copenhagen"></label>
+      <div class="field entry-logo"><span>Logo (optional)</span><div class="row" style="--gap:10px;flex-wrap:nowrap"><span class="logo-preview">${orgTile(it.organisation, it.logo)}</span><label class="btn secondary sm logo-pick">${icon("plus", 16)}<span>${it.logo ? "Change logo" : "Add logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" class="visually-hidden logo-file"></label><button type="button" class="link-btn logo-remove" ${it.logo ? "" : "hidden"}>Remove</button></div><input type="hidden" class="en-logo" value="${e(it.logo || "")}"><span class="small logo-status" role="status"></span></div>
       ${sel("en-country", "Country", ["Online", ...COUNTRIES], it.country, "Choose a country", true)}
       ${yearOnly("en-start", "From", it.start)}
       ${yearOnly("en-end", "To", it.end, "Studying now")}
@@ -262,7 +263,8 @@ export function entryRow(kind, it = {}) {
       <label class="field"><span>Role <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="140" placeholder="e.g. Compliance & Awards Officer"></label>
       <label class="field"><span>Organisation <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. Save the Children Denmark"></label>
       ${sel("en-country", "Country", ["Remote / several countries", ...COUNTRIES], it.country, "Choose a country", true)}
-      <div></div>
+      <div class="field entry-logo"><span>Logo (optional)</span><div class="row" style="--gap:10px;flex-wrap:nowrap"><span class="logo-preview">${orgTile(it.organisation, it.logo)}</span><label class="btn secondary sm logo-pick">${icon("plus", 16)}<span>${it.logo ? "Change logo" : "Add logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" class="visually-hidden logo-file"></label><button type="button" class="link-btn logo-remove" ${it.logo ? "" : "hidden"}>Remove</button></div><input type="hidden" class="en-logo" value="${e(it.logo || "")}"><span class="small logo-status" role="status"></span></div>
+
       ${dateSel("en-start", "From", it.start)}
       ${dateSel("en-end", "To", it.end, "Present")}
       <details class="entry-opt full" ${it.description ? "open" : ""}><summary>Add details (optional)</summary><textarea class="en-desc" maxlength="2000" rows="3" placeholder="What you did and achieved.">${e(it.description || "")}</textarea></details>
@@ -289,8 +291,8 @@ export function readEntries(form, kind) {
     const v = (c) => row.querySelector(c)?.value.trim() || "";
     const date = (c) => { const y = v(`${c}-y`), m = v(`${c}-m`); return y === "present" ? "present" : y ? (m ? `${y}-${m}` : y) : ""; };
     const it = kind === "experience"
-      ? { title: v(".en-title"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc") }
-      : { title: v(".en-title"), field: v(".en-field"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc") };
+      ? { title: v(".en-title"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc"), logo: v(".en-logo") }
+      : { title: v(".en-title"), field: v(".en-field"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc"), logo: v(".en-logo") };
     if (!it.title && !it.organisation && !it.country && !it.start) continue;
     const name = kind === "experience" ? `the role “${it.title || "untitled"}”` : `the qualification at “${it.organisation || "your university"}”`;
     const missing = kind === "experience"
@@ -303,7 +305,20 @@ export function readEntries(form, kind) {
   }
   return out;
 }
+export let entryLogoUpload = null; // set by the account page: (file) => Promise<url>
+export const setEntryLogoUpload = (fn) => { entryLogoUpload = fn; };
 export function bindEntryEditors(root = document) {
+  root.addEventListener("change", async (ev) => {
+    if (!ev.target.matches(".logo-file")) return;
+    const box = ev.target.closest(".entry-logo"), file = ev.target.files?.[0], status = box.querySelector(".logo-status");
+    ev.target.value = "";
+    if (!file || !entryLogoUpload) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { status.textContent = "Use a PNG, JPG or WebP image."; return; }
+    status.textContent = "Uploading…";
+    try { const url = await entryLogoUpload(file); setLogo(box, url); status.textContent = "Logo ready. Save your profile to keep it."; }
+    catch (err) { status.textContent = err.message || "The logo could not be uploaded."; }
+  });
+  root.addEventListener("click", (ev) => { const rm = ev.target.closest(".logo-remove"); if (rm) { const box = rm.closest(".entry-logo"); setLogo(box, ""); box.querySelector(".logo-status").textContent = "Logo removed. Save your profile to confirm."; } });
   root.addEventListener("click", (ev) => {
     const add = ev.target.closest("[data-entry-add]");
     if (add) {
@@ -331,6 +346,12 @@ export function bindEntryEditors(root = document) {
   // Choosing "Present" clears the month next to it.
   root.addEventListener("change", (ev) => { if (ev.target.matches(".en-end-y") && ev.target.value === "present") { const m = ev.target.parentElement.querySelector(".en-end-m"); if (m) m.value = ""; } });
 }
+function setLogo(box, url) {
+  box.querySelector(".en-logo").value = url;
+  box.querySelector(".logo-preview").innerHTML = orgTile(box.closest(".entry").querySelector(".en-org").value, url);
+  box.querySelector(".logo-remove").hidden = !url;
+  box.querySelector(".logo-pick span").textContent = url ? "Change logo" : "Add logo";
+}
 // "Apr 2026", "2019", or "Present"
 const fmt = (d, present) => { if (d === "present") return present; const { y, m } = split(d); return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : ""; };
 // LinkedIn-style duration, counting both the first and the last month: Apr–Oct is 7 mos.
@@ -350,7 +371,13 @@ export const entryDates = (it, kind = "experience") => {
   const d = kind === "experience" ? duration(it.start, it.end) : "";
   return [range, d].filter(Boolean).join(" · ");
 };
-const orgTile = (name) => `<span class="xp-logo" aria-hidden="true">${e(orgInitials(name || "?"))}</span>`;
+// The organisation's logo when one was added, otherwise its initials.
+const logoSrc = (u) => (/^data:image\/(png|jpeg|webp);/.test(u || "") ? u : safeURL(u));
+const orgTile = (name, logo) => logo && logoSrc(logo)
+  ? `<span class="xp-logo has-img" aria-hidden="true"><img src="${e(logoSrc(logo))}" alt="" loading="lazy" decoding="async"></span>`
+  : `<span class="xp-logo" aria-hidden="true">${e(orgInitials(name || "?"))}</span>`;
+// A logo added to one role is used for every role and qualification at the same organisation.
+const logoMap = (items) => { const m = new Map(); items.forEach((x) => { const k = (x.organisation || "").trim().toLowerCase(); if (k && x.logo && !m.has(k)) m.set(k, x.logo); }); return m; };
 function orgInitials(name) { return String(name).replace(/\(.*?\)/g, "").split(/\s+/).filter((w) => /^[A-Za-zÀ-ÿ]/.test(w) && !/^(of|the|and|de|la|for)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join(""); }
 const moreUnused = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-desc">${e(text)}</p>` : `<details class="xp-more"><summary><span class="xp-desc">${e(text.slice(0, 140).replace(/\s+\S*$/, ""))}…</span> <span class="xp-more-btn">more</span></summary><p class="xp-desc">${e(text)}</p></details>`;
 // Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
@@ -362,6 +389,7 @@ function roleLines(it, kind, inGroup) {
 }
 const roleExtra = (it) => (it.description || (it.skills || []).length) ? `<details class="xp-more"><summary>Show details</summary>${it.description ? `<p class="xp-desc">${e(it.description)}</p>` : ""}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.join(", "))}</span>` : ""}</details>` : "";
 export function entryList(items, kind = "experience") {
+  const logos = logoMap(items), lg = (it) => logos.get((it.organisation || "").trim().toLowerCase()) || "";
   // All roles at the same organisation sit together, at the place of the most recent one.
   const groups = [], byOrg = new Map();
   for (const it of items) {
@@ -370,14 +398,14 @@ export function entryList(items, kind = "experience") {
     else { const g = [it]; groups.push(g); if (key) byOrg.set(key, g); }
   }
   return `<ul class="xp-li">${groups.map((g) => {
-    if (g.length === 1) return `<li>${orgTile(g[0].organisation)}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
+    if (g.length === 1) return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
     const starts = g.map((x) => x.start).filter(Boolean).sort(), ends = g.map((x) => x.end).filter(Boolean);
     const end = ends.includes("present") ? "present" : ends.sort().pop();
     const total = duration(starts[0], end);
     const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
     const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? countries[0] : "";
     const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" - ");
-    return `<li>${orgTile(g[0].organisation)}<div class="xp-body"><strong class="xp-title">${e([g[0].organisation, gCountry].filter(Boolean).join(" · "))}</strong>${range ? `<span class="xp-muted">${e([range, total].filter(Boolean).join(" · "))}</span>` : ""}
+    return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body"><strong class="xp-title">${e([g[0].organisation, gCountry].filter(Boolean).join(" · "))}</strong>${range ? `<span class="xp-muted">${e([range, total].filter(Boolean).join(" · "))}</span>` : ""}
       <ul class="xp-roles">${g.map((it) => `<li><strong class="xp-title">${e(it.title)}</strong>${!gCountry && it.country ? `<span>${e(it.country)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${roleExtra(it)}</li>`).join("")}</ul></div></li>`;
   }).join("")}</ul>`;
 }

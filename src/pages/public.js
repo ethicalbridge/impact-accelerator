@@ -372,6 +372,21 @@ export async function talent() {
 }
 
 // ---------- Profile / impact CV ----------
+// CV / Contributions tabs. The stat tiles also open Contributions and bring it into view.
+function bindProfileTabs() {
+  const tabs = [...document.querySelectorAll('.ptabs [role="tab"]')];
+  if (!tabs.length) return;
+  const show = (name, { focus = false, scroll = false } = {}) => {
+    tabs.forEach((t) => { const on = t.dataset.profileTab === name; t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    document.querySelectorAll('#profile-main [role="tabpanel"]').forEach((pnl) => { pnl.hidden = pnl.id !== `panel-${name}`; if (!pnl.hidden) pnl.querySelectorAll(".reveal").forEach((el) => el.classList.add("in")); });
+    if (scroll) document.getElementById("profile-main")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  };
+  document.querySelectorAll("[data-profile-tab]").forEach((b) => b.addEventListener("click", () => show(b.dataset.profileTab, { scroll: !b.closest(".ptabs") })));
+  tabs.forEach((t, i) => t.addEventListener("keydown", (ev) => {
+    const d = { ArrowRight: 1, ArrowLeft: -1 }[ev.key];
+    if (d) { ev.preventDefault(); show(tabs[(i + d + tabs.length) % tabs.length].dataset.profileTab, { focus: true }); }
+  }));
+}
 // Skills grouped under the same areas as the filters; anything else goes under "Other".
 function skillsByArea(list) {
   if (list.length <= 8) return tags(list);
@@ -392,7 +407,7 @@ export async function profile(id) {
   const orgs = new Set(contributions.map((c) => c.organisation)).size;
   const countries = new Set(contributions.map((c) => c.organisation_country).filter(Boolean)).size;
   const canInvite = !ex && !owner && state.memberships.some((m) => m.organisation?.status === "approved") && isPublic;
-  const wide = (title, inner) => `<div class="card stack xp-card" style="--gap:14px;margin-top:18px"><h2 style="font-size:2rem">${title}</h2>${inner}</div>`;
+  const wide = (title, inner) => `<div class="card stack xp-card" style="--gap:14px"><h2 style="font-size:2rem">${title}</h2>${inner}</div>`;
   const side = (title, inner) => `<div class="card stack" style="--gap:12px">${eyebrow(title)}${inner}</div>`;
   const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:60px">
     ${back("All talent", "#talent")}
@@ -410,7 +425,9 @@ export async function profile(id) {
       </div>
     </section>
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
-      return `<section class="stats-dark"><div><strong data-counter="${hours}">${hours}</strong><span>hours handed over</span></div><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>${pending ? "contributions" : "reviewed contributions"}</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div>${pending ? `<div><strong data-counter="${pending}">${pending}</strong><span>endorsements pending</span></div>` : `<div><strong data-counter="${countries}">${countries}</strong><span>countries</span></div>`}</section>`; })()}
+      // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
+      const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span><span class="stat-more">See contributions ${icon("arrow", 14)}</span></button>`;
+      return `<section class="stats-dark stats-btns" aria-label="Impact so far">${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "endorsements pending") : tile(countries, "countries")}</section>`; })()}
     <p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them. Ratings stay private to the professional." : "Only work reviewed by the organisation counts. Ratings stay private to the professional."}</p>
     <div class="split left">
       <aside class="stack" style="--gap:18px">
@@ -420,14 +437,24 @@ export async function profile(id) {
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}
       </aside>
-      <section class="stack" style="--gap:14px"><div class="row between" style="align-items:baseline"><h2 style="font-size:2.4rem">Contributions</h2><span class="small muted">Open a contribution to see the details</span></div>
-        ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Find a need", "#needs", "secondary sm") : "")}
-        ${(p.experience_items || []).length ? wide("Experience", `${entryList(p.experience_items, "experience")}<span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`)
-          : p.experience ? wide("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><div class="xp-top"><strong>${e(role)}</strong></div>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
-        ${(p.education_items || []).length ? wide("Education", entryList(p.education_items, "education")) : ""}
+      <section class="stack" style="--gap:16px" id="profile-main">
+        <div class="ptabs" role="tablist" aria-label="Profile sections">
+          <button type="button" role="tab" id="tab-cv" aria-controls="panel-cv" aria-selected="true" data-profile-tab="cv">CV</button>
+          <button type="button" role="tab" id="tab-contributions" aria-controls="panel-contributions" aria-selected="false" tabindex="-1" data-profile-tab="contributions">Contributions <span class="ptab-count">${contributions.length}</span></button>
+        </div>
+        <div role="tabpanel" id="panel-cv" aria-labelledby="tab-cv" class="stack" style="--gap:18px">
+          ${(p.experience_items || []).length ? wide("Experience", `${entryList(p.experience_items, "experience")}<span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`)
+            : p.experience ? wide("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><div class="xp-top"><strong>${e(role)}</strong></div>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
+          ${(p.education_items || []).length ? wide("Education", entryList(p.education_items, "education")) : ""}
+          ${!(p.experience_items || []).length && !p.experience && !(p.education_items || []).length ? empty("No CV details yet", owner ? "Add your roles and qualifications from Edit profile." : "This professional hasn’t added roles or qualifications yet.") : ""}
+        </div>
+        <div role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" class="stack" style="--gap:14px" hidden>
+          <div class="row between" style="align-items:baseline"><p class="muted" style="margin:0">${plural(contributions.length, "contribution")} · ${hours} ${hours === 1 ? "hour" : "hours"} handed over to ${plural(orgs, "organisation")}</p><span class="small muted">Open one to see the details</span></div>
+          ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Find a need", "#needs", "secondary sm") : "")}
+        </div>
       </section>
     </div></div>`;
-  return { title: `${p.name} · impact CV`, description: p.headline || "Impact CV on Handova", html };
+  return { title: `${p.name} · impact CV`, description: p.headline || "Impact CV on Handova", html, after: bindProfileTabs };
 }
 
 // ---------- How it works ----------

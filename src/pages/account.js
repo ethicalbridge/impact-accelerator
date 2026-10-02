@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
-import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES } from "../ui.js";
+import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [["0", "Not available right now"], ...[2, 4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`])];
 import { list, languages, safeURL } from "../utils.js";
@@ -188,6 +188,22 @@ async function squareJpeg(file, size = 480) {
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(Error("Could not prepare the photo."))), "image/jpeg", 0.86));
 }
 const ownAvatarPath = (url) => { const m = String(url || "").match(/\/object\/public\/avatars\/(.+)$/); return m && m[1].startsWith(state.user?.id + "/") ? decodeURIComponent(m[1]) : null; };
+// Organisation logos: fitted inside a 200px square, kept as PNG so transparent backgrounds stay transparent.
+async function fittedPng(file, size = 200) {
+  const bmp = await createImageBitmap(file).catch(() => { throw Error("That file could not be read as an image."); });
+  const k = Math.min(size / bmp.width, size / bmp.height, 1), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const c = document.createElement("canvas"); c.width = c.height = Math.max(w, h);
+  c.getContext("2d").drawImage(bmp, (c.width - w) / 2, (c.height - h) / 2, w, h);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(Error("Could not prepare the logo."))), "image/png"));
+}
+setEntryLogoUpload(async (file) => {
+  if (!state.user) throw Error("Sign in to add a logo.");
+  if (file.size > 10 * 1024 * 1024) throw Error("That image is over 10 MB. Try a smaller one.");
+  const blob = await fittedPng(file), path = `${state.user.id}/logos/${Date.now()}.png`;
+  const up = await db.storage.from("avatars").upload(path, blob, { contentType: "image/png", cacheControl: "31536000" });
+  if (up.error) throw up.error;
+  return db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+});
 let photoBound = false;
 export function bindPhotoFields() {
   if (photoBound) return; photoBound = true;
