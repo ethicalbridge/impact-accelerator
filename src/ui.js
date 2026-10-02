@@ -435,7 +435,7 @@ export function needCard(n) {
 }
 
 export function talentCard(p) {
-  return `<a class="card card-link" href="#profile/${e(p.user_id)}">
+  return `<a class="card card-link" href="#profile/${e(p.slug || p.user_id)}">
   <div class="stack" style="--gap:14px">
     <div class="row between">${avatarFor(p, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : p.inactive_since ? pill("Inactive", "ochre") : ""}</div>
     <div><span class="card-title">${e(p.name)}</span><p class="muted">${e(p.headline || "Professional")}</p>${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}</div>

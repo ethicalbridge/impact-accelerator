@@ -364,7 +364,10 @@ export async function need(id) {
 export async function talent() {
   const real = await result(db.from("profiles").select("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status").eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
   // Active professionals first; inactive ones stay listed, labelled, at the end.
-  const rows = [exampleProfile, ...real.filter((p) => p.user_id !== exampleProfile.user_id && !p.inactive_since), ...real.filter((p) => p.user_id !== exampleProfile.user_id && p.inactive_since)];
+  const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
+  const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length } : exampleProfile;
+  const others = real.filter((p) => p.user_id !== config.founderUserId);
+  const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
     ${filtersForm("talent", rows)}
@@ -401,12 +404,21 @@ function skillsByArea(list) {
 }
 export async function profile(id) {
   if (id === "example-maria-lopez") return { redirect: "#profile/" + exampleProfile.user_id };
-  const ex = id === exampleProfile.user_id;
-  const p = ex ? exampleProfile : await result(db.from("profiles").select("*").eq("user_id", id).maybeSingle()).catch(() => null);
+  // The founder's link keeps working: it shows her live profile once there is one, and the built-in sample until then.
+  const fid = config.founderUserId, isSlug = id === exampleProfile.user_id;
+  const realId = isSlug ? fid : id;
+  let p = realId ? await result(db.from("profiles").select("*").eq("user_id", realId).maybeSingle()).catch(() => null) : null;
+  const ex = !p && isSlug;
+  if (ex) p = exampleProfile;
   if (!p) return notFound("This profile isn’t available", "It may be private, awaiting approval, or no longer published.");
+  const founderLive = !ex && fid && p.user_id === fid;
+  if (founderLive) p = { ...p, founder: true };
+  id = p.user_id;
   const owner = state.user?.id === p.user_id;
   const isPublic = ex || (p.published && p.review_status === "approved");
-  const contributions = ex ? exampleContributions : await result(db.rpc("public_contributions", { p_user: id })).catch(() => []);
+  const live = ex ? [] : await result(db.rpc("public_contributions", { p_user: id })).catch(() => []);
+  // The founder's three handovers made before Handova's records began stay on her CV.
+  const contributions = ex ? exampleContributions : founderLive ? [...live, ...exampleContributions] : live;
   const hours = contributions.reduce((s, c) => s + Number(c.hours || 0), 0);
   const orgs = new Set(contributions.map((c) => c.organisation)).size;
   const countries = new Set(contributions.map((c) => c.organisation_country).filter(Boolean)).size;
