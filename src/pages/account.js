@@ -143,7 +143,7 @@ export function profileForm(p = {}) {
     ${field("country", "Country", { value: p.country, attrs: 'maxlength="100" autocomplete="country-name"' })}
     ${select("arrangement", "How you can work", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}
     ${field("hours_available", "Hours a month you can give", { value: p.hours_available ?? 8, type: "number", required: true, attrs: 'min="0" max="160" step="1"' })}
-    ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Recommended. Organisations see a “View on LinkedIn” button on your profile. It is not an identity check." })}
+    ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name and experience match." })}
     ${field("website", "Other professional website", { value: p.website, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}
     <div class="checkbox-box full">
       ${check("age_confirmed", "I am 18 or older.", p.age_confirmed ?? true, true)}
@@ -229,6 +229,7 @@ export async function submitAccount(kind, form) {
     const website = val(fd, "website");
     if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
     const linkedin = val(fd, "linkedin");
+    if (!linkedin) throw Error("Add your LinkedIn profile. We use it to check who you are before approving your profile.");
     if (linkedin && !/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) throw Error("Use your LinkedIn profile address, starting with https://www.linkedin.com/");
     const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience: val(fd, "experience"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: fd.has("age_confirmed"), unpaid_confirmed: fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) throw Error("Add at least one skill.");
