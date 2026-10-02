@@ -1,6 +1,6 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
-import { icon, mark, avatar, avatarFor, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
-import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds } from "../examples.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
+import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
@@ -191,6 +191,39 @@ export async function about() {
 }
 
 // ---------- For organisations ----------
+// ---------- Organisation page ----------
+// The single home of an organisation's needs on Handova: open needs and needs already handed over.
+// The impact CV and the Needs list only link here; nothing is stored twice.
+export async function orgPage(id) {
+  let o = handovaOrgs.find((x) => x.id === id), open = [], handed = [];
+  if (o) handed = solvedNeeds.filter((n) => n.org_id === id);
+  else {
+    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status").eq("id", id).maybeSingle()).catch(() => null);
+    if (o) open = await result(db.from("needs").select(NEED_SELECT).eq("organisation_id", id).eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
+  }
+  if (!o) return notFound("This organisation isn’t on Handova", "It may not be approved yet, or the link may be wrong.");
+  const logo = `<span class="hs-org org-logo">${avatar(o.name, 96)}${o.logo ? `<img src="${e(o.logo)}" alt="" referrerpolicy="no-referrer">` : ""}</span>`;
+  const hours = handed.reduce((s, n) => s + Number(n.hours || 0), 0);
+  const handedBlock = (n) => `<article class="card stack handed-need" id="${e(n.id)}" style="--gap:16px">
+      ${handoverStrip(n, 64)}
+      <div class="row between" style="align-items:flex-start"><div class="stack" style="--gap:6px"><h3 class="serif" style="font:500 1.7rem/1.15 var(--serif)">${e(n.title)}</h3><span class="small muted">Handed over by <a href="#profile/${e(n.contributor.id)}">${e(n.contributor.name)}</a> · ${plural(n.hours, "hour")} · Remote</span></div>${pill(n.pending ? "Endorsement pending" : "Reviewed", n.pending ? "ochre" : "")}</div>
+      <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${e(n.description)}</p></div><div><span class="label-cap">Handed over</span><ul class="bullets">${n.deliverables.map((d) => `<li>${e(d)}</li>`).join("")}</ul></div></div>
+      ${tags(n.skills)}
+    </article>`;
+  const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:60px">
+    ${back("All needs", "#needs")}
+    <section class="org-head">
+      ${logo}
+      <div class="stack" style="--gap:10px">${eyebrow("Organisation on Handova")}<h1 style="font-size:clamp(2.4rem,4.6vw,4rem)">${e(o.name)}</h1>${o.city || o.country ? `<p class="muted">${icon("map", 18, "#0f6f63")} ${e([o.city, o.country].filter(Boolean).join(", "))}</p>` : ""}${o.summary ? `<p class="lead" style="max-width:760px">${e(o.summary)}</p>` : ""}
+        <div class="row">${safeURL(o.ethical_bridge_url) ? `<a class="btn secondary" href="${e(safeURL(o.ethical_bridge_url))}" target="_blank" rel="noopener">Full profile on Ethical Bridge ${icon("arrow", 18)}<span class="visually-hidden">(opens in a new tab)</span></a>` : `<span class="small muted">Not yet in the Ethical Bridge directory.</span>`}</div></div>
+    </section>
+    ${handed.length ? `<section class="stats-dark"><div><strong data-counter="${hours}">${hours}</strong><span>hours handed over</span></div><div><strong data-counter="${handed.length}">${handed.length}</strong><span>${handed.length === 1 ? "need solved" : "needs solved"}</span></div><div><strong data-counter="${open.length}">${open.length}</strong><span>open needs</span></div><div><strong data-counter="${new Set(handed.map((n) => n.contributor.id)).size}">${new Set(handed.map((n) => n.contributor.id)).size}</strong><span>${new Set(handed.map((n) => n.contributor.id)).size === 1 ? "professional" : "professionals"}</span></div></section>` : ""}
+    <section class="stack" style="--gap:16px"><h2 style="font-size:2.2rem">Open needs</h2>${open.length ? `<div class="grid">${open.map(needCard).join("")}</div>` : empty("No open needs right now", "When this organisation publishes a need, it will appear here and on the Needs page.")}</section>
+    ${handed.length ? `<section class="stack" style="--gap:16px"><h2 style="font-size:2.2rem">Needs handed over</h2>${handed.map(handedBlock).join("")}</section>` : ""}
+  </div>`;
+  return { title: o.name, description: o.summary || `${o.name} on Handova`, html };
+}
+
 // "For organisations" now lives inside How it works; the old address opens that section.
 export const organisations = () => how("organisations");
 export const professionals = () => how("professionals");
@@ -241,7 +274,7 @@ export async function needs() {
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <div class="grid" id="results"></div>
     <section class="stack" style="--gap:18px;padding-top:24px">
-      <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already solved.</h2><p class="lead" style="max-width:680px">Real needs from organisations in the Ethical Bridge directory, delivered and handed over. The capability stays with each team; the record stays on the professional’s impact CV.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
+      <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already solved.</h2><p class="lead" style="max-width:680px">Real needs from organisations in the Ethical Bridge directory, delivered and handed over. The capability stays with each team; the record stays on the professional’s impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
       <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
     </section>
     <div class="card row between" style="background:var(--mint);border-color:#bcd6cd"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p></div>${btn(`Create your profile ${icon("arrow", 18)}`, "#join")}</div>

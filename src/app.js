@@ -25,7 +25,7 @@ async function page(r) {
   switch (r.name) {
     case "home": return pub.home();
     case "about": return pub.about();
-    case "organisations": return pub.organisations();
+    case "organisations": return r.a ? pub.orgPage(r.a) : pub.organisations();
     case "professionals": return pub.professionals();
     case "needs": return pub.needs();
     case "need": return r.a ? pub.need(r.a) : { redirect: "#needs" };
@@ -58,7 +58,7 @@ async function render() {
   const v = ++version;
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
-  $("#site-header").innerHTML = header(ACTIVE[r.name]);
+  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : ACTIVE[r.name]);
   const main = $("#main");
   main.setAttribute("aria-busy", "true");
   try {

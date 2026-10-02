@@ -25,19 +25,23 @@ export const exampleProfile = {
 };
 
 export const exampleContributions = [
-  { id: "jc-asri", need_link: "#need/done-asri", need_title: "Compliance and risk tool", organisation: "Alam Sehat Lestari (ASRI)", organisation_country: "Indonesia", org_url: "https://ethicalbridge.org/organisations/02459f0b-bf16-4736-a427-7757c7254b56/", org_logo: "https://jyvralzxqftdextjowwf.supabase.co/storage/v1/object/public/organisation-logos/02459f0b-bf16-4736-a427-7757c7254b56/1785721781422-ornament-asri-logo.png", hours: 4, need: "A practical way for the team to manage its compliance and risk.", output: "A compliance and risk tool the team can keep using.", deliverables: "Compliance and risk tool", skills: ["Compliance and risk", "Legal"], pending: true, public: true },
-  { id: "jc-hwh", need_link: "#need/done-hwh", need_title: "Brand, strategic direction and theory of change", organisation: "Hands With Heart Foundation", organisation_country: "Spain", org_url: "https://ethicalbridge.org/organisations/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf/", org_logo: "https://ethicalbridge.org/assets/logos/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf.svg", hours: 3, need: "A brand and a written strategy the foundation can share with funders and partners.", output: "A brand manual, a strategic direction and a theory of change.", deliverables: "Brand manual\nStrategic direction\nTheory of change", skills: ["Branding", "Strategy", "Theory of change"], pending: true, public: true },
-  { id: "jc-hopes", need_link: "#need/done-hopes", need_title: "Branding", organisation: "HOPES", hours: 1, need: "A brand for the organisation.", output: "A brand identity.", deliverables: "Brand identity", skills: ["Branding", "Design"], pending: true, public: true },
+  { id: "jc-asri", need_link: "#organisations/asri", org_page: "#organisations/asri", need_title: "Compliance and risk tool", organisation: "Alam Sehat Lestari (ASRI)", organisation_country: "Indonesia", org_url: "https://ethicalbridge.org/organisations/02459f0b-bf16-4736-a427-7757c7254b56/", org_logo: "https://jyvralzxqftdextjowwf.supabase.co/storage/v1/object/public/organisation-logos/02459f0b-bf16-4736-a427-7757c7254b56/1785721781422-ornament-asri-logo.png", hours: 4, need: "A practical way for the team to manage its compliance and risk.", output: "A compliance and risk tool the team can keep using.", deliverables: "Compliance and risk tool", skills: ["Compliance and risk", "Legal"], pending: true, public: true },
+  { id: "jc-hwh", need_link: "#organisations/hwh", org_page: "#organisations/hwh", need_title: "Brand, strategic direction and theory of change", organisation: "Hands With Heart Foundation", organisation_country: "Spain", org_url: "https://ethicalbridge.org/organisations/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf/", org_logo: "https://ethicalbridge.org/assets/logos/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf.svg", hours: 3, need: "A brand and a written strategy the foundation can share with funders and partners.", output: "A brand manual, a strategic direction and a theory of change.", deliverables: "Brand manual\nStrategic direction\nTheory of change", skills: ["Branding", "Strategy", "Theory of change"], pending: true, public: true },
+  { id: "jc-hopes", need_link: "#organisations/hopes", org_page: "#organisations/hopes", need_title: "Branding", organisation: "HOPES", hours: 1, need: "A brand for the organisation.", output: "A brand identity.", deliverables: "Brand identity", skills: ["Branding", "Design"], pending: true, public: true },
 ];
 
-// Real needs the founder has already handed over, shown under "Handed over" on the Needs page.
+// Real needs the founder has already handed over.
+// One record per need: the organisation page, the Needs list and the impact CV are three views of the
+// same entry (exampleContributions above + the organisation below), never separate copies.
 const ORG_INFO = {
-  "jc-asri": { name: "Alam Sehat Lestari (ASRI)", city: "Sukadana", country: "Indonesia", summary: "An Indonesian organisation connecting healthcare, forest conservation and sustainable livelihoods for communities near high-value forests.", ethical_bridge_url: "https://ethicalbridge.org/organisations/02459f0b-bf16-4736-a427-7757c7254b56/" },
-  "jc-hwh": { name: "Hands With Heart Foundation", city: "Barcelona", country: "Spain", summary: "A Barcelona-based foundation that brings volunteer health professionals to underserved communities to give free care to children and adults with disabilities, and trains local practitioners.", ethical_bridge_url: "https://ethicalbridge.org/organisations/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf/" },
-  "jc-hopes": { name: "HOPES", city: "", country: "", summary: "" },
+  asri: { name: "Alam Sehat Lestari (ASRI)", city: "Sukadana", country: "Indonesia", summary: "An Indonesian organisation connecting healthcare, forest conservation and sustainable livelihoods for communities near high-value forests.", ethical_bridge_url: "https://ethicalbridge.org/organisations/02459f0b-bf16-4736-a427-7757c7254b56/" },
+  hwh: { name: "Hands With Heart Foundation", city: "Barcelona", country: "Spain", summary: "A Barcelona-based foundation that brings volunteer health professionals to underserved communities to give free care to children and adults with disabilities, and trains local practitioners.", ethical_bridge_url: "https://ethicalbridge.org/organisations/2544786e-4bd6-4ee8-8fd2-5ca309f9edbf/" },
+  hopes: { name: "HOPES", city: "", country: "", summary: "", ethical_bridge_url: "" },
 };
+const key = (c) => c.id.slice(3);
+export const handovaOrgs = Object.entries(ORG_INFO).map(([id, o]) => ({ id, ...o, logo: exampleContributions.find((c) => key(c) === id)?.org_logo || "" }));
 export const solvedNeeds = exampleContributions.map((c) => ({
-  id: "done-" + c.id.slice(3), handed: true, status: "completed", title: c.need_title, description: c.need, output: c.output, deliverables: String(c.deliverables || "").split(/\n+/).filter(Boolean),
-  hours: c.hours, arrangement: "Remote", languages: ["English"], skills: c.skills, organisation: ORG_INFO[c.id], logo: c.org_logo,
-  contributor: { name: exampleProfile.name, id: exampleProfile.user_id }, pending: c.pending, created_at: "2026-09-01",
+  id: "done-" + key(c), org_id: key(c), handed: true, status: "completed", title: c.need_title, description: c.need, output: c.output, deliverables: String(c.deliverables || "").split(/\n+/).filter(Boolean),
+  hours: c.hours, arrangement: "Remote", languages: ["English"], skills: c.skills, organisation: { id: key(c), ...ORG_INFO[key(c)] }, logo: c.org_logo,
+  contributor: { name: exampleProfile.name, id: exampleProfile.user_id, photo: exampleProfile.photo }, pending: c.pending, created_at: "2026-09-01",
 }));

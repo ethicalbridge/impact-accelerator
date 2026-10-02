@@ -12,7 +12,7 @@ let cleanups = [];
 export function enhance(root, route) {
   cleanups.forEach((f) => f()); cleanups = [];
   // Organisation logos come from Ethical Bridge; if one cannot load, the initials underneath show instead.
-  root.querySelectorAll(".c-logo img").forEach((img) => {
+  root.querySelectorAll(".c-logo img, .hs-org img").forEach((img) => {
     const drop = () => img.remove();
     if (img.complete && !img.naturalWidth) drop(); else img.addEventListener("error", drop, { once: true });
   });

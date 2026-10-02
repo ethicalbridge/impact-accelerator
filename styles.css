@@ -668,3 +668,23 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
 .j-stage:last-child .j-cell p { color: #5c4a26; }
 .j-stage:last-child .j-who { color: var(--ochre-ink) !important; }
 .j-stage:last-child .j-num { background: var(--clay); }
+/* handover strip: who handed it over → handover → who keeps it */
+.h-strip { display: flex; align-items: flex-start; justify-content: center; gap: 0; padding: 22px 18px 16px; background: var(--mint-2); }
+.card.handed .h-strip { aspect-ratio: 384 / 176; align-items: center; padding: 18px; }
+.handed-need .h-strip { border-radius: 16px; justify-content: flex-start; }
+.hs-end, .hs-mark { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; max-width: 110px; text-align: center; }
+.hs-face { border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px var(--paper); background: var(--mint); }
+.hs-org { position: relative; display: inline-flex; border-radius: 50%; overflow: hidden; background: #fff; box-shadow: 0 0 0 3px var(--paper); }
+.hs-org .avatar { width: 100%; height: 100%; }
+.hs-org img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 6px; background: #fff; }
+.hs-mark { padding-top: 13px; }
+.hs-mark .hv-mark { background: var(--paper); border-radius: 50%; padding: 4px; box-sizing: content-box; box-shadow: 0 0 0 1px var(--line); }
+.hs-cap { font-size: 0.72rem; font-weight: 700; color: var(--muted); line-height: 1.2; }
+.hs-mark .hs-cap { color: var(--clay-ink); letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.64rem; }
+.hs-line { flex: 1; min-width: 18px; max-width: 90px; height: 2px; margin-top: 28px; background: repeating-linear-gradient(90deg, var(--teal) 0 6px, transparent 6px 11px); }
+.card.handed .hs-line { margin-top: 0; align-self: center; }
+.card.handed .hs-end, .card.handed .hs-mark { padding-top: 0; }
+.motion .card-link.handed:hover .hs-mark .hv-dot, .motion .handed-need:hover .hs-mark .hv-dot { animation: hv-handover 2.4s ease-in-out; }
+.org-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px; align-items: center; }
+.org-logo { width: 120px; height: 120px; box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 640px) { .org-head { grid-template-columns: 1fr; } .hs-line { min-width: 10px; } }

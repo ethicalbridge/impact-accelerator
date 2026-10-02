@@ -142,12 +142,25 @@ export const check = (name, label, checked = false, required = false) =>
   `<label class="check"><input type="checkbox" name="${name}" ${checked ? "checked" : ""} ${required ? "required" : ""}><span>${label}</span></label>`;
 export const formEnd = (label, extra = "") => `<p class="form-error" role="alert"></p><div class="row">${`<button class="btn" type="submit">${label}</button>`}${extra}</div>`;
 
+// Who handed it over → the handover → who keeps it.
+export function handoverStrip(n, size = 56) {
+  const who = n.contributor || {};
+  const person = who.photo ? `<img class="hs-face" src="${e(who.photo)}" alt="" width="${size}" height="${size}">` : avatar(who.name || "Professional", size);
+  const org = n.organisation || {};
+  const logo = `<span class="hs-org" style="width:${size}px;height:${size}px">${avatar(org.name || "Organisation", size)}${n.logo && safeURL(n.logo) ? `<img src="${e(safeURL(n.logo))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
+  return `<div class="h-strip" role="img" aria-label="${e(who.name || "A professional")} handed this over to ${e(org.name || "the organisation")}">
+    <span class="hs-end">${person}<span class="hs-cap">${e(String(who.name || "").split(" ")[0])}</span></span>
+    <i class="hs-line"></i><span class="hs-mark">${mark(30)}<span class="hs-cap">handed over</span></span><i class="hs-line"></i>
+    <span class="hs-end">${logo}<span class="hs-cap">${e(org.name || "")}</span></span>
+  </div>`;
+}
+
 export function needCard(n) {
   const org = n.organisation || {};
   const kind = coverKind(n.skills, n.title);
   const place = [org.city || n.location, org.country || n.country].filter(Boolean).join(", ");
-  return `<a class="card flush card-link" href="#need/${e(n.id)}">
-  ${cover(kind)}
+  return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
+  ${n.handed ? handoverStrip(n) : cover(kind)}
   <div class="card-body">
     <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? pill("Handed over", "ochre") : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
@@ -181,7 +194,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
   const logo = c.org_logo && safeURL(c.org_logo)
     ? `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}<img src="${e(safeURL(c.org_logo))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`
     : `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}</span>`;
-  const org = `${e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(c.organisation_country)}</span>` : ""}`;
+  const org = `${c.org_page ? `<a href="${e(c.org_page)}">${e(c.organisation)}</a>` : e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(c.organisation_country)}</span>` : ""}`;
   return `<details class="contrib">
   <summary>
     ${logo}
@@ -197,7 +210,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p>${e(c.output)}</p></div></div>
     ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
     ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
-    <div class="row between">${tags(c.skills || [])}${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
+    <div class="row between">${tags(c.skills || [])}${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need on ${e(c.organisation)}’s page ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
   </div>
 </details>`;
 }
