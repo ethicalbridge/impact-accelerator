@@ -214,50 +214,91 @@ const countryOptions = (value, empty = "Choose a country") => {
 export const countrySelect = (name, label, value = "", { required = false, full = false } = {}) =>
   `<label class="field ${full ? "full" : ""}" for="f-${name}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select id="f-${name}" name="${name}" ${required ? "required" : ""} autocomplete="country-name">${countryOptions(value)}</select></label>`;
 
-// Experience and education entries: one box per entry, the same fields the public profile shows.
-// Both use the same shape: { title, organisation, country, start, end } (end "present" while ongoing).
+// Experience and education entries, laid out like LinkedIn. Everything with a fixed set of answers is a dropdown.
+// Experience: { title, organisation, employment_type, start, end, country, work_mode, description, skills[] }
+// Education:  { organisation (school), title (degree), field, start, end, country, description }
+// Dates are "YYYY-MM" (or "YYYY" when no month is given); end is "present" while ongoing.
 const THIS_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: THIS_YEAR - 1959 }, (_, i) => String(THIS_YEAR - i));
-export const ENTRY_KINDS = {
-  experience: { title: "Role or title", titlePh: "e.g. Programme manager", org: "Organisation", orgPh: "e.g. Save the Children", present: "Present", add: "Add a role", none: "No roles added yet." },
-  education: { title: "Qualification", titlePh: "e.g. Master of Laws", org: "University or institution", orgPh: "e.g. University of Buenos Aires", present: "Studying now", add: "Add a qualification", none: "No qualifications added yet." },
-};
-export function entryRow(kind, it = {}) {
-  const k = ENTRY_KINDS[kind];
-  const yearSel = (cls, label, val, extra = "") => `<label class="field"><span>${label}</span><select class="${cls}">${extra}<option value="">Year</option>${YEARS.map((y) => `<option ${y === String(val) ? "selected" : ""}>${y}</option>`).join("")}</select></label>`;
-  return `<fieldset class="entry" data-entry="${kind}">
-    <legend class="visually-hidden">${kind === "experience" ? "Role" : "Qualification"}</legend>
-    <div class="entry-grid">
-      <label class="field"><span>${k.title} <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="120" placeholder="${k.titlePh}"></label>
-      <label class="field"><span>${k.org} <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="${k.orgPh}"></label>
-      <label class="field"><span>Country</span><select class="en-country">${countryOptions(it.country || "")}</select></label>
-      <div class="entry-years">${yearSel("en-start", "From", it.start)}${yearSel("en-end", "To", it.end, `<option value="present" ${it.end === "present" ? "selected" : ""}>${k.present}</option>`)}</div>
-    </div>
-    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button>
-  </fieldset>`;
+const YEARS = Array.from({ length: THIS_YEAR + 6 - 1959 }, (_, i) => String(THIS_YEAR + 5 - i));
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Self-employed", "Freelance", "Contract", "Internship", "Apprenticeship", "Volunteer", "Seasonal"];
+export const WORK_MODES = ["On-site", "Hybrid", "Remote"];
+export const DEGREES = ["Doctorate (PhD)", "Master of Laws (LLM)", "Master’s degree", "MBA", "Bachelor of Laws (LLB)", "Bachelor’s degree", "Postgraduate diploma", "Postgraduate certificate", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school", "Other"];
+export const FIELDS = ["Accounting", "Agriculture", "Anthropology", "Architecture", "Business administration", "Communications", "Computer science", "Criminology and forensic science", "Data science", "Design", "Development studies", "Economics", "Education", "Engineering", "Environmental science", "Finance", "Gender studies", "Geography", "Health sciences", "History", "Human resources", "Human rights", "International relations", "Journalism", "Languages and linguistics", "Law", "Marketing", "Mathematics and statistics", "Media and film", "Medicine", "Nursing", "Peace and conflict studies", "Philosophy", "Political science", "Psychology", "Public health", "Public policy", "Regional studies (e.g. African, Latin American)", "Social work", "Sociology", "Other"];
+export const TIMEZONES = Array.from({ length: 27 }, (_, i) => i - 12).map((h) => `UTC${h === 0 ? "" : h > 0 ? "+" + h : "−" + -h}`).concat(["UTC+5:30", "UTC+5:45", "UTC+9:30", "UTC+3:30", "UTC+4:30", "UTC+6:30"]).sort((a, b) => tzNum(a) - tzNum(b));
+function tzNum(t) { const m = t.replace("−", "-").match(/UTC([+-]\d+)?(?::(\d+))?/); const h = Number(m?.[1] || 0); return h + Math.sign(h || 1) * (Number(m?.[2] || 0) / 60); }
+
+const opt = (v, cur, label = v) => `<option value="${e(v)}" ${String(v) === String(cur ?? "") ? "selected" : ""}>${e(label)}</option>`;
+const withCurrent = (list, cur) => (cur && !list.includes(cur) ? [cur, ...list] : list);
+// A plain dropdown for profile and need forms.
+export function dropdown(name, label, list, value = "", { required = false, full = false, empty = "Choose", hint = "" } = {}) {
+  return `<label class="field ${full ? "full" : ""}" for="f-${name}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select id="f-${name}" name="${name}" ${required ? "required" : ""}><option value="">${empty}</option>${withCurrent(list, value).map((x) => (Array.isArray(x) ? opt(x[0], value, x[1]) : opt(x, value))).join("")}</select>${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;
 }
+const sel = (cls, label, list, cur, empty, req = false) => `<label class="field"><span>${label}${req ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select class="${cls}"><option value="">${empty}</option>${withCurrent(list, cur).map((x) => (Array.isArray(x) ? opt(x[0], cur, x[1]) : opt(x, cur))).join("")}</select></label>`;
+const split = (d) => { const [y, m] = String(d || "").split("-"); return { y: y || "", m: m || "" }; };
+function dateSel(cls, label, value, presentLabel) {
+  const present = value === "present", { y, m } = present ? { y: "", m: "" } : split(value);
+  return `<div class="entry-date"><span class="date-label">${label}</span><div class="date-pair">
+    <select class="${cls}-m" aria-label="${label}: month"><option value="">Month</option>${MONTHS.map((n, i) => opt(String(i + 1).padStart(2, "0"), m, n)).join("")}</select>
+    <select class="${cls}-y" aria-label="${label}: year"><option value="">Year</option>${presentLabel ? opt("present", present ? "present" : "", presentLabel) : ""}${YEARS.map((x) => opt(x, y)).join("")}</select>
+  </div></div>`;
+}
+let entrySeq = 0;
+export function entryRow(kind, it = {}) {
+  const id = ++entrySeq;
+  if (kind === "education") return `<fieldset class="entry" data-entry="education"><legend class="visually-hidden">Qualification</legend>
+    <div class="entry-grid">
+      <label class="field full"><span>School or university <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. University of Buenos Aires"></label>
+      ${sel("en-title", "Degree", DEGREES, it.title, "Choose a degree", true)}
+      ${sel("en-field", "Field of study", FIELDS, it.field, "Choose a field")}
+      ${sel("en-country", "Country", ["Remote / online", ...COUNTRIES], it.country, "Choose a country")}
+      <div></div>
+      ${dateSel("en-start", "Start date", it.start)}
+      ${dateSel("en-end", "End date (or expected)", it.end, "Studying now")}
+      <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="Thesis, focus, honours or activities. Optional.">${e(it.description || "")}</textarea></label>
+    </div>
+    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove this qualification</button></fieldset>`;
+  return `<fieldset class="entry" data-entry="experience"><legend class="visually-hidden">Role</legend>
+    <div class="entry-grid">
+      <label class="field"><span>Title <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="120" placeholder="e.g. Project and Awards Coordinator"></label>
+      ${sel("en-type", "Employment type", EMPLOYMENT_TYPES, it.employment_type, "Choose a type")}
+      <label class="field full"><span>Company or organisation <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. Save the Children Australia"></label>
+      ${dateSel("en-start", "Start date", it.start)}
+      ${dateSel("en-end", "End date", it.end, "Present")}
+      ${sel("en-country", "Country", ["Remote / several countries", ...COUNTRIES], it.country, "Choose a country")}
+      ${sel("en-mode", "Location type", WORK_MODES, it.work_mode, "Choose")}
+      <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="What you did and achieved. Optional.">${e(it.description || "")}</textarea></label>
+      ${optionPicker(`en_skills_${id}`, "Skills used in this role", SKILL_GROUPS, it.skills || [], { required: false, placeholder: "Choose skills", search: "Search skills" })}
+    </div>
+    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove this role</button></fieldset>`;
+}
+const LABELS = {
+  experience: { none: "No roles added yet.", add: "Add a role" },
+  education: { none: "No qualifications added yet.", add: "Add a qualification" },
+};
 export function entryEditor(kind, label, items = [], hint = "") {
-  const k = ENTRY_KINDS[kind];
-  return `<div class="field full entry-editor" data-entry-editor="${kind}"><span>${label}</span>${hint ? `<span class="hint">${hint}</span>` : ""}
+  const k = LABELS[kind];
+  return `<div class="field full entry-editor" data-entry-editor="${kind}"><span class="visually-hidden">${label}</span>${hint ? `<span class="hint">${hint}</span>` : ""}
     <div class="entry-list">${items.map((it) => entryRow(kind, it)).join("")}</div>
     <p class="muted small entry-none" ${items.length ? "hidden" : ""}>${k.none}</p>
     <div><button type="button" class="btn secondary sm" data-entry-add="${kind}">${icon("plus", 16)}${k.add}</button></div>
   </div>`;
 }
-// Newest first: ongoing entries, then by end year, then by start year.
-export const sortEntries = (list) => [...list].sort((a, b) => {
-  const end = (x) => (x.end === "present" ? 9999 : Number(x.end) || Number(x.start) || 0);
-  return end(b) - end(a) || (Number(b.start) || 0) - (Number(a.start) || 0);
-});
+const dkey = (d) => (d === "present" ? 999999 : (() => { const { y, m } = split(d); return y ? Number(y) * 100 + Number(m || 0) : 0; })());
+// Newest first, like LinkedIn: ongoing, then by end date, then by start date.
+export const sortEntries = (list) => [...list].sort((a, b) => (dkey(b.end) || dkey(b.start)) - (dkey(a.end) || dkey(a.start)) || dkey(b.start) - dkey(a.start));
 export function readEntries(form, kind) {
   const out = [];
   for (const row of form.querySelectorAll(`[data-entry="${kind}"]`)) {
-    const v = (c) => row.querySelector(c).value.trim();
-    const it = { title: v(".en-title"), organisation: v(".en-org"), country: v(".en-country"), start: v(".en-start"), end: v(".en-end") };
+    const v = (c) => row.querySelector(c)?.value.trim() || "";
+    const date = (c) => { const y = v(`${c}-y`), m = v(`${c}-m`); return y === "present" ? "present" : y ? (m ? `${y}-${m}` : y) : ""; };
+    const it = kind === "experience"
+      ? { title: v(".en-title"), organisation: v(".en-org"), employment_type: v(".en-type"), start: date(".en-start"), end: date(".en-end"), country: v(".en-country"), work_mode: v(".en-mode"), description: v(".en-desc"), skills: v('[data-lang-picker] input[type="hidden"]').split(",").map((x) => x.trim()).filter(Boolean) }
+      : { organisation: v(".en-org"), title: v(".en-title"), field: v(".en-field"), start: date(".en-start"), end: date(".en-end"), country: v(".en-country"), description: v(".en-desc") };
     if (!it.title && !it.organisation) continue;
-    const what = kind === "experience" ? "role" : "qualification";
-    if (!it.title || !it.organisation) throw Error(`Each ${what} needs ${kind === "experience" ? "a title and an organisation" : "a qualification and an institution"}.`);
-    if (it.start && it.end && it.end !== "present" && Number(it.end) < Number(it.start)) throw Error(`Check the years for “${it.title}”: it ends before it starts.`);
+    if (kind === "experience" && (!it.title || !it.organisation)) throw Error("Each role needs a title and a company or organisation.");
+    if (kind === "education" && (!it.title || !it.organisation)) throw Error("Each qualification needs a school and a degree.");
+    if (it.start && it.end && it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for “${it.title}”: it ends before it starts.`);
     out.push(it);
   }
   return sortEntries(out);
@@ -269,7 +310,7 @@ export function bindEntryEditors(root = document) {
       const ed = add.closest("[data-entry-editor]");
       ed.querySelector(".entry-list").insertAdjacentHTML("beforeend", entryRow(add.dataset.entryAdd));
       ed.querySelector(".entry-none").hidden = true;
-      ed.querySelector(".entry-list .entry:last-child .en-title").focus();
+      ed.querySelector(".entry-list .entry:last-child input").focus();
       return;
     }
     const rm = ev.target.closest("[data-entry-remove]");
@@ -280,13 +321,46 @@ export function bindEntryEditors(root = document) {
       ed.querySelector("[data-entry-add]").focus();
     }
   });
+  // Choosing "Present" clears the month next to it.
+  root.addEventListener("change", (ev) => { if (ev.target.matches(".en-end-y") && ev.target.value === "present") { const m = ev.target.parentElement.querySelector(".en-end-m"); if (m) m.value = ""; } });
 }
-export const entryYears = (it, kind = "experience") => {
-  const end = it.end === "present" ? ENTRY_KINDS[kind].present : it.end;
-  return it.start && end ? (it.start === end ? it.start : `${it.start} – ${end}`) : it.start || end || "";
+// "Apr 2026", "2019", or "Present"
+const fmt = (d, present) => { if (d === "present") return present; const { y, m } = split(d); return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : ""; };
+// LinkedIn-style duration, counting both the first and the last month: Apr–Oct is 7 mos.
+export function duration(start, end, now = new Date()) {
+  const s = split(start); if (!s.y || !s.m) return "";
+  const e2 = end === "present" ? { y: String(now.getFullYear()), m: String(now.getMonth() + 1) } : split(end);
+  if (!e2.y || !e2.m) return "";
+  const n = (Number(e2.y) * 12 + Number(e2.m)) - (Number(s.y) * 12 + Number(s.m)) + 1;
+  if (n < 1) return "";
+  const y = Math.floor(n / 12), m = n % 12;
+  return [y ? `${y} yr${y > 1 ? "s" : ""}` : "", m ? `${m} mo${m > 1 ? "s" : ""}` : ""].filter(Boolean).join(" ");
+}
+export const entryDates = (it, kind = "experience") => {
+  const present = kind === "education" ? "Present" : "Present";
+  const a = fmt(it.start, present), b = fmt(it.end, present);
+  const range = a && b ? (a === b ? a : `${a} - ${b}`) : a || b;
+  const d = kind === "experience" ? duration(it.start, it.end) : "";
+  return [range, d].filter(Boolean).join(" · ");
 };
-// Public view: title in bold, organisation and country underneath, years on the right.
-export const entryList = (items, kind = "experience") => `<ul class="xp">${items.map((it) => `<li><div class="xp-top"><strong>${e(it.title || it.organisation)}</strong>${entryYears(it, kind) ? `<span class="xp-years">${e(entryYears(it, kind))}</span>` : ""}</div>${[it.title ? it.organisation : "", it.country].filter(Boolean).length ? `<span>${e([it.title ? it.organisation : "", it.country].filter(Boolean).join(" · "))}</span>` : ""}</li>`).join("")}</ul>`;
+const orgTile = (name) => `<span class="xp-logo" aria-hidden="true">${e(orgInitials(name || "?"))}</span>`;
+function orgInitials(name) { return String(name).replace(/\(.*?\)/g, "").split(/\s+/).filter((w) => /^[A-Za-zÀ-ÿ]/.test(w) && !/^(of|the|and|de|la|for)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join(""); }
+const more = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-desc">${e(text)}</p>` : `<details class="xp-more"><summary><span class="xp-desc">${e(text.slice(0, 140).replace(/\s+\S*$/, ""))}…</span> <span class="xp-more-btn">more</span></summary><p class="xp-desc">${e(text)}</p></details>`;
+// Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
+export function entryList(items, kind = "experience") {
+  return `<ul class="xp-li">${items.map((it) => {
+    const lines = kind === "experience"
+      ? [`<strong class="xp-title">${e(it.title || it.organisation)}</strong>`,
+         (it.title && it.organisation) || it.employment_type ? `<span>${e([it.title ? it.organisation : "", it.employment_type].filter(Boolean).join(" · "))}</span>` : "",
+         entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
+         it.country || it.work_mode ? `<span class="xp-muted">${e([it.country, it.work_mode].filter(Boolean).join(" · "))}</span>` : ""]
+      : [`<strong class="xp-title">${e(it.organisation || it.title)}</strong>`,
+         [it.organisation ? it.title : "", it.field].filter(Boolean).length ? `<span>${e([it.organisation ? it.title : "", it.field].filter(Boolean).join(", "))}</span>` : "",
+         entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
+         it.country ? `<span class="xp-muted">${e(it.country)}</span>` : ""];
+    return `<li>${orgTile(it.organisation)}<div class="xp-body">${lines.join("")}${more(it.description)}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.slice(0, 3).join(", "))}${it.skills.length > 3 ? ` and +${it.skills.length - 3} skill${it.skills.length > 4 ? "s" : ""}` : ""}</span>` : ""}</div></li>`;
+  }).join("")}</ul>`;
+}
 
 export function select(name, label, options, value = "", { full = false, required = false } = {}) {
   const id = `f-${name}`;

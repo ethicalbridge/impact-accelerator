@@ -727,3 +727,25 @@ ul.xp li > span { color: var(--muted); font-size: 0.92rem; }
 .photo-pick:focus-within { outline: 3px solid rgba(15, 111, 99, 0.35); outline-offset: 2px; }
 @media (max-width: 640px) { .entry-grid { grid-template-columns: 1fr; } }
 .entry-editor { display: flex; flex-direction: column; gap: 4px; }
+
+/* LinkedIn-style experience and education */
+ul.xp-li { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+ul.xp-li > li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-top: 1px solid var(--line); }
+ul.xp-li > li:first-child { border-top: 0; padding-top: 2px; }
+.xp-logo { flex-shrink: 0; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--mint-2, #e3efe9); color: var(--deep); font: 700 0.86rem var(--sans); letter-spacing: 0.02em; }
+.xp-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1.4; font-size: 0.93rem; }
+.xp-title { font-weight: 700; color: var(--deep); font-size: 1rem; }
+.xp-muted { color: var(--muted); font-size: 0.88rem; }
+.xp-desc { margin: 6px 0 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-line; }
+.xp-more summary { list-style: none; cursor: pointer; }
+.xp-more summary::-webkit-details-marker { display: none; }
+.xp-more[open] summary { display: none; }
+.xp-more-btn { color: var(--muted); font-weight: 600; }
+.xp-skills { display: inline-flex; gap: 6px; align-items: center; margin-top: 6px; font-weight: 700; font-size: 0.86rem; color: var(--deep); }
+.entry-date { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.date-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.entry-grid .full { grid-column: 1 / -1; }
+.entry textarea { width: 100%; }
+.date-pair select { width: 100%; min-height: 50px; padding: 12px 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; color: var(--ink); font: 400 1rem var(--sans); }
+.date-pair select:focus { outline: 3px solid rgba(15, 111, 99, 0.35); border-color: var(--teal); }
+.date-label { font-size: 0.95rem; }

@@ -1,5 +1,7 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
-import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries } from "../ui.js";
+import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES } from "../ui.js";
+
+const HOURS_MONTH = [["0", "Not available right now"], ...[2, 4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`])];
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
@@ -50,7 +52,7 @@ export async function join(params) {
     <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
     <fieldset data-for="organisation" class="only-organisation"><legend class="visually-hidden">Your organisation</legend><div class="form-grid">
       ${field("org_name", "Organisation name", { required: true, full: true, attrs: 'maxlength="160" autocomplete="organization"' })}
-      ${field("org_country", "Country where you work", { required: true, attrs: 'maxlength="100" autocomplete="country-name"' })}
+      ${countrySelect("org_country", "Country where you work", "", { required: true })}
       ${field("org_role", "Your role in the organisation", { attrs: 'maxlength="120" placeholder="e.g. Director, Programme lead"' })}
       ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
       ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
@@ -119,7 +121,7 @@ export function orgForm(o = {}, fullName = "") {
   const edit = !!o.id;
   return `<form class="form card" data-form="${edit ? "org-edit" : "org-create"}" data-id="${e(o.id || "")}"><div class="form-grid">
     ${field("name", "Organisation name", { value: o.name, required: true, attrs: 'maxlength="160"', full: true })}
-    ${field("country", "Country", { value: o.country, required: true, attrs: 'maxlength="100" autocomplete="country-name"' })}
+    ${countrySelect("country", "Country", o.country || "", { required: true })}
     ${field("city", "City or region", { value: o.city, attrs: 'maxlength="120"' })}
     ${select("org_type", "Type of organisation", ORG_TYPES, o.org_type || ORG_TYPES[0])}
     ${field("website", "Website or social page", { value: o.website, type: "url", attrs: 'maxlength="300" placeholder="https://"' })}
@@ -151,11 +153,11 @@ export function profileForm(p = {}) {
     </div>
     ${field("name", "Full or professional name", { value: p.name, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
     ${field("headline", "Title", { value: p.headline, required: true, attrs: 'maxlength="160" placeholder="e.g. Finance consultant · trainer"', hint: "One line under your name." })}
-    ${field("location", "City or time zone", { value: p.location, attrs: 'maxlength="160" placeholder="e.g. Nairobi · UTC+3"' })}
+    ${dropdown("location", "Time zone", TIMEZONES, p.location || "", { empty: "Choose a time zone" })}
     ${countrySelect("country", "Country", p.country || "")}
     ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
     ${select("arrangement", "How you can work", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}
-    ${field("hours_available", "Hours a month you can give", { value: p.hours_available ?? 8, type: "number", required: true, attrs: 'min="0" max="160" step="1"' })}
+    ${dropdown("hours_available", "Hours a month you can give", HOURS_MONTH, String(p.hours_available ?? 8), { required: true, empty: "Choose" })}
     ${sec("About")}
     ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
     ${sec("Skills")}

@@ -253,13 +253,16 @@ function pathSection(kind) {
 }
 
 // ---------- Needs directory ----------
-function filtersForm(kind) {
+function filtersForm(kind, rows = []) {
+  // Only countries and languages that appear in the list, so every choice gives results.
+  const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const countries = uniq(rows.map((r) => r.country || r.organisation?.country)), langs = uniq(rows.flatMap((r) => r.languages || []));
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
     <label>Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
-    <label>Country<input name="country" type="search" placeholder="Anywhere" autocomplete="off"></label>
-    <label>Working language<input name="language" type="search" placeholder="Any language" autocomplete="off"></label>
+    <label>Country<select name="country"><option value="">Anywhere</option>${opts(countries)}</select></label>
+    <label>Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
     ${kind === "needs" ? `<label>Length<select name="hours"><option value="">Any length</option><option value="short">Up to 8 hours</option><option value="medium">9 to 16 hours</option><option value="long">More than 16 hours</option></select></label>` : `<label>Availability<select name="available"><option value="">Everyone</option><option value="1">Available now</option></select></label>`}
     <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><button class="link-btn" type="reset">Clear filters</button></div>
   </form>`;
@@ -270,7 +273,7 @@ export async function needs() {
   const rows = real.length ? real : exampleNeeds;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Open needs")}<h1>Where your expertise can help.</h1><p class="lead">Every need is written by an approved, locally led organisation: the output they need, the skills involved and a realistic number of hours.</p></div>
-    ${filtersForm("needs")}
+    ${filtersForm("needs", rows)}
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <div class="grid" id="results"></div>
     <section class="stack" style="--gap:18px;padding-top:24px">
@@ -360,7 +363,7 @@ export async function talent() {
   const rows = [exampleProfile, ...real.filter((p) => p.user_id !== exampleProfile.user_id)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
-    ${filtersForm("talent")}
+    ${filtersForm("talent", rows)}
     ${real.length ? "" : `<div class="notice" role="note">${pill("Founder")}<span>The founding group is being approved now. Until then you can see the founder’s own impact CV; approved professionals will appear alongside it.</span></div>`}
     <div class="grid" id="results"></div>
     <div class="card row between band-dark" style="border-color:var(--deep)"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Are you an organisation?</span><p class="muted">Post a need and invite the people whose work fits. It is free.</p></div>${btn(`Post a need ${icon("arrow", 18)}`, "#organisations", "light")}</div>

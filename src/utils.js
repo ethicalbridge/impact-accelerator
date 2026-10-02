@@ -52,8 +52,8 @@ export function filterRecords(rows, f = {}) {
     const hayWords = new Set(hay.split(" "));
     if (f.search && !norm(f.search).split(" ").every((w) => hay.includes(w))) return false;
     if (area && !area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))))) return false;
-    if (f.country && norm(`${r.country} ${r.location}`).indexOf(norm(f.country)) === -1) return false;
-    if (f.language && !(r.languages || []).some((l) => norm(l).includes(norm(f.language)))) return false;
+    if (f.country && norm(`${r.country || r.organisation?.country || ""} ${r.location}`).indexOf(norm(f.country)) === -1) return false;
+    if (f.language && !(r.languages || []).some((l) => norm(l) === norm(f.language))) return false;
     if (f.arrangement && r.arrangement !== f.arrangement) return false;
     if (f.hours === "short" && !(r.hours <= 8)) return false;
     if (f.hours === "medium" && !(r.hours > 8 && r.hours <= 16)) return false;

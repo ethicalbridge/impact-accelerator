@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession } from "../core.js";
-import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker } from "../ui.js";
+import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm } from "./account.js";
 import { list, languages, date, plural, today } from "../utils.js";
 
@@ -123,10 +123,10 @@ function needForm(n, o, approved) {
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
-    ${field("hours", "Estimated hours", { value: n.hours || 8, type: "number", required: true, attrs: 'min="1" max="200"' })}
+    ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30, 40].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
     ${select("arrangement", "Arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}
-    ${field("location", "Location or time zone", { value: n.location, attrs: 'maxlength="160"' })}
-    ${field("country", "Country", { value: n.country || o.country, attrs: 'maxlength="100"' })}
+    ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
+    ${countrySelect("country", "Country", n.country || o.country || "")}
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     ${select("status", "Status", [["draft", "Draft: only your organisation can see it"], ...(approved ? [["open", "Open: accepting applications"]] : []), ...(n.id && n.status !== "draft" ? [["closed", "Closed: no new applications"]] : [])], n.status || (approved ? "open" : "draft"), { full: true })}
