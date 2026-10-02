@@ -59,7 +59,14 @@ begin
 end $$;
 
 -- 2. The name on an identity document is visible only to administrators (via id_verifications), never publicly.
-revoke select (id_document_name) on public.profiles from anon, authenticated;
+--    A table-wide SELECT grant overrides column revokes, so reads are granted column by column.
+revoke select on public.profiles from anon, authenticated;
+do $$ declare cols text; begin
+  select string_agg(quote_ident(column_name), ', ' order by ordinal_position) into cols
+  from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name <> 'id_document_name';
+  execute format('grant select (%s) on public.profiles to anon, authenticated', cols);
+end $$;
+-- Note: any new profiles column must be granted explicitly, e.g. grant select (new_col) on public.profiles to anon, authenticated;
 
 -- 3. Changing your name after a verified identity check sends the check back to an administrator.
 --    Changing public details after approval alerts administrators.
@@ -73,7 +80,6 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists profiles_change_guard on public.profiles;
 create trigger profiles_change_guard before update on public.profiles for each row execute function public.profile_change_guard();
 
 create or replace function public.org_change_guard() returns trigger language plpgsql security definer set search_path = '' as $$
@@ -83,12 +89,10 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists organisations_change_guard on public.organisations;
 create trigger organisations_change_guard before update on public.organisations for each row execute function public.org_change_guard();
 
 -- 4. Reports about a conversation can only come from someone in it; at most 10 reports a day per person.
-drop policy if exists reports_insert on public.reports;
-create policy reports_insert on public.reports for insert to authenticated with check (
+alter policy reports_insert on public.reports with check (
   (target_type <> 'conversation' or public.is_conversation_party(target_id))
   and (select count(*) from public.reports r where r.reporter_id = (select auth.uid()) and r.created_at > now() - interval '1 day') < 10
 );
