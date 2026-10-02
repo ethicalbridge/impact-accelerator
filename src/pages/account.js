@@ -139,7 +139,8 @@ export function profileForm(p = {}) {
   // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
   const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="full notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
   return `<form class="form card" data-form="profile" data-edit="${edit ? 1 : 0}"><div class="form-grid">
-    ${p.closed_reason === "inactive" && !p.published ? `<div class="full banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no endorsed work for three months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
+    ${p.closed_reason === "inactive" && !p.published ? `<div class="full banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
+    ${p.inactive_since && p.published ? `<div class="full banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
     ${sec("Profile", "What appears at the top of your impact CV.")}
     <div class="field full photo-field" data-photo-field>
       <span>Profile photo</span>
@@ -195,7 +196,7 @@ function agreementBlock() {
     <div class="checkbox-box">
       ${check("age_confirmed", "I am 18 or older.", false, true)}
       ${check("unpaid_confirmed", "I understand contributions are unpaid and voluntary.", false, true)}
-      ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment and that my profile is closed after three months without endorsed work.", false, true)}
+      ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.", false, true)}
     </div>
     ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with the date, time and the exact text you agreed to." })}
   </div>`;

@@ -18,9 +18,11 @@ export const PRO_AGREEMENT = [
   ]],
   ["3. Keeping the community active", [
     "Handova works because organisations can count on the people they find here. Their time is precious, and we don’t want them to spend it contacting profiles that are no longer active.",
-    "If three months pass after your profile is approved, or after your last endorsed contribution, without new work endorsed by an organisation, we will close your profile. It is unpublished and no longer visible to organisations.",
-    "We will send you a reminder two weeks before. Work in progress counts: if you are in an active engagement, your profile stays open.",
-    "Closing is not a penalty. You can publish your profile again whenever you are ready, and we will review it again before it goes back online.",
+    "Activity means applying to a need, accepting an invitation, working on an engagement or having work endorsed by an organisation.",
+    "If three months pass without any activity, your profile is marked inactive. It stays online, but organisations see that you have not been active recently.",
+    "If six months pass without any activity, we close your profile. It is unpublished and no longer visible to organisations.",
+    "We will remind you by email two weeks before each step. Any activity makes your profile active again straight away, and an engagement in progress always counts.",
+    "Closing is not a penalty. You can publish your profile again whenever you are ready, and we will review it before it goes back online.",
   ]],
   ["4. Voluntary and unpaid", [
     "Contributions are voluntary and unpaid. They do not create a job, an employment contract or a partnership with Handova, Ethical Bridge or the organisation.",
