@@ -44,7 +44,7 @@ export function errorMessage(err) {
   if (err?.status === 429 || /rate limit/i.test(msg)) return "Too many attempts. Please wait a few minutes and try again.";
   if (/Invalid login credentials/i.test(msg)) return "That email and password don’t match an account.";
   if (/Email not confirmed/i.test(msg)) return "Please confirm your email first. Check your inbox for the link we sent.";
-  if (/Failed to fetch|NetworkError/i.test(msg)) return "We couldn’t reach Impact Accelerator. Check your connection and try again.";
+  if (/Failed to fetch|NetworkError/i.test(msg)) return "We couldn’t reach Handova. Check your connection and try again.";
   if (err?.code === "23514") return "Some details don’t meet the requirements. Check the form and try again.";
   return msg || "Something went wrong. Please try again.";
 }

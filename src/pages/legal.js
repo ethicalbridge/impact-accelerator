@@ -7,7 +7,7 @@ const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
 export function privacy() {
   const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
-  <h2>Who is responsible for your information</h2><p>Impact Accelerator is an initiative of Ethical Bridge. Ethical Bridge is responsible for deciding how personal information collected through Impact Accelerator is used. Write to ${mail(config.contactEmail)} with any privacy question or request.</p>
+  <h2>Who is responsible for your information</h2><p>Handova is an initiative of Ethical Bridge. Ethical Bridge is responsible for deciding how personal information collected through Handova is used. Write to ${mail(config.contactEmail)} with any privacy question or request.</p>
   <h2>What we collect</h2><ul>
     <li><strong>Account details:</strong> your email address and a securely hashed password.</li>
     <li><strong>Professional profiles:</strong> name, headline, introduction, experience, skills, languages, location, availability, an optional professional link, and your confirmations that you are 18 or over and that contributions are unpaid.</li>
@@ -29,18 +29,18 @@ export function privacy() {
   <h2>Service providers</h2><p>We use Supabase to store data and manage sign-in, hosted in the European Union (Frankfurt); GitHub Pages to publish the website; an email provider to send account emails and notifications; and, only with your consent, Google Analytics. Some providers may process information outside your country under appropriate safeguards.</p>
   <h2>How long we keep it</h2><p>We keep your account and profile until you delete them. When you delete your account, we remove your profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”. Reports of concern are kept for as long as needed to handle them and for up to two years afterwards, for safety.</p>
   <h2>Your rights</h2><p>You can view and correct your profile at any time, unpublish it, and delete your account from <a href="#account">Account and privacy</a>. You can also ask us for a copy of your information, ask us to correct or erase it, object to how we use it, or ask us to restrict it, by writing to ${mail(config.contactEmail)}. You have the right to complain to your data protection authority.</p>
-  <h2>Age</h2><p>Impact Accelerator is for people aged 18 and over.</p>
+  <h2>Age</h2><p>Handova is for people aged 18 and over.</p>
   <h2>Changes</h2><p>We will update this notice when the service changes and highlight important changes on the site.</p>`;
-  return { title: "Privacy notice", description: "How Impact Accelerator uses your personal information.", html: page("Privacy", "Privacy notice", "What we collect, why, who can see it, and how to control it.", body) };
+  return { title: "Privacy notice", description: "How Handova uses your personal information.", html: page("Privacy", "Privacy notice", "What we collect, why, who can see it, and how to control it.", body) };
 }
 
 export function terms() {
   const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
-  <h2>1. About Impact Accelerator</h2><p>Impact Accelerator is an initiative of Ethical Bridge. It connects locally led organisations with professionals who contribute their skills, unpaid, to needs the organisation defines. Contact: ${mail(config.contactEmail)}.</p>
+  <h2>1. About Handova</h2><p>Handova (previously called Impact Accelerator) is an initiative of Ethical Bridge. It connects locally led organisations with professionals who contribute their skills, unpaid, to needs the organisation defines. Contact: ${mail(config.contactEmail)}.</p>
   <h2>2. Who can use it</h2><p>You must be 18 or over. Organisations must be locally led and registered, or fiscally hosted by a registered organisation, and the person creating the account must be authorised to represent it. We review organisations and profiles before they become public and may decline or remove them.</p>
   <h2>3. Your account</h2><p>Keep your password safe and your information accurate. You are responsible for what happens under your account. You can delete your account at any time.</p>
-  <h2>4. Contributions are voluntary</h2><p>Contributions are unpaid and voluntary. Nothing on Impact Accelerator creates employment, payment, partnership or agency between anyone. Any expenses or payment must be agreed in separate written terms between the organisation and the professional.</p>
-  <h2>5. Contribution agreements</h2><p>Before any work begins, the organisation and the professional sign a contribution agreement on the platform. The agreement is between them. Impact Accelerator provides matching and record-keeping tools and is not a party to the work.</p>
+  <h2>4. Contributions are voluntary</h2><p>Contributions are unpaid and voluntary. Nothing on Handova creates employment, payment, partnership or agency between anyone. Any expenses or payment must be agreed in separate written terms between the organisation and the professional.</p>
+  <h2>5. Contribution agreements</h2><p>Before any work begins, the organisation and the professional sign a contribution agreement on the platform. The agreement is between them. Handova provides matching and record-keeping tools and is not a party to the work.</p>
   <h2>6. How everyone must behave</h2><ul>
     <li>Be honest about who you are, what you can do and what you need.</li>
     <li>Treat everyone with respect. No harassment, discrimination or abuse.</li>
@@ -48,12 +48,12 @@ export function terms() {
     <li>Share confidential information only after signing, and only what the work needs.</li>
     <li>Do not post needs involving direct contact with children or vulnerable adults, or access to their personal information.</li>
     <li>Do not use the platform for anything unlawful, misleading, or unrelated to its purpose, including advertising and recruitment for paid jobs.</li></ul>
-  <h2>7. Your content</h2><p>You keep ownership of what you post. You allow us to display it on Impact Accelerator as the service requires, such as showing your published profile. Ownership of work delivered in an engagement is agreed between the organisation and the professional; by default the organisation owns the deliverables.</p>
+  <h2>7. Your content</h2><p>You keep ownership of what you post. You allow us to display it on Handova as the service requires, such as showing your published profile. Ownership of work delivered in an engagement is agreed between the organisation and the professional; by default the organisation owns the deliverables.</p>
   <h2>8. Safety and reports</h2><p>Anyone can report a concern. We may pause or remove accounts, needs or conversations, and we may contact the people involved, to keep the platform safe.</p>
   <h2>9. What we can and cannot promise</h2><p>We review organisations and profiles, but we do not verify identities, qualifications, background checks or the outcome of any work. A profile is not a licence or a background check. Make your own checks before sharing information or granting access. We aim to keep the service available but cannot guarantee it will always be uninterrupted.</p>
   <h2>10. Responsibility</h2><p>To the extent the law allows, we are not responsible for losses caused by users’ conduct, by information users choose to share, or by work agreed between users. Nothing in these terms limits responsibility for our own negligence, fraud, or anything else that cannot legally be limited, and your statutory rights are not affected.</p>
   <h2>11. Changes and law</h2><p>We may update these terms and will highlight important changes. The governing law will be confirmed with the final legal entity; until then, nothing in these terms reduces the rights you have under the law where you live.</p>`;
-  return { title: "Terms of use", description: "The rules for using Impact Accelerator.", html: page("Terms", "Terms of use", "Simple rules that keep contributions safe, fair and useful for everyone.", body) };
+  return { title: "Terms of use", description: "The rules for using Handova.", html: page("Terms", "Terms of use", "Simple rules that keep contributions safe, fair and useful for everyone.", body) };
 }
 
 export function cookies() {

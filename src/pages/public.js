@@ -18,41 +18,74 @@ export async function home() {
   const real = await openNeeds(3);
   const featured = real.length ? real : exampleNeeds.slice(0, 3);
   const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
-  const steps = [["doc", "Define the need", "The organisation sets the challenge, output, skills, languages and hours."], ["people", "Apply or invite", "Professionals apply with a plan, or organisations invite someone who fits."], ["pen", "Sign the agreement", "Scope, access, safeguarding and confidentiality, signed by both."], ["clock", "Do the work", "A short, protected contribution delivers the agreed output."], ["shield", "Review and record", "The organisation reviews the work; it joins the professional’s impact CV."]];
-  const faqs = [["Is it really free?", "Yes. Impact Accelerator is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  const steps = [
+    ["doc", "Define the need", "The organisation writes the need.", "An approved organisation publishes one specific need: the challenge, the output it will keep, the skills and working languages, and a realistic number of hours.", ["The output is named before anyone applies", "Up to three open needs at a time", "No direct contact with children or vulnerable adults"]],
+    ["people", "Apply or invite", "The right person steps forward.", "Professionals apply with a short plan for the output, or the organisation invites an approved professional whose work fits. We can also introduce people by hand.", ["Applications explain how, not just who", "Only approved profiles can apply", "Either side can end a conversation"]],
+    ["pen", "Sign the agreement", "Nothing starts until both sign.", "Every match gets its own contribution agreement, built from the need: scope, timing, access, safeguarding and confidentiality.", ["Contact details shared only after both signatures", "Never passwords, card details or access codes", "Signatures are final and dated"]],
+    ["clock", "Do the work", "A short, protected contribution.", "The professional delivers the agreed output, logs time as they go and keeps conversations on the platform. The organisation reviews each entry.", ["Typically 6 to 16 hours", "Remote or local", "Hours count only once reviewed"]],
+    ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
+  ];
+  const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in 6 to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover. We were previously called Impact Accelerator."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
   const html = `
-  <div class="wrap">
-    <section class="hero">
-      <div class="stack" style="--gap:26px">
+  <section class="hv-hero">
+    <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
+    <div class="wrap hv-hero-grid">
+      <div class="stack hv-copy" style="--gap:24px">
         ${eyebrow("Skills for locally led change")}
-        <h1>Good work.<br>Greater impact.</h1>
-        <p class="lead">Local organisations publish the specific help they need. Skilled professionals give a few focused hours. Both leave with something that lasts.</p>
+        <h1>Skills handed over.<br><span>Capability that stays.</span></h1>
+        <p class="lead">Local organisations publish the specific help they need. Skilled professionals give a few focused hours. Then the work is handed over, so the team keeps it.</p>
         <div class="doors">
-          <a class="door dark" href="#organisations"><span class="door-icon">${icon("home", 24, "#fffdf8")}</span><span class="door-title">I’m an organisation</span><p>Publish a need and find skilled help. Free, always.</p><span class="door-cta">Post a need ${icon("arrow", 18)}</span></a>
-          <a class="door" href="#needs"><span class="door-icon">${icon("user", 24, "#0f6f63")}</span><span class="door-title">I’m a professional</span><p>Contribute your skills and build a reviewed impact CV.</p><span class="door-cta">Find a need ${icon("arrow", 18)}</span></a>
+          <a class="door light" href="#organisations"><span class="door-icon">${icon("home", 24, "#0f6f63")}</span><span class="door-title">I’m an organisation</span><p>Publish a need and find skilled help. Free, always.</p><span class="door-cta">Post a need ${icon("arrow", 18)}</span></a>
+          <a class="door ghost" href="#needs"><span class="door-icon">${icon("user", 24, "#fffdf8")}</span><span class="door-title">I’m a professional</span><p>Contribute your skills and build a reviewed impact CV.</p><span class="door-cta">Find a need ${icon("arrow", 18)}</span></a>
         </div>
+        <dl class="hv-facts">
+          <div><dt><b>0</b></dt><dd>fees, for anyone</dd></div>
+          <div><dt><b>6–16</b></dt><dd>hours for a typical need</dd></div>
+          <div><dt><b data-counter="5">5</b></dt><dd>steps from need to handover</dd></div>
+          <div><dt><b data-counter="100" data-suffix="%">100%</b></dt><dd>of profiles reviewed before public</dd></div>
+        </dl>
       </div>
-      ${collage()}
-    </section>
-    <div class="trust-strip">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
+      ${stage()}
+    </div>
+    <a class="hv-cue" href="#hv-how" aria-label="Scroll to how it works"><span></span></a>
+  </section>
+  <div class="wrap">
+    <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
     <section class="block stack" style="--gap:40px">
-      <div class="row between" style="align-items:flex-end"><div class="stack">${eyebrow("How it works")}<h2>From a clear need to capability that stays.</h2></div>${btn(`See the full process ${icon("arrow", 18)}`, "#how", "secondary")}</div>
-      <ol class="steps">${steps.map(([ic, t, d], i) => `<li class="${i === 2 ? "accent" : ""}"><div class="row between">${icon(ic, 26, "#0f6f63")}<span class="step-num">0${i + 1}</span></div><h3>${t}</h3><p class="small muted">${d}</p></li>`).join("")}</ol>
+      <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Help that leaves, or capability that stays.</h2></div><p class="lead">Well-meant volunteering often starts from what the helper wants to give. Handova starts from what the organisation needs, and ends when the team can carry the work on alone.</p></div>
+      <div class="hv-compare">
+        <div class="hv-col without"><span class="hv-tag">Without a clear handover</span><ul>${gaps.map(([a]) => `<li>${icon("x", 20, "#7c3419", 2.2)}<span>${a}</span></li>`).join("")}</ul></div>
+        <div class="hv-col with"><span class="hv-tag">With Handova</span><ul>${gaps.map(([, b]) => `<li>${icon("check", 20, "#0f6f63", 2.4)}<span>${b}</span></li>`).join("")}</ul></div>
+      </div>
+    </section>
+    <section class="stack" id="hv-how" style="--gap:32px;padding-bottom:clamp(56px,8vw,110px)">
+      <div class="row between" style="align-items:flex-end" data-reveal><div class="stack">${eyebrow("How it works")}<h2>Five steps, one handover.</h2></div>${btn(`See the full process ${icon("arrow", 18)}`, "#how", "secondary")}</div>
+      <div class="hv-stepper" data-stepper data-reveal>
+        <div class="hv-tabs" role="tablist" aria-label="The five steps">
+          <span class="hv-track" aria-hidden="true"><i></i></span>
+          ${steps.map(([ic, t], i) => `<button type="button" role="tab" id="hv-tab-${i}" aria-controls="hv-panel-${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}"><span class="hv-num">${icon(ic === "handover" ? "check" : ic, 20)}<em>${i + 1}</em></span><span class="hv-tl">${t}</span></button>`).join("")}
+        </div>
+        ${steps.map(([ic, t, k, d, pts], i) => `<div class="hv-panel" role="tabpanel" id="hv-panel-${i}" aria-labelledby="hv-tab-${i}" ${i ? "hidden" : ""}>
+          <div class="stack" style="--gap:14px"><span class="hv-step-k">Step ${i + 1} of 5</span><h3>${k}</h3><p class="lead">${d}</p><ul class="checks">${pts.map((p) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${p}</li>`).join("")}</ul></div>
+          <div class="hv-panel-art" aria-hidden="true">${stepArt(i)}</div>
+        </div>`).join("")}
+      </div>
     </section>
     <section class="stack" style="--gap:36px;padding-bottom:110px">
-      <div class="row between" style="align-items:flex-end"><div class="stack">${eyebrow(real.length ? "Open needs" : "Example needs")}<h2>Where your expertise can help.</h2><p class="lead">Each need is written by the organisation, with a clear output and a realistic number of hours.</p></div>${btn(`Explore all needs ${icon("arrow", 18)}`, "#needs")}</div>
+      <div class="row between" style="align-items:flex-end" data-reveal><div class="stack">${eyebrow(real.length ? "Open needs" : "Example needs")}<h2>Where your expertise can help.</h2><p class="lead">Each need is written by the organisation, with a clear output and a realistic number of hours.</p></div>${btn(`Explore all needs ${icon("arrow", 18)}`, "#needs")}</div>
       ${real.length ? "" : exampleNotice("These are example needs. Real needs from approved organisations will replace them.")}
       <div class="grid">${featured.map(needCard).join("")}</div>
     </section>
   </div>
-  <section class="band-dark block"><div class="wrap grid-2" style="gap:72px;align-items:center">
-    <div class="stack" style="--gap:26px">${eyebrow("For professionals")}<h2>Let your work speak for you.</h2><p class="lead">Every completed contribution becomes a record on your impact CV: the need, what you did, the outcome and the organisation’s own words. You choose what is public.</p>
+  <section class="band-dark block hv-band"><div class="wrap grid-2" style="gap:72px;align-items:center">
+    <div class="stack" style="--gap:26px" data-reveal>${eyebrow("For professionals")}<h2>Let your work speak for you.</h2><p class="lead">Every completed contribution becomes a record on your impact CV: the need, what you did, the outcome and the organisation’s own words. You choose what is public.</p>
       <ul class="checks">${["Real experience for students and people changing careers", "Endorsements written by the organisations you helped", "A shareable CV link and a printable PDF"].map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul>
       <div class="row">${btn(`See an example impact CV ${icon("arrow", 18)}`, "#profile/example-maria-lopez", "light")}${btn("Create your profile", "#join", "ghost-light")}</div></div>
-    <div class="card stack" style="--gap:20px;color:var(--ink);box-shadow:0 30px 60px rgba(0,0,0,.25)">
+    <div class="card stack hv-cv" style="--gap:20px;color:var(--ink)" data-reveal>
       <div class="row between">${eyebrow("Impact CV")}${exampleBadge()}</div>
       <div class="row" style="--gap:18px">${avatar("Maria Lopez", 72)}<div><span class="serif" style="font-size:1.9rem">Maria Lopez</span><p class="muted small">UX designer · research · accessibility · Madrid</p></div></div>
-      <div class="metric-row"><div class="metric"><strong>3</strong><span>reviewed contributions</span></div><div class="metric"><strong>3</strong><span>organisations helped</span></div><div class="metric"><strong>42</strong><span>reviewed hours</span></div></div>
+      <div class="metric-row"><div class="metric"><strong data-counter="3">3</strong><span>reviewed contributions</span></div><div class="metric"><strong data-counter="3">3</strong><span>organisations helped</span></div><div class="metric"><strong data-counter="42">42</strong><span>reviewed hours</span></div></div>
       <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>Accessibility review</strong>${pill("Still in use at 6 months")}</div><span class="small muted">Example Organisation · 12 hours · August 2026</span><p class="serif" style="font-size:1.1rem">“Very detailed, practical recommendations our team implemented straight away.”</p></div>
     </div></div></section>
   <div class="wrap">
@@ -62,41 +95,56 @@ export async function home() {
     </section>
     <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
       <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" style="font-weight:700">Read how we work responsibly</a></div>
-      <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No work with children or vulnerable adults", "During the pilot, needs involving direct contact are not accepted."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time. Either side can end a conversation."]].map(([ic, t, d]) => `<div class="card row" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
+      <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No work with children or vulnerable adults", "During the pilot, needs involving direct contact are not accepted."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time. Either side can end a conversation."]].map(([ic, t, d]) => `<div class="card row hv-lift" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
     </section>
     <section class="block grid-2 faq-grid">
-      <div class="stack">${eyebrow("Questions")}<h2>Good to know before you start.</h2></div>
-      <div>${faqs.map(([q, a], i) => `<details class="faq" ${i === 0 ? "open" : ""}><summary>${q}</summary><p>${a}</p></details>`).join("")}</div>
+      <div class="stack" data-reveal>${eyebrow("Questions")}<h2>Good to know before you start.</h2></div>
+      <div data-faq>${faqs.map(([q, a], i) => `<details class="faq" ${i === 0 ? "open" : ""}><summary>${q}<span class="faq-icon" aria-hidden="true"></span></summary><p>${a}</p></details>`).join("")}</div>
     </section>
-    <section class="card row between" style="padding:clamp(28px,5vw,60px);margin-bottom:40px"><div class="stack"><h2>Ready to make your skills count?</h2><p class="lead">Join the founding group of organisations and professionals.</p></div><div class="row">${btn("Join free", "#join", "lg")}${btn("Explore needs", "#needs", "secondary lg")}</div></section>
-  </div>`;
-  return { title: "Skills for locally led change", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html };
+  </div>
+  <section class="hv-cta"><span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span>
+    <div class="wrap hv-cta-grid">
+      <div class="stack" style="--gap:18px">${eyebrow("Join the founding group")}<h2>Hand over something that lasts.</h2><p class="lead">We are starting with a small founding group of organisations and professionals. Join free and help shape how Handova works.</p><div class="row">${btn("Join free", "#join", "light lg")}${btn("Explore needs", "#needs", "ghost-light lg")}</div></div>
+      <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
+    </div>
+  </section>`;
+  return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html };
 }
 
 function audience(eb, title, items, cta, href) {
-  return `<div class="card stack" style="--gap:20px;padding:clamp(26px,4vw,44px)">${eyebrow(eb)}<h3 class="serif" style="font:500 2rem/1.15 var(--serif)">${title}</h3><ul class="checks">${items.map((t) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${t}</li>`).join("")}</ul><div>${btn(`${cta} ${icon("arrow", 18)}`, href)}</div></div>`;
+  return `<div class="card stack hv-lift" style="--gap:20px;padding:clamp(26px,4vw,44px)">${eyebrow(eb)}<h3 class="serif" style="font:500 2rem/1.15 var(--serif)">${title}</h3><ul class="checks">${items.map((t) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${t}</li>`).join("")}</ul><div>${btn(`${cta} ${icon("arrow", 18)}`, href)}</div></div>`;
 }
 
-function collage() {
-  const dots = [];
-  const size = 540, r = size / 2 - 10;
-  for (let y = -r; y <= r; y += 18) for (let x = -r; x <= r; x += 18) {
-    if (Math.hypot(x, y) < r - 6 && Math.sin(x / 58) + Math.cos(y / 47) * 0.9 + Math.sin((x + y) / 91) * 0.7 > 0.35) dots.push(`<circle cx="${Math.round(size / 2 + x)}" cy="${Math.round(size / 2 + y)}" r="3.2" fill="#0f6f63" fill-opacity="0.32"/>`);
-  }
-  const globe = `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true" style="left:0;top:6.5%;width:96%;height:auto"><circle cx="270" cy="270" r="${r}" fill="#eaf3ef"/><circle cx="270" cy="270" r="${r}" fill="none" stroke="#7fa99b" stroke-opacity=".5" stroke-width="1.5"/>${dots.join("")}<path d="M130 330 Q 250 150 400 220" fill="none" stroke="#c68a2e" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"/><path d="M150 360 Q 300 420 410 300" fill="none" stroke="#0f6f63" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"/><circle cx="130" cy="330" r="9" fill="#c68a2e"/><circle cx="400" cy="220" r="9" fill="#0f6f63"/><circle cx="410" cy="300" r="9" fill="#123e3a"/><circle cx="150" cy="360" r="7" fill="#b85c38"/></svg>`;
-  return `<div class="collage" aria-hidden="true">${globe}
-    <div class="float" style="left:45%;top:3%;width:53%;overflow:hidden">${cover("data", { w: 300, h: 110 })}<div style="padding:12px 14px"><div class="row between" style="flex-wrap:nowrap"><span class="small muted">Water for Tomorrow · Kenya</span>${exampleBadge()}</div><div class="serif" style="font-size:1.15rem">Improve community data tools</div><div class="meta small"><span>${icon("clock", 15)}12 hours</span><span>${icon("globe", 15)}Remote</span></div></div></div>
-    <div class="float row" style="left:0;top:44%;width:47%;padding:12px 14px;flex-wrap:nowrap">${avatar("Amara Mensah", 46)}<div><strong>Amara Mensah</strong><br><span class="small muted">MEL specialist · Accra</span></div></div>
-    <div class="row" style="left:52%;top:61%;padding:10px 16px;border-radius:999px;background:#123e3a;color:#fffdf8;font-weight:600;font-size:.9rem;box-shadow:var(--shadow);flex-wrap:nowrap">${icon("pen", 17, "#fffdf8")}Agreement signed by both</div>
-    <div class="float" style="left:11%;top:73%;width:77%;padding:16px 18px"><div class="row between"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}Reviewed by the organisation</span><span class="small muted">12 hours</span></div><p class="serif" style="font-size:1.05rem;margin-top:6px">“Our field team now collects data the same way in every village.”</p></div>
+// The hero "handover": the mark draws itself, the dot passes between the curves, and the story floats around it.
+function stage() {
+  return `<div class="hv-stage" aria-hidden="true">
+    <div class="hv-ring"></div>
+    <svg class="hv-big" viewBox="0 0 100 100"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="#fffdf8" stroke-width="9" stroke-linecap="round" pathLength="1"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="#7fa99b" stroke-width="9" stroke-linecap="round" pathLength="1"/><circle class="hv-dot" cx="50" cy="50" r="9" fill="#e0a07f"/></svg>
+    <div class="hv-float f1">${cover("data", { w: 300, h: 110 })}<div style="padding:12px 14px"><div class="row between" style="flex-wrap:nowrap"><span class="small muted">Water for Tomorrow · Kenya</span>${exampleBadge()}</div><div class="serif" style="font-size:1.12rem">Improve community data tools</div><div class="meta small"><span>${icon("clock", 15)}12 hours</span><span>${icon("globe", 15)}Remote</span></div></div></div>
+    <div class="hv-float f2 row" style="flex-wrap:nowrap">${avatar("Amara Mensah", 44)}<div><strong>Amara Mensah</strong><br><span class="small muted">MEL specialist · Accra</span></div></div>
+    <div class="hv-float f3 hv-pill">${icon("pen", 17, "#fffdf8")}Agreement signed by both</div>
+    <div class="hv-float f4"><div class="row between"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}Handed over · still in use</span><span class="small muted">12 h</span></div><p class="serif" style="font-size:1.02rem;margin-top:6px">“Our field team now collects data the same way in every village.”</p></div>
   </div>`;
+}
+
+// Small drawings for each step panel.
+function stepArt(i) {
+  const T = "#0f6f63", D = "#123e3a", C = "#b85c38", S = "#7fa99b", P = "#fffdf8", O = "#c68a2e";
+  const arts = [
+    `<rect x="40" y="24" width="160" height="152" rx="14" fill="${P}" stroke="${D}" stroke-width="2"/><rect x="60" y="48" width="90" height="10" rx="5" fill="${D}"/><rect x="60" y="72" width="120" height="7" rx="3.5" fill="${S}"/><rect x="60" y="88" width="104" height="7" rx="3.5" fill="${S}"/><rect x="60" y="114" width="54" height="22" rx="11" fill="${T}"/><rect x="120" y="114" width="58" height="22" rx="11" fill="${O}" fill-opacity=".8"/><circle cx="196" cy="34" r="16" fill="${C}"/><path d="M189 34l5 5 9-9" stroke="${P}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+    `<circle cx="70" cy="80" r="22" fill="${T}"/><path d="M40 150v-12a30 30 0 0 1 60 0v12z" fill="${T}" fill-opacity=".85"/><circle cx="170" cy="80" r="22" fill="${O}"/><path d="M140 150v-12a30 30 0 0 1 60 0v12z" fill="${O}" fill-opacity=".85"/><path d="M98 66 Q120 40 142 66" fill="none" stroke="${D}" stroke-width="3" stroke-dasharray="3 7" stroke-linecap="round"/><rect x="86" y="96" width="68" height="34" rx="10" fill="${P}" stroke="${D}" stroke-width="2"/><rect x="96" y="106" width="40" height="6" rx="3" fill="${S}"/><rect x="96" y="117" width="28" height="6" rx="3" fill="${S}"/>`,
+    `<rect x="50" y="20" width="140" height="160" rx="12" fill="${P}" stroke="${D}" stroke-width="2"/><rect x="70" y="42" width="80" height="9" rx="4.5" fill="${D}"/>${[64, 78, 92, 106].map((y) => `<rect x="70" y="${y}" width="${100 - (y % 30)}" height="6" rx="3" fill="${S}"/>`).join("")}<path d="M70 150c10-14 18 6 28-6s14 8 22 0" fill="none" stroke="${T}" stroke-width="3" stroke-linecap="round"/><path d="M130 150c8-12 16 6 24-4" fill="none" stroke="${C}" stroke-width="3" stroke-linecap="round"/>`,
+    `<circle cx="120" cy="100" r="66" fill="${P}" stroke="${D}" stroke-width="2"/><path d="M120 100V58" stroke="${D}" stroke-width="5" stroke-linecap="round"/><path d="M120 100l28 18" stroke="${C}" stroke-width="5" stroke-linecap="round"/><circle cx="120" cy="100" r="7" fill="${D}"/><path d="M120 34 A66 66 0 0 1 183 120" fill="none" stroke="${T}" stroke-width="10" stroke-linecap="round" opacity=".5"/>`,
+    `<g transform="translate(45 25) scale(1.5)"><path d="M18 72 Q18 28 50 28" fill="none" stroke="${D}" stroke-width="10" stroke-linecap="round"/><path d="M82 28 Q82 72 50 72" fill="none" stroke="${T}" stroke-width="10" stroke-linecap="round"/><circle cx="50" cy="50" r="10" fill="${C}"/></g>`,
+  ];
+  return `<svg viewBox="0 0 240 200" width="240" height="200">${arts[i]}</svg>`;
 }
 
 // ---------- For organisations ----------
 export async function organisations() {
   const steps = [["Create your organisation account", "Tell us who you are. We check you are locally led and registered or fiscally hosted, usually within two working days."], ["Publish a need", "Describe the challenge, the output, the skills, the working languages and the hours. Up to three open at a time."], ["Choose who to work with", "Review applications, or invite approved professionals whose work fits."], ["Sign the agreement", "Confirm scope, access and confidentiality before anything is shared."], ["Review and complete", "Approve logged hours, write an endorsement and mark the engagement complete."]];
   const html = `<div class="wrap">
-    <div class="page-head">${eyebrow("For organisations")}<h1>Skilled help for the work you define.</h1><p class="lead">Impact Accelerator connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like.</p><div class="row">${btn(`Create an organisation account ${icon("arrow", 18)}`, "#join?role=organisation", "lg")}${btn("Browse talent", "#talent", "secondary lg")}</div></div>
+    <div class="page-head">${eyebrow("For organisations")}<h1>Skilled help for the work you define.</h1><p class="lead">Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like.</p><div class="row">${btn(`Create an organisation account ${icon("arrow", 18)}`, "#join?role=organisation", "lg")}${btn("Browse talent", "#talent", "secondary lg")}</div></div>
     <section class="grid-2" style="gap:24px;padding-bottom:40px">
       <div class="card stack" style="--gap:22px;background:var(--deep);color:var(--paper);border-color:var(--deep);padding:clamp(26px,4vw,44px)"><h2 style="font-size:2.2rem">How it works for you</h2><ol class="stack" style="list-style:none;margin:0;padding:0;--gap:20px">${steps.map(([t, d], i) => `<li class="row" style="align-items:flex-start;flex-wrap:nowrap"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:20px;background:#fffdf8;color:#123e3a;font-weight:700;flex-shrink:0">${i + 1}</span><div><strong>${t}</strong><p style="color:var(--on-deep)">${d}</p></div></li>`).join("")}</ol></div>
       <div class="stack" style="--gap:24px">
@@ -261,7 +309,7 @@ export async function profile(id) {
         ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Find a need", "#needs", "secondary sm") : "")}
       </section>
     </div></div>`;
-  return { title: `${p.name} · impact CV`, description: p.headline || "Impact CV on Impact Accelerator", html };
+  return { title: `${p.name} · impact CV`, description: p.headline || "Impact CV on Handova", html };
 }
 
 // ---------- How it works ----------

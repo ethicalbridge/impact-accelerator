@@ -38,8 +38,9 @@ const IC = {
 export const icon = (name, size = 20, color = "currentColor", sw = 1.7) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IC[name] || ""}</svg>`;
 
-export const mark = (size = 34, light = false) =>
-  `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="16" fill="${light ? "#fffdf8" : "#0f6f63"}"/><g stroke="${light ? "#123e3a" : "#fffdf8"}" stroke-width="2.8" stroke-linecap="round"><line x1="16" y1="8" x2="16" y2="24"/><line x1="9.1" y1="12" x2="22.9" y2="20"/><line x1="9.1" y1="20" x2="22.9" y2="12"/></g></svg>`;
+// Handova mark: two curves passing a dot between them (the handover).
+export const mark = (size = 34, light = false, cls = "") =>
+  `<svg class="hv-mark ${cls}" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="${light ? "#fffdf8" : "#123e3a"}" stroke-width="11" stroke-linecap="round"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="${light ? "#7fa99b" : "#0f6f63"}" stroke-width="11" stroke-linecap="round"/><circle class="hv-dot" cx="50" cy="50" r="11" fill="${light ? "#e0a07f" : "#b85c38"}"/></svg>`;
 
 const PALETTE = ["#0f6f63", "#c68a2e", "#123e3a", "#b85c38", "#7fa99b"];
 export function avatar(name, size = 56) {
@@ -193,16 +194,16 @@ export function header(active) {
   } else {
     right = `<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
   }
-  return `<div class="wrap"><a class="brand" href="#home">${mark(34)}<span>Impact Accelerator</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? "" : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
+  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? "" : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
 }
 
 export function footer(cfg) {
   return `<div class="wrap"><div class="footer-grid">
-    <div class="stack" style="--gap:16px"><a class="brand" href="#home" style="color:var(--paper)">${mark(34, true)}<span>Impact Accelerator</span></a><p class="serif" style="font-size:1.6rem;line-height:1.3">Good work.<br>Greater impact.</p><p style="color:var(--on-deep);max-width:360px">Skilled people contributing to the needs locally led organisations define. Free for everyone.</p></div>
+    <div class="stack" style="--gap:16px"><a class="brand" href="#home" style="color:var(--paper)">${mark(34, true)}<span>Handova</span></a><p class="serif" style="font-size:1.6rem;line-height:1.3">Skills handed over.<br><span style="color:#e0a07f">Capability that stays.</span></p><p style="color:var(--on-deep);max-width:360px">Skilled people contributing to the needs locally led organisations define. Free for everyone.</p></div>
     <nav aria-label="Platform"><h2>Platform</h2><ul><li><a href="#needs">Explore needs</a></li><li><a href="#talent">Discover talent</a></li><li><a href="#how">How it works</a></li><li><a href="#join">Join free</a></li></ul></nav>
     <nav aria-label="Trust"><h2>Trust</h2><ul><li><a href="#safety">Working responsibly</a></li><li><a href="#privacy">Privacy notice</a></li><li><a href="#terms">Terms of use</a></li><li><a href="#cookies">Cookies</a></li><li><a href="#report">Report a concern</a></li></ul></nav>
     <div><h2>Contact</h2><ul><li><a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></li><li><a href="https://ethicalbridge.org/" rel="noopener" target="_blank">Ethical Bridge <span class="visually-hidden">(opens in a new tab)</span></a></li></ul></div>
-  </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Impact Accelerator · An initiative of Ethical Bridge</span><span>Free for organisations and professionals</span></div></div>`;
+  </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Handova · An initiative of Ethical Bridge · Previously Impact Accelerator</span><span>Free for organisations and professionals</span></div></div>`;
 }
 
 export const safeLink = (url, label) => (safeURL(url) ? `<a href="${e(safeURL(url))}" target="_blank" rel="noopener noreferrer">${e(label)} <span class="visually-hidden">(opens in a new tab)</span></a>` : "");

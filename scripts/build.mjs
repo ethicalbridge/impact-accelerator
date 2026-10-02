@@ -16,7 +16,7 @@ if (process.env.MOCK) alias["@supabase/supabase-js"] = "./tests/mock-supabase.js
 await build({ entryPoints: ["src/app.js"], bundle: true, minify: !process.env.MOCK, format: "esm", target: "es2022", outfile: process.env.OUT ? `${process.env.OUT}/app.js` : "app.js", alias, legalComments: "none", logLevel: "warning" });
 const out = process.env.OUT || "dist";
 await mkdir(out, { recursive: true });
-for (const f of ["index.html", "styles.css", "favicon.svg", "og-image.png", "404.html", "robots.txt"]) await cp(f, `${out}/${f}`);
+for (const f of ["index.html", "styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt"]) await cp(f, `${out}/${f}`);
 await cp("fonts", `${out}/fonts`, { recursive: true });
 if (!process.env.OUT) await cp("app.js", `${out}/app.js`);
 console.log("built", out);

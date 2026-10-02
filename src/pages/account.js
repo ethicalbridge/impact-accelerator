@@ -30,7 +30,7 @@ export async function join(params) {
     ${formEnd("Create account")}
     <p class="small muted">We will email you a link to confirm your address. Then you can finish your profile or organisation details, and we review them before anything is public.</p>
   </form>`;
-  return { title: "Join", description: "Create a free Impact Accelerator account.", html: shell("Join the founding group.", "Impact Accelerator is free. We review every organisation and profile before it becomes public, so everyone can trust who they are working with.", form) };
+  return { title: "Join", description: "Create a free Handova account.", html: shell("Join the founding group.", "Handova is free. We review every organisation and profile before it becomes public, so everyone can trust who they are working with.", form) };
 }
 
 export async function signin(params) {

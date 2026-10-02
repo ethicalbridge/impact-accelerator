@@ -1,9 +1,11 @@
-# Impact Accelerator
+# Handova
 
-Skilled professionals contributing, unpaid, to the needs locally led organisations define. An initiative of Ethical Bridge, run as an independent platform with its own database.
+**Skills handed over. Capability that stays.**
+
+Skilled professionals contributing, unpaid, to the needs locally led organisations define. An initiative of Ethical Bridge, run as an independent platform with its own database. Previously called Impact Accelerator; the repository name and web address keep the old slug so existing links keep working.
 
 **Live site:** https://ethicalbridge.github.io/impact-accelerator/ (GitHub Pages, branch root)
-**Database:** Supabase project `jcfezemkbseaqbwuojhs` (EU, Frankfurt), used only by Impact Accelerator.
+**Database:** Supabase project `jcfezemkbseaqbwuojhs` (EU, Frankfurt), used only by Handova.
 
 ## How the product works
 
@@ -25,7 +27,8 @@ Vanilla ES modules, no framework. `src/` is bundled by esbuild into `app.js`, wh
 | --- | --- |
 | `src/app.js` | Hash router, legacy redirects, action and form dispatch |
 | `src/core.js` | Supabase client, session state, dialogs, toasts, form helper |
-| `src/ui.js` | Icons, illustrations, cards, header and footer |
+| `src/ui.js` | Icons, the Handova mark, illustrations, cards, header and footer |
+| `src/motion.js` | Scroll reveal, count-ups, the home-page step explorer, hero motion; all off under reduced motion |
 | `src/pages/public.js` | Home, For organisations, Needs, Talent, profiles (impact CV), How it works |
 | `src/pages/account.js` | Join, sign in, reset, onboarding, account and deletion |
 | `src/pages/workspace.js` | Professional and organisation workspaces, need form, invite and report dialogs |
@@ -64,7 +67,7 @@ Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQ
 ## Before launch: actions only the owner can do
 
 1. **Email sender.** Create a Resend (or similar) account, verify a sending domain, and add its SMTP details in Supabase → Authentication → Emails → SMTP. Without this, confirmation and reset emails are rate-limited to a few per hour.
-   Then, for notification emails, add two secrets in Supabase → Edge Functions → Secrets: `RESEND_API_KEY` (the same key) and `NOTIFY_FROM` (for example `Impact Accelerator <no-reply@your-domain>`). Until both exist, the `notify-email` function skips sending and in-app notifications still work.
+   Then, for notification emails, add two secrets in Supabase → Edge Functions → Secrets: `RESEND_API_KEY` (the same key) and `NOTIFY_FROM` (for example `Handova <no-reply@your-domain>`). Until both exist, the `notify-email` function skips sending and in-app notifications still work.
 2. **Auth URLs.** In Supabase → Authentication → URL configuration set the Site URL to the live address and add it to Redirect URLs (plus the custom domain if you move to one).
 3. **Leaked-password protection.** Supabase → Authentication → Passwords: turn it on.
 4. **First admin.** Sign up with the admin email, confirm it, then run `insert into public.admins (user_id) select id from auth.users where email = 'YOUR-EMAIL';`

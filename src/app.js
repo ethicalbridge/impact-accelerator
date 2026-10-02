@@ -2,6 +2,7 @@ import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result
 import { header, footer } from "./ui.js";
 import { config } from "./config.js";
 import { initConsent, trackPage } from "./consent.js";
+import { enhance, bindHeader } from "./motion.js";
 import * as pub from "./pages/public.js";
 import * as acc from "./pages/account.js";
 import * as ws from "./pages/workspace.js";
@@ -63,16 +64,17 @@ async function render() {
     if (v !== version) return;
     if (out.redirect) { location.replace(out.redirect.startsWith("#") ? out.redirect : "#" + out.redirect); return; }
     main.innerHTML = out.html;
-    document.title = `${out.title} · Impact Accelerator`;
+    document.title = `${out.title} · Handova`;
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.";
     out.after?.();
+    enhance(main, r.name);
     trackPage(out.title);
   } catch (err) {
     if (v !== version) return;
     console.error(err);
     main.innerHTML = `<div class="wrap page-head" style="padding-bottom:120px"><span class="eyebrow">Something went wrong</span><h1>We couldn’t load this page</h1><p class="lead">${e(errorMessage(err))}</p><div class="row"><button class="btn" type="button" data-action="reload">Try again</button><a class="btn secondary" href="#home">Go home</a></div></div>`;
-    document.title = "Something went wrong · Impact Accelerator";
+    document.title = "Something went wrong · Handova";
   } finally {
     main.removeAttribute("aria-busy");
   }
@@ -193,4 +195,5 @@ $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").f
 $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 initConsent();
+bindHeader();
 render();
