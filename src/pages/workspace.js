@@ -1,6 +1,6 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
-import { profileForm, orgForm } from "./account.js";
+import { profileForm, orgForm, identityCard } from "./account.js";
 import { list, languages, date, plural, today } from "../utils.js";
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</a>`).join("")}</nav>`;
@@ -33,6 +33,7 @@ export async function workspace(sub) {
   const html = `<div class="stack" style="--gap:26px">
     <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Your workspace")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Hello, ${e(p.name.split(" ")[0])}.</h1></div><div class="row">${btn("Edit profile", "#workspace/profile", "secondary sm")}${btn(`Find a need ${icon("arrow", 16)}`, "#needs", "sm")}</div></div>
     ${reviewBanner(p)}
+    ${p.id_status === "approved" ? "" : identityCard(p)}
     ${toSign.map((x) => `<div class="banner warn">${icon("pen", 24, "#7a4f0e")}<div style="flex:1"><strong>Sign your agreement with ${e(x.organisation?.name || "the organisation")}</strong><p class="small">${e(x.scope?.need_title)}. Work and hours can start once you both sign.</p></div>${btn("Review and sign", `#agreement/${x.id}`, "dark sm")}</div>`).join("")}
     <div class="grid-4"><div class="stat"><strong>${approvedHours}</strong><span>reviewed hours</span></div><div class="stat"><strong>${completed.length}</strong><span>completed contributions</span></div><div class="stat"><strong>${apps.filter((a) => a.status === "pending").length}</strong><span>applications under review</span></div><div class="stat"><strong>${p.hours_available} h</strong><span>available each month</span></div></div>
     ${pendingInv.length ? card("Invitations", listRows(pendingInv.map((i) => row(`<strong>${e(i.need?.title)}</strong><span class="small muted">${e(i.need?.organisation?.name)} · ${i.need?.hours} hours · ${e(i.need?.arrangement)}</span><p class="small">“${e(i.message)}”</p>`, `<button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}`)), "")) : ""}
