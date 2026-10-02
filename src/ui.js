@@ -203,7 +203,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
 }
 
 export function header(active) {
-  const links = [["Needs", "#needs"], ["Talent", "#talent"], ["How it works", "#how"], ["For organisations", "#organisations"]];
+  const links = [["About", "#about"], ["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"]];
   const nav = links.map(([l, h]) => `<a href="${h}" ${active === h ? 'aria-current="page"' : ""}>${l}</a>`).join("");
   let right;
   if (state.user) {
@@ -221,9 +221,10 @@ export function header(active) {
 export function footer(cfg) {
   return `<div class="wrap"><div class="footer-grid">
     <div class="stack" style="--gap:16px"><a class="brand" href="#home" style="color:var(--paper)">${mark(34, true)}<span>Handova</span></a><p class="serif" style="font-size:1.6rem;line-height:1.3">Skills handed over.<br><span style="color:#e0a07f">Capability that stays.</span></p><p style="color:var(--on-deep);max-width:360px">Skilled people contributing to the needs locally led organisations define. Free for everyone.</p></div>
-    <nav aria-label="Platform"><h2>Platform</h2><ul><li><a href="#needs">Explore needs</a></li><li><a href="#talent">Discover talent</a></li><li><a href="#how">How it works</a></li><li><a href="#join">Join free</a></li></ul></nav>
+    <nav aria-label="Platform"><h2>Platform</h2><ul><li><a href="#about">About</a></li><li><a href="#how">How it works</a></li><li><a href="#organisations">For organisations</a></li><li><a href="#professionals">For professionals</a></li><li><a href="#needs">Explore needs</a></li><li><a href="#talent">Discover talent</a></li><li><a href="#join">Join free</a></li></ul></nav>
     <nav aria-label="Trust"><h2>Trust</h2><ul><li><a href="#safety">Working responsibly</a></li><li><a href="#privacy">Privacy notice</a></li><li><a href="#terms">Terms of use</a></li><li><a href="#cookies">Cookies</a></li><li><a href="#report">Report a concern</a></li></ul></nav>
-    <div><h2>Contact</h2><ul><li><a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></li><li><a href="https://ethicalbridge.org/" rel="noopener" target="_blank">Ethical Bridge <span class="visually-hidden">(opens in a new tab)</span></a></li></ul></div>
+    <div><h2>Contact</h2><ul><li><a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></li><li><a href="https://ethicalbridge.org/" rel="noopener" target="_blank">Ethical Bridge <span class="visually-hidden">(opens in a new tab)</span></a></li><li><a href="https://ethicalbridge.org/directory.html" rel="noopener" target="_blank">Ethical Bridge directory <span class="visually-hidden">(opens in a new tab)</span></a></li></ul>
+      <div class="footer-social">${[["LinkedIn", "https://www.linkedin.com/company/ethicalbridge/"], ["Instagram", "https://instagram.com/ethical.bridge"], ["Facebook", "https://www.facebook.com/profile.php?id=61588796042823"], ["YouTube", "https://www.youtube.com/@EthicalBridge"], ["TikTok", "https://www.tiktok.com/@ethical.bridge"]].map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank">${n}<span class="visually-hidden"> (Ethical Bridge, opens in a new tab)</span></a>`).join("")}</div></div>
   </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Handova · An initiative of Ethical Bridge · Previously Impact Accelerator</span><span>Free for organisations and professionals</span></div></div>`;
 }
 

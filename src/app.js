@@ -10,8 +10,8 @@ import * as eng from "./pages/engagement.js";
 import * as adm from "./pages/admin.js";
 import * as legal from "./pages/legal.js";
 
-const LEGACY = { about: "how", guide: "how", safeguarding: "safety", organisation: "org", hours: "workspace", portfolio: "workspace", dashboard: "workspace", pool: "workspace", projects: "needs", "organisation-view": "org" };
-const ACTIVE = { needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#organisations" };
+const LEGACY = { guide: "how", safeguarding: "safety", organisation: "org", hours: "workspace", portfolio: "workspace", dashboard: "workspace", pool: "workspace", projects: "needs", "organisation-view": "org" };
+const ACTIVE = { about: "#about", needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#how", professionals: "#how" };
 
 function parse() {
   const raw = decodeURIComponent(location.hash.slice(1) || "home");
@@ -24,7 +24,9 @@ function parse() {
 async function page(r) {
   switch (r.name) {
     case "home": return pub.home();
+    case "about": return pub.about();
     case "organisations": return pub.organisations();
+    case "professionals": return pub.professionals();
     case "needs": return pub.needs();
     case "need": return r.a ? pub.need(r.a) : { redirect: "#needs" };
     case "talent": return pub.talent();
@@ -88,6 +90,7 @@ let firstRender = true;
 const rpc = async (fn, args, message, next) => { await result(db.rpc(fn, args)); await loadSession(); if (message) toast(message); go(next || location.hash); };
 const actions = {
   reload: () => render(),
+  "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
   close: () => closeDialog(),
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },

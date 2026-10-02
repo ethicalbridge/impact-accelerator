@@ -3,7 +3,7 @@
 // Zero dependencies. Everything is skipped under prefers-reduced-motion.
 
 const reduce = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-const PUBLIC = new Set(["home", "organisations", "needs", "need", "talent", "profile", "how", "join", "signin", "privacy", "terms", "cookies", "safety", "report"]);
+const PUBLIC = new Set(["home", "about", "professionals", "organisations", "needs", "need", "talent", "profile", "how", "join", "signin", "privacy", "terms", "cookies", "safety", "report"]);
 const AUTO = ".page-head, .card, .contribution, .j-stage, .how-fact, .how-agree, .how-concern, details.faq, .stats-dark, .filters, .trust-strip > div, .steps li, .banner, .notice, .hv-compare > *, .hv-cta";
 
 let io = null;

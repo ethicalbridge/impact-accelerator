@@ -4,7 +4,7 @@ import { exampleNeeds, exampleProfile, exampleContributions } from "../examples.
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
-const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type)";
+const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url)";
 
 async function openNeeds(limit) {
   let q = db.from("needs").select(NEED_SELECT).eq("status", "open").order("created_at", { ascending: false });
@@ -26,7 +26,7 @@ export async function home() {
     ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
   ];
   const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in 6 to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
-  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover. We were previously called Impact Accelerator."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover. We were previously called Impact Accelerator."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
   const html = `
   <section class="hv-hero">
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
@@ -140,20 +140,78 @@ function stepArt(i) {
   return `<svg viewBox="0 0 240 200" width="240" height="200">${arts[i]}</svg>`;
 }
 
+
+// ---------- About ----------
+const EB = {
+  site: "https://ethicalbridge.org/", directory: "https://ethicalbridge.org/directory.html", join: "https://ethicalbridge.org/organisation-register.html", forOrgs: "https://ethicalbridge.org/organisations.html",
+  social: [["LinkedIn", "https://www.linkedin.com/company/ethicalbridge/"], ["Instagram", "https://instagram.com/ethical.bridge"], ["Facebook", "https://www.facebook.com/profile.php?id=61588796042823"], ["YouTube", "https://www.youtube.com/@EthicalBridge"], ["TikTok", "https://www.tiktok.com/@ethical.bridge"]],
+};
+export const ethicalBridgeLinks = EB;
+const ext = (href, label, cls = "") => `<a class="${cls}" href="${href}" target="_blank" rel="noopener">${label} <span class="visually-hidden">(opens in a new tab)</span></a>`;
+
+export async function about() {
+  const html = `<div class="wrap stack about" style="--gap:clamp(40px,5vw,64px);padding-bottom:64px">
+    <div class="how-hero">
+      <div class="stack" style="--gap:16px">${eyebrow("About Handova")}<h1>Extra support for the organisations of Ethical Bridge.</h1><p class="lead">Handova is an initiative of Ethical Bridge. Locally led organisations in the Ethical Bridge directory can ask for skilled help with one specific need, and professionals give a few focused hours, free. The work is handed over, so the capability stays with the team.</p><div class="row" style="--gap:12px">${btn(`How it works ${icon("arrow", 18)}`, "#how")}${ext(EB.site, "Visit Ethical Bridge", "btn secondary")}</div></div>
+      <div class="about-mark" aria-hidden="true">${mark(200, false, "draw")}<span>Skills handed over.<br><b>Capability that stays.</b></span></div>
+    </div>
+    <section class="about-flow">
+      <div class="stack" style="--gap:10px">${eyebrow("How the two fit together")}<h2>One ecosystem, two kinds of support.</h2></div>
+      <ol class="about-steps">
+        <li><span class="about-n">1</span><strong>Ethical Bridge directory</strong><p>A global directory of ethical, locally led organisations. Being listed makes an organisation visible to people, partners and funders.</p>${ext(EB.directory, "Explore the directory")}</li>
+        <li><span class="about-n">2</span><strong>Handova</strong><p>Organisations in the directory can go further: publish a specific need and get skilled help from approved professionals, under a signed agreement.</p><a href="#how">See how it works</a></li>
+        <li><span class="about-n">3</span><strong>Capability that stays</strong><p>Every contribution ends with a handover: a tool, a process or a trained team the organisation keeps using. Reviewed work becomes part of the professional’s impact CV.</p><a href="#talent">Meet the talent</a></li>
+      </ol>
+    </section>
+    <section class="grid-2" style="gap:24px">
+      <div class="card stack" style="--gap:16px;padding:clamp(26px,4vw,40px)">${eyebrow("For organisations")}<h3 class="serif" style="font:500 1.9rem/1.15 var(--serif)">Already in the Ethical Bridge directory?</h3><p class="muted">You can create a Handova account straight away. Add your directory page when you sign up, and we review your organisation before your needs go public.</p><div class="row">${btn("Create an organisation account", "#join?role=organisation")}</div></div>
+      <div class="card stack" style="--gap:16px;padding:clamp(26px,4vw,40px);background:var(--mint);border-color:#bcd6cd">${eyebrow("Not listed yet")}<h3 class="serif" style="font:500 1.9rem/1.15 var(--serif)">Join the directory first. It is free.</h3><p class="muted">Apply to the Ethical Bridge directory. Once your organisation is listed, come back to Handova to ask for skilled support.</p><div class="row">${ext(EB.join, `Join the Ethical Bridge directory ${icon("arrow", 18)}`, "btn")}</div></div>
+    </section>
+    <section class="about-founder">
+      <a href="#profile/${exampleProfile.user_id}">${avatarFor(exampleProfile, 120)}</a>
+      <div class="stack" style="--gap:10px">${eyebrow("Who is behind Handova")}<p class="serif" style="font-size:clamp(1.3rem,2.2vw,1.7rem);line-height:1.35">Julieta is a lawyer, strategist and organisation builder. She founded Ethical Bridge and built Handova so the organisations in its directory can reach skilled help for free.</p><span><strong>${e(exampleProfile.name)}</strong> <span class="muted">· Founder of Ethical Bridge and Handova</span></span><a href="#profile/${exampleProfile.user_id}" style="font-weight:700">See Julieta’s impact CV</a></div>
+    </section>
+    <section class="about-eb">
+      <div class="stack" style="--gap:12px">${eyebrow("Ethical Bridge")}<h2>Follow Ethical Bridge.</h2><p class="lead">News, organisations and opportunities from across the Ethical Bridge community.</p></div>
+      <div class="about-links">
+        ${ext(EB.site, `${icon("globe", 20)}<span>ethicalbridge.org</span>`, "about-link")}
+        ${ext(EB.directory, `${icon("search", 20)}<span>The directory</span>`, "about-link")}
+        ${ext(EB.forOrgs, `${icon("home", 20)}<span>For organisations</span>`, "about-link")}
+        ${EB.social.map(([n, u]) => ext(u, `${n === "LinkedIn" ? icon("linkedin", 20) : icon("link", 20)}<span>${n}</span>`, "about-link")).join("")}
+      </div>
+    </section>
+    <section class="how-concern"><span class="icon-tile lg">${icon("shield", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Who runs Handova</strong><p class="muted">Handova is operated by Ethical Bridge, which is responsible for the personal information collected through it. It was previously called Impact Accelerator. Write to ${e(config.contactEmail)} with any question.</p></div>${btn("Privacy notice", "#privacy", "dark")}</section>
+  </div>`;
+  return { title: "About", description: "Handova is an initiative of Ethical Bridge: extra, skilled support for the organisations in its directory.", html };
+}
+
 // ---------- For organisations ----------
-export async function organisations() {
-  const steps = [["Create your organisation account", "Tell us who you are. We check you are locally led and registered or fiscally hosted, usually within two working days."], ["Publish a need", "Describe the challenge, the output, the skills, the working languages and the hours. Up to three open at a time."], ["Choose who to work with", "Review applications, or invite approved professionals whose work fits."], ["Sign the agreement", "Confirm scope, access and confidentiality before anything is shared."], ["Review and complete", "Approve logged hours, write an endorsement and mark the engagement complete."]];
-  const html = `<div class="wrap">
-    <div class="page-head">${eyebrow("For organisations")}<h1>Skilled help for the work you define.</h1><p class="lead">Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like.</p><div class="row">${btn(`Create an organisation account ${icon("arrow", 18)}`, "#join?role=organisation", "lg")}${btn("Browse talent", "#talent", "secondary lg")}</div></div>
-    <section class="grid-2" style="gap:24px;padding-bottom:40px">
-      <div class="card stack" style="--gap:22px;background:var(--deep);color:var(--paper);border-color:var(--deep);padding:clamp(26px,4vw,44px)"><h2 style="font-size:2.2rem">How it works for you</h2><ol class="stack" style="list-style:none;margin:0;padding:0;--gap:20px">${steps.map(([t, d], i) => `<li class="row" style="align-items:flex-start;flex-wrap:nowrap"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:20px;background:#fffdf8;color:#123e3a;font-weight:700;flex-shrink:0">${i + 1}</span><div><strong>${t}</strong><p style="color:var(--on-deep)">${d}</p></div></li>`).join("")}</ol></div>
+// "For organisations" now lives inside How it works; the old address opens that section.
+export const organisations = () => how("organisations");
+export const professionals = () => how("professionals");
+
+function pathSection(kind) {
+  const org = kind === "organisations";
+  const steps = org
+    ? [["Be listed in the Ethical Bridge directory", "Handova is extra support for organisations in the Ethical Bridge directory. Joining the directory is free."], ["Create your organisation account", "Add your directory page. We check you are locally led and registered or fiscally hosted, usually within two working days."], ["Publish a need", "Describe the challenge, the output, the skills, the working languages and the hours. Up to three open at a time."], ["Choose who to work with", "Review applications, or invite approved professionals whose work fits."], ["Sign the agreement", "Confirm scope, access and confidentiality before anything is shared."], ["Review and complete", "Approve logged hours, write an endorsement and mark the engagement complete."]]
+    : [["Create your profile", "Your experience, skills, working languages, LinkedIn and the hours you can realistically give. We approve it before it is public."], ["Find a need", "Browse needs from approved, locally led organisations, or wait to be invited to one that fits."], ["Apply with a plan", "Say how you would approach the output and when you could do it. Only the organisation sees it."], ["Sign the agreement", "Agree the scope, access and confidentiality with the organisation before any work starts."], ["Deliver and hand over", "Do the work, log your hours and hand over the output. Reviewed work joins your impact CV."]];
+  const who = org
+    ? ["Listed in the Ethical Bridge directory (free to join)", "Local NGOs, cooperatives, community groups and small mission-led social enterprises", "Led by people based where the organisation works", "Registered, or fiscally hosted by a registered organisation", "Needs that do not involve direct contact with children or vulnerable adults"]
+    : ["Professionals with experience in data, finance, design, communications, policy, technology, law and more", "Students, recent graduates and people changing careers", "Aged 18 or over, anywhere in the world", "Able to give a few focused hours, remote or local"];
+  const good = org
+    ? [`What a good need looks like`, `<p>One clear output, 6 to 16 hours, the skills and working languages involved. For example: “A data collection template that works offline, and a 90-minute training session for our six field officers.”</p><a href="#need/example-data-tools">See an example need</a>`]
+    : [`What a good application looks like`, `<p>Specific and short: how you would approach the output, what you have done that is similar, and when you can do it. For example: “I have built two offline survey templates in KoboToolbox; I can deliver in two weeks, three hours a week.”</p><a href="#profile/julieta-castineira-de-dios">See a sample impact CV</a>`];
+  return `<section class="path-section" id="path-${kind}">
+    <div class="row between" style="align-items:flex-end;margin-bottom:22px"><div class="stack" style="--gap:8px">${eyebrow(org ? "For organisations" : "For professionals")}<h2>${org ? "Skilled help for the work you define." : "Meaningful work that fits around your life."}</h2><p class="lead" style="max-width:720px">${org ? "Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like." : "Give a few focused hours to an organisation that defined exactly what it needs. Every reviewed contribution becomes part of your impact CV."}</p></div><div class="row">${btn(`${org ? "Create an organisation account" : "Create your profile"} ${icon("arrow", 18)}`, org ? "#join?role=organisation" : "#join?role=professional")}${btn(org ? "Browse talent" : "Browse needs", org ? "#talent" : "#needs", "secondary")}</div>${org ? `<a class="small" style="font-weight:700" href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Not in the Ethical Bridge directory yet? Join it first ${icon("arrow", 15)}</a>` : ""}</div>
+    <div class="grid-2" style="gap:24px">
+      <div class="card stack" style="--gap:22px;background:var(--deep);color:var(--paper);border-color:var(--deep);padding:clamp(26px,4vw,44px)"><h3 class="serif" style="font:500 2rem/1.15 var(--serif)">How it works for you</h3><ol class="stack" style="list-style:none;margin:0;padding:0;--gap:20px">${steps.map(([t, d], i) => `<li class="row" style="align-items:flex-start;flex-wrap:nowrap"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:20px;background:${(org ? i === 4 : i === 3) ? "#e0a07f" : "#fffdf8"};color:#123e3a;font-weight:700;flex-shrink:0">${i + 1}</span><div><strong>${t}</strong><p style="color:var(--on-deep)">${d}</p></div></li>`).join("")}</ol></div>
       <div class="stack" style="--gap:24px">
-        <div class="card stack">${eyebrow("Who can join")}<ul class="checks">${["Local NGOs, cooperatives, community groups and small mission-led social enterprises", "Led by people based where the organisation works", "Registered, or fiscally hosted by a registered organisation", "Needs that do not involve direct contact with children or vulnerable adults"].map((t) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${t}</li>`).join("")}</ul></div>
-        <div class="card stack">${eyebrow("What a good need looks like")}<p>One clear output, 6 to 16 hours, the skills and working languages involved. For example: “A data collection template that works offline, and a 90-minute training session for our six field officers.”</p><a href="#need/example-data-tools">See an example need</a></div>
+        <div class="card stack">${eyebrow("Who can join")}<ul class="checks">${who.map((t) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${t}</li>`).join("")}</ul></div>
+        <div class="card stack">${eyebrow(good[0])}${good[1]}</div>
         <div class="banner">${icon("gift", 24, "#0f6f63")}<p><strong>Always free.</strong> Contributions are voluntary; no fees are charged to organisations or professionals.</p></div>
       </div>
-    </section></div>`;
-  return { title: "For organisations", description: "Publish a need and find skilled help, free. For locally led organisations.", html };
+    </div>
+  </section>`;
 }
 
 // ---------- Needs directory ----------
@@ -231,7 +289,7 @@ export async function need(id) {
         <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose">${e(n.description)}</p></div>
         <div class="stack"><h2 style="font-size:2rem">What you would deliver</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
         <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:10px"><strong>Skills involved</strong>${tags(n.skills)}</div><div class="card stack" style="--gap:10px"><strong>Working languages</strong><p>${e((n.languages || []).join(", "))}. Support in any one of these is welcome.</p></div></div>
-        <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}</div></div>
+        <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">
@@ -317,9 +375,9 @@ export async function profile(id) {
 }
 
 // ---------- How it works ----------
-export async function how() {
+export async function how(focus = "") {
   const stages = [
-    ["home", "Join", ["Create your organisation account", "We check you are locally led and registered, or fiscally hosted."], ["Create your profile", "Experience, skills, working languages and realistic monthly hours. Approved before it is public; 18+."]],
+    ["home", "Join", ["Get listed, then join", "Be listed in the Ethical Bridge directory, then create your Handova account. We check you are locally led and registered, or fiscally hosted."], ["Create your profile", "Experience, skills, working languages and realistic monthly hours. Approved before it is public; 18+."]],
     ["doc", "Need", ["Publish a need", "The challenge, the output, skills, languages and hours. Up to three open at a time."], ["Apply with a plan", "Say how you would approach the output and when you can do it."]],
     ["people", "Match", ["Choose who to work with", "Review applications, message candidates or invite approved professionals."], ["Hear back or get invited", "Accept an invitation, or wait for the organisation’s decision."]],
     ["pen", "Agree", null, null, ["Both sign the agreement", "Scope, hours, access and confidentiality, built from the need. Nothing confidential is shared before both signatures."]],
@@ -337,7 +395,10 @@ export async function how() {
       <div class="stack" style="--gap:16px">${eyebrow("How it works")}<h1>Professional support, with clear expectations.</h1><p class="lead">Short, well-scoped contributions, agreed in writing and reviewed by the organisation. Here is exactly what happens, and what stays private.</p><div class="row" style="--gap:12px">${btn("Post a need", "#join?role=organisation")}${btn("Find a need", "#needs", "secondary")}</div></div>
       <div class="how-facts">${facts.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
     </div>
+    <nav class="path-switch" aria-label="Jump to your path"><button type="button" data-action="scroll-to" data-id="path-organisations"><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>I’m an organisation</strong><span class="small muted">Publish needs and find skilled help</span></span>${icon("arrow", 18)}</button><button type="button" data-action="scroll-to" data-id="path-professionals"><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>I’m a professional</strong><span class="small muted">Contribute skills and build an impact CV</span></span>${icon("arrow", 18)}</button></nav>
     <section class="stack" style="--gap:20px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Five steps, side by side")}<h2>What each of you does.</h2></div><p class="muted" style="max-width:420px">Organisations and professionals follow the same five steps. The agreement is the moment you meet.</p></div>${journey}</section>
+    ${pathSection("organisations")}
+    ${pathSection("professionals")}
     <section class="how-agree">
       <div class="stack" style="--gap:14px">${eyebrow("The contribution agreement")}<h2>Nothing starts until both sides sign.</h2><p class="lead">Every match gets its own agreement, built from the need itself. Hours can only be logged once both signatures are in.</p><a href="#safety" style="font-weight:700">How we work responsibly →</a></div>
       <ul class="how-checks">${["The agreed output, hours and working languages", "Timing, contact person and review steps", "Confidentiality, minimum access and data handling", "Who owns the work and what can be shown publicly", "What is out of scope, and how to end safely"].map((t) => `<li>${icon("check", 20, "#0f6f63", 2.2)}<span>${t}</span></li>`).join("")}</ul>
@@ -345,7 +406,8 @@ export async function how() {
     <section class="stack" style="--gap:18px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Privacy")}<h2>You choose what becomes public.</h2></div><a href="#privacy" style="font-weight:700">Read the privacy notice →</a></div><div class="table-scroll"><table class="data stack-sm"><thead><tr><th scope="col">Information</th><th scope="col">Who can see it</th><th scope="col">Who controls it</th></tr></thead><tbody>${vis.map((r) => `<tr><td><strong>${r[0]}</strong></td><td data-label="Who can see it">${r[1]}</td><td class="muted" data-label="Who controls it">${r[2]}</td></tr>`).join("")}</tbody></table></div></section>
     <section class="how-concern"><span class="icon-tile lg" style="background:var(--ochre-bg)">${icon("flag", 28, "#7a4f0e")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Raise a concern</strong><p class="muted">Use Report a concern on any profile, need or conversation, or write to ${e(config.safeguardingEmail)}. If someone is in immediate danger, contact local emergency services first.</p></div>${btn("Working responsibly", "#safety", "dark")}</section>
   </div>`;
-  return { title: "How it works", description: "Short, well-scoped contributions, agreed in writing and reviewed by the organisation.", html };
+  const title = focus === "organisations" ? "For organisations" : focus === "professionals" ? "For professionals" : "How it works";
+  return { title, description: "Short, well-scoped contributions, agreed in writing and reviewed by the organisation.", html, after: focus ? () => setTimeout(() => document.getElementById("path-" + focus)?.scrollIntoView({ block: "start" }), 60) : undefined };
 }
 
 export function notFound(title = "Page not found", text = "The page you were looking for doesn’t exist or has moved.") {

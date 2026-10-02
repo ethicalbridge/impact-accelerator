@@ -3,6 +3,7 @@ import { icon, mark, eyebrow, field, select, check, formEnd, btn, back } from ".
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
+const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 const ORG_TYPES = ["Community organisation", "Local NGO", "Cooperative", "Social enterprise", "Collective or informal group (fiscally hosted)", "Other"];
 const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-height:calc(100vh - 77px)">
   <div class="band-dark stack" style="--gap:28px;padding:clamp(32px,5vw,72px);justify-content:center">
@@ -12,36 +13,79 @@ const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-heigh
   </div>
   <div style="padding:clamp(32px,5vw,72px);display:flex;align-items:center"><div style="width:100%;max-width:560px">${form}</div></div></div>`;
 
+// Join and sign in, split by who you are: an organisation with needs, or a professional with skills.
+const SIDES = {
+  organisation: { join: ["Bring your needs.", "Publish the specific help your team needs and work with skilled professionals, free. We review every organisation before its needs go public."], signin: ["Welcome back.", "Your organisation workspace: needs, applications, agreements and hours to review."], points: ["Free, always", "Approved before your needs go public", "Up to three open needs at a time", "A signed agreement before any access"] },
+  professional: { join: ["Bring your skills.", "Give a few focused hours to the needs local organisations define, and build an impact CV from reviewed work."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Your profile stays private until approved", "Short, well-scoped contributions", "Endorsements in the organisation’s own words"] },
+};
+const roleTabs = (r, label) => `<div class="role-tabs" role="radiogroup" aria-label="${label}">
+  <label class="role-card"><input type="radio" name="role" value="organisation" ${r === "organisation" ? "checked" : ""} required><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>An organisation</strong><span class="small muted">with needs</span></span></label>
+  <label class="role-card"><input type="radio" name="role" value="professional" ${r === "professional" ? "checked" : ""}><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>A professional</strong><span class="small muted">with skills to give</span></span></label>
+</div>`;
+const authShell = (mode, r, form) => `<div class="auth grid-2" data-role="${r}" style="gap:0;min-height:calc(100vh - 77px)">
+  <div class="band-dark auth-side" style="padding:clamp(32px,5vw,72px)">
+    ${["organisation", "professional"].map((k) => `<div class="stack only-${k}" style="--gap:28px"><span class="eyebrow">${k === "organisation" ? "For organisations" : "For professionals"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${SIDES[k][mode][0]}</h1><p class="lead">${SIDES[k][mode][1]}</p><ul class="checks">${SIDES[k].points.map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul></div>`).join("")}
+    <div class="stack only-none" style="--gap:28px"><span class="eyebrow">${mode === "join" ? "Join Handova" : "Sign in"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${mode === "join" ? "Who are you joining as?" : "Welcome back."}</h1><p class="lead">${mode === "join" ? "Organisations bring needs. Professionals bring skills. Choose yours and we will only ask what matters to you." : "Choose whether you are signing in for an organisation or as a professional."}</p></div>
+    <span class="small" style="color:var(--on-deep-quiet)">An initiative of Ethical Bridge</span>
+  </div>
+  <div style="padding:clamp(32px,5vw,72px);display:flex;align-items:center"><div style="width:100%;max-width:580px">${form}</div></div></div>`;
+// Keep the left panel and the visible fields in step with the chosen role; hidden fields are disabled so they are not required or sent.
+const bindRole = () => {
+  const box = document.querySelector(".auth"); if (!box) return;
+  const apply = () => {
+    const r = box.querySelector('input[name="role"]:checked')?.value || "none";
+    box.dataset.role = r;
+    box.querySelectorAll("fieldset[data-for]").forEach((f) => { f.disabled = !(f.dataset.for === r || (f.dataset.for === "any" && r !== "none")); });
+    const next = box.querySelector("form[data-form=signin]"); if (next && r !== "none") next.dataset.role = r;
+  };
+  box.addEventListener("change", (ev) => { if (ev.target.name === "role") apply(); });
+  apply();
+};
+
 export async function join(params) {
   if (state.user) return { redirect: homeFor() };
   const r = params.get("role") === "organisation" ? "organisation" : params.get("role") === "professional" ? "professional" : "";
   const form = `<form class="form" data-form="signup" novalidate>
     <div class="row between"><h2 style="font-size:2.3rem">Create your account</h2><a href="#signin" style="font-weight:600">I already have one</a></div>
-    <fieldset><legend>I am joining as</legend><div class="role-cards">
-      <label class="role-card"><input type="radio" name="role" value="organisation" ${r === "organisation" ? "checked" : ""} required><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>An organisation</strong><span class="small muted">Publish needs and find skilled help</span></span></label>
-      <label class="role-card"><input type="radio" name="role" value="professional" ${r === "professional" ? "checked" : ""}><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>A professional</strong><span class="small muted">Contribute skills and build an impact CV</span></span></label>
-    </div></fieldset>
-    <div class="form-grid">${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}</div>
-    ${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}
-    <div class="checkbox-box">
-      ${check("adult", "I am 18 or older.", false, true)}
-      ${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true)}
+    <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
+    <fieldset data-for="organisation" class="only-organisation"><legend class="visually-hidden">Your organisation</legend><div class="form-grid">
+      ${field("org_name", "Organisation name", { required: true, full: true, attrs: 'maxlength="160" autocomplete="organization"' })}
+      ${field("org_country", "Country where you work", { required: true, attrs: 'maxlength="100" autocomplete="country-name"' })}
+      ${field("org_role", "Your role in the organisation", { attrs: 'maxlength="120" placeholder="e.g. Director, Programme lead"' })}
+      ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
+      ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
     </div>
-    ${formEnd("Create account")}
-    <p class="small muted">We will email you a link to confirm your address. Then you can finish your profile or organisation details, and we review them before anything is public.</p>
+    <label class="check" style="margin-top:14px"><input type="checkbox" name="locally_led" required><span>We are a locally led organisation (led by people based where we work), registered or fiscally hosted.</span></label></fieldset>
+    <fieldset data-for="professional" class="only-professional"><legend class="visually-hidden">About you</legend><div class="form-grid">
+      ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
+      ${field("headline", "What you do", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"' })}
+    </div></fieldset>
+    <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend>
+      <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}</div>
+      <div class="checkbox-box" style="margin-top:18px">
+        ${check("adult", "I am 18 or older.", false, true)}
+        ${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true)}
+      </div>
+      <div style="margin-top:18px">${formEnd("Create account")}</div>
+      <p class="small muted" style="margin-top:12px"><span class="only-organisation">Next, we will email you a confirmation link. Then you complete your organisation details, and we review them before your needs go public.</span><span class="only-professional">Next, we will email you a confirmation link. Then you complete your profile, and we review it before it is public.</span></p>
+    </fieldset>
   </form>`;
-  return { title: "Join", description: "Create a free Handova account.", html: shell("Join the founding group.", "Handova is free. We review every organisation and profile before it becomes public, so everyone can trust who they are working with.", form) };
+  return { title: "Join", description: "Create a free Handova account as an organisation or a professional.", html: authShell("join", r, form), after: bindRole };
 }
 
 export async function signin(params) {
   if (state.user) return { redirect: params.get("next") || homeFor() };
+  const r = params.get("role") === "organisation" ? "organisation" : params.get("role") === "professional" ? "professional" : "";
   const form = `<form class="form" data-form="signin" data-next="${e(params.get("next") || "")}">
     <div class="row between"><h2 style="font-size:2.3rem">Sign in</h2><a href="#join" style="font-weight:600">Create an account</a></div>
-    ${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" autofocus' })}
-    ${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="current-password"' })}
-    ${formEnd("Sign in", `<a href="#reset" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Forgot your password?</a>`)}
+    <fieldset><legend>I am signing in as</legend>${roleTabs(r, "I am signing in as")}</fieldset>
+    <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend><div class="stack" style="--gap:18px">
+      ${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email"' })}
+      ${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="current-password"' })}
+      ${formEnd("Sign in", `<a href="#reset" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Forgot your password?</a>`)}
+    </div></fieldset>
   </form>`;
-  return { title: "Sign in", html: shell("Welcome back.", "Pick up where you left off: your needs, applications, agreements and impact CV.", form) };
+  return { title: "Sign in", html: authShell("signin", r, form), after: bindRole };
 }
 
 export async function reset() {
@@ -65,9 +109,9 @@ export async function onboarding() {
   if (state.profile && r !== "organisation") return { redirect: "#workspace" };
   const name = state.user.user_metadata?.full_name || "";
   if (r === "organisation") {
-    return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({}, name)}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
+    return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name)}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
   }
-  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
+  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
 
 export function orgForm(o = {}, fullName = "") {
@@ -78,6 +122,7 @@ export function orgForm(o = {}, fullName = "") {
     ${field("city", "City or region", { value: o.city, attrs: 'maxlength="120"' })}
     ${select("org_type", "Type of organisation", ORG_TYPES, o.org_type || ORG_TYPES[0])}
     ${field("website", "Website or social page", { value: o.website, type: "url", attrs: 'maxlength="300" placeholder="https://"' })}
+    ${field("ethical_bridge_url", "Ethical Bridge directory page", { value: o.ethical_bridge_url, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova supports organisations listed in the Ethical Bridge directory. Not listed yet? <a href="${"https://ethicalbridge.org/organisation-register.html"}" target="_blank" rel="noopener">Join the directory</a>, it is free.` })}
     ${field("summary", "What your organisation does", { value: o.summary, type: "textarea", required: true, full: true, attrs: 'maxlength="600" minlength="20"', hint: "Two or three sentences. This appears on your needs." })}
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
     ${edit ? "" : `<div class="checkbox-box full">${check("locally_led", "We are a locally led organisation: our leadership is based where we work, and we are registered or fiscally hosted by a registered organisation.", false, true)}${check("authorised", "I am authorised to represent this organisation.", false, true)}</div>`}
@@ -128,7 +173,8 @@ export async function submitAccount(kind, form) {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
     const role = val(fd, "role");
     if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
-    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#onboarding", data: { role, full_name: val(fd, "name") } } });
+    if (role === "organisation" && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
+    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#onboarding", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url") } : { role, full_name: val(fd, "name"), headline: val(fd, "headline") } } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
     form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it on this device to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
@@ -136,7 +182,8 @@ export async function submitAccount(kind, form) {
   if (kind === "signin") return withForm(form, async (fd) => {
     await result(db.auth.signInWithPassword({ email: val(fd, "email"), password: String(fd.get("password")) }));
     await loadSession();
-    go(form.dataset.next || homeFor());
+    const r = form.dataset.role;
+    go(form.dataset.next || (r === "organisation" && state.memberships.length ? "#org" : r === "professional" && state.profile ? "#workspace" : homeFor()));
   });
   if (kind === "reset") return withForm(form, async (fd) => {
     await result(db.auth.resetPasswordForEmail(val(fd, "email"), { redirectTo: config.siteUrl }));
@@ -159,7 +206,9 @@ export async function submitAccount(kind, form) {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and confirmations.")); }
     const website = val(fd, "website");
     if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
-    await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
+    if (!EB_URL.test(val(fd, "ethical_bridge_url"))) throw Error("Add your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
+    const newOrg = await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
+    if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url") }).eq("id", newOrg));
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
     await loadSession();
     toast("Submitted for review. You can prepare draft needs now.");
@@ -168,7 +217,9 @@ export async function submitAccount(kind, form) {
   if (kind === "org-edit") return withForm(form, async (fd) => {
     const website = val(fd, "website");
     if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
-    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type") }).eq("id", form.dataset.id));
+    const ebu = val(fd, "ethical_bridge_url");
+    if (ebu && !EB_URL.test(ebu)) throw Error("Use your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
+    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu }).eq("id", form.dataset.id));
     await loadSession();
     toast("Organisation details saved.");
   });
