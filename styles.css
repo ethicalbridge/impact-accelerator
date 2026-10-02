@@ -555,3 +555,5 @@ details.faq[open] p { animation: hv-panel 0.4s cubic-bezier(.2,.8,.2,1); }
 }
 @media print { .motion .reveal { opacity: 1 !important; transform: none !important; } .hv-cue, .hv-orb { display: none; } }
 #main:focus { outline: none; }
+.btn.linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
+.btn.linkedin:hover { background: #004182; border-color: #004182; color: #fff; }

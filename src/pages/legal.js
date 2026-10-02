@@ -10,7 +10,7 @@ export function privacy() {
   <h2>Who is responsible for your information</h2><p>Handova is an initiative of Ethical Bridge. Ethical Bridge is responsible for deciding how personal information collected through Handova is used. Write to ${mail(config.contactEmail)} with any privacy question or request.</p>
   <h2>What we collect</h2><ul>
     <li><strong>Account details:</strong> your email address and a securely hashed password.</li>
-    <li><strong>Professional profiles:</strong> name, headline, introduction, experience, skills, languages, location, availability, an optional professional link, and your confirmations that you are 18 or over and that contributions are unpaid.</li>
+    <li><strong>Professional profiles:</strong> name, headline, introduction, experience, skills, languages, location, availability, an optional LinkedIn profile link and other professional link, and your confirmations that you are 18 or over and that contributions are unpaid.</li>
     <li><strong>Organisations:</strong> name, country, city, type, website, a summary, and the name of the person who represents it.</li>
     <li><strong>Activity:</strong> needs, applications, invitations, messages, contribution agreements and signatures, logged hours, reviews, endorsements, private ratings, saved needs, notifications and reports of concern.</li>
     <li><strong>Technical information:</strong> our hosting and database providers keep short-term logs (such as IP address and browser) to run and secure the service.</li>

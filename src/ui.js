@@ -33,6 +33,7 @@ const IC = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
   logout: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
+  linkedin: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V16M8 7.6v.3M11.5 16v-5.5M11.5 13.1c0-1.7 1-2.7 2.4-2.7s2.1 1 2.1 2.7V16"/>',
   alert: '<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/>',
 };
 export const icon = (name, size = 20, color = "currentColor", sw = 1.7) =>
@@ -155,28 +156,30 @@ export function needCard(n) {
 export function talentCard(p) {
   return `<a class="card card-link" href="#profile/${e(p.user_id)}">
   <div class="stack" style="--gap:14px">
-    <div class="row between">${avatar(p.name, 64)}${p.example ? exampleBadge() : ""}</div>
+    <div class="row between">${avatar(p.name, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : ""}</div>
     <div><span class="card-title">${e(p.name)}</span><p class="muted">${e(p.headline || "Professional")}</p></div>
     <div class="meta" style="flex-direction:column;gap:6px">
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>
       <span>${icon("language", 17)}${e((p.languages || []).join(" · ") || "Languages not given")}</span>
-      <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : "Not available right now"}</span>
+      <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
-    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : e(p.arrangement || "Remote")}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
+    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · endorsements pending` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : e(p.arrangement || "Remote")}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
   </div></a>`;
 }
 
 export function contributionCard(c, { example = false, owner = false } = {}) {
   const kind = coverKind(c.skills || [], c.need_title);
+  const when = c.period || (c.completed ? date(c.completed, { month: "long", year: "numeric" }) : "");
+  const hasHours = c.hours !== undefined && c.hours !== null;
   return `<article class="contribution">
   <div class="art" style="background:${COVER_BG[kind]}">${cover(kind, { w: 384, h: 300, fit: "meet" })}</div>
   <div class="body">
-    <div class="row between"><div class="row" style="--gap:8px">${pill("Completed · reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}</div><span class="small muted">${e(c.period || date(c.completed, { month: "long", year: "numeric" }))}</span></div>
-    <div class="row between" style="align-items:flex-start"><div><h3 class="serif" style="font:500 1.8rem/1.15 var(--serif)">${e(c.need_title)}</h3><span style="font-weight:600;color:var(--teal)">${e(c.organisation)}${c.organisation_country ? " · " + e(c.organisation_country) : ""}</span></div><div style="text-align:right"><strong class="serif" style="font:500 2.2rem/1 var(--serif);color:var(--deep)">${Number(c.hours || 0)}</strong><br><span class="small muted">reviewed hours</span></div></div>
+    <div class="row between"><div class="row" style="--gap:8px">${c.pending ? pill("Completed · endorsement pending", "ochre") : pill("Completed · reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}</div>${when ? `<span class="small muted">${e(when)}</span>` : ""}</div>
+    <div class="row between" style="align-items:flex-start"><div><h3 class="serif" style="font:500 1.8rem/1.15 var(--serif)">${e(c.need_title)}</h3><span style="font-weight:600;color:var(--teal)">${e(c.organisation)}${c.organisation_country ? " · " + e(c.organisation_country) : ""}</span></div>${hasHours ? `<div style="text-align:right"><strong class="serif" style="font:500 2.2rem/1 var(--serif);color:var(--deep)">${Number(c.hours || 0)}</strong><br><span class="small muted">reviewed hours</span></div>` : ""}</div>
     <div class="grid-2" style="gap:20px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p>${e(c.output)}</p></div></div>
     ${c.deliverables ? `<div><span class="label-cap">Delivered</span><p class="prose" style="font-size:1rem">${e(c.deliverables)}</p></div>` : ""}
-    ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : ""}
+    ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<div class="banner warn" style="padding:14px 18px">${icon("clock", 20)}<p class="small">Endorsement pending. ${e(c.organisation)} will review this work and add its own words here.</p></div>` : ""}
     ${tags(c.skills || [])}
   </div></article>`;
 }

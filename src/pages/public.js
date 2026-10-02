@@ -1,7 +1,7 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
 import { icon, mark, avatar, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions } from "../examples.js";
-import { filterRecords, professionalAreas, date, plural, today } from "../utils.js";
+import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
 const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type)";
@@ -81,13 +81,13 @@ export async function home() {
   <section class="band-dark block hv-band"><div class="wrap grid-2" style="gap:72px;align-items:center">
     <div class="stack" style="--gap:26px" data-reveal>${eyebrow("For professionals")}<h2>Let your work speak for you.</h2><p class="lead">Every completed contribution becomes a record on your impact CV: the need, what you did, the outcome and the organisation’s own words. You choose what is public.</p>
       <ul class="checks">${["Real experience for students and people changing careers", "Endorsements written by the organisations you helped", "A shareable CV link and a printable PDF"].map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul>
-      <div class="row">${btn(`See an example impact CV ${icon("arrow", 18)}`, "#profile/example-maria-lopez", "light")}${btn("Create your profile", "#join", "ghost-light")}</div></div>
-    <div class="card stack hv-cv" style="--gap:20px;color:var(--ink)" data-reveal>
-      <div class="row between">${eyebrow("Impact CV")}${exampleBadge()}</div>
-      <div class="row" style="--gap:18px">${avatar("Maria Lopez", 72)}<div><span class="serif" style="font-size:1.9rem">Maria Lopez</span><p class="muted small">UX designer · research · accessibility · Madrid</p></div></div>
-      <div class="metric-row"><div class="metric"><strong data-counter="3">3</strong><span>reviewed contributions</span></div><div class="metric"><strong data-counter="3">3</strong><span>organisations helped</span></div><div class="metric"><strong data-counter="42">42</strong><span>reviewed hours</span></div></div>
-      <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>Accessibility review</strong>${pill("Still in use at 6 months")}</div><span class="small muted">Example Organisation · 12 hours · August 2026</span><p class="serif" style="font-size:1.1rem">“Very detailed, practical recommendations our team implemented straight away.”</p></div>
-    </div></div></section>
+      <div class="row">${btn(`See a sample impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "light")}${btn("Create your profile", "#join", "ghost-light")}</div></div>
+    <a class="card stack hv-cv" href="#profile/${exampleProfile.user_id}" style="--gap:20px;color:var(--ink);text-decoration:none" data-reveal>
+      <div class="row between">${eyebrow("Impact CV")}${pill("Founder")}</div>
+      <div class="row" style="--gap:18px;flex-wrap:nowrap">${avatar(exampleProfile.name, 72)}<div><span class="serif" style="font-size:1.8rem;line-height:1.15">${e(exampleProfile.name)}</span><p class="muted small">${e(exampleProfile.headline)}</p></div></div>
+      <div class="metric-row"><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>contributions</span></div><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>organisations helped</span></div><div class="metric"><strong data-counter="3">3</strong><span>working languages</span></div></div>
+      <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>${e(exampleContributions[0].need_title)}</strong>${pill("Endorsement pending", "ochre")}</div><span class="small muted">${e(exampleContributions[0].organisation)}</span><p class="small muted">Endorsements appear here in the organisation’s own words, once it has reviewed the work.</p></div>
+    </a></div></section>
   <div class="wrap">
     <section class="block grid-2">
       ${audience("For organisations", "Skills you could not otherwise reach, on your terms.", ["You define the need, the output and what success looks like", "Browse approved professionals or wait for applications", "Up to three open needs at a time, free", "Keep everything you receive, and the evidence of it"], "Post your first need", "#organisations")}
@@ -187,7 +187,7 @@ function bindFilters(rows, card, noun) {
   const draw = () => {
     const data = Object.fromEntries(new FormData(f));
     const found = filterRecords(rows, data);
-    $("#count").textContent = `${plural(found.length, noun)}${rows[0]?.example ? " (examples)" : ""}`;
+    $("#count").textContent = `${plural(found.length, noun)}${rows.length && rows.every((r) => r.example && !r.founder) ? " (examples)" : ""}`;
     $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area, country or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
   };
   f.addEventListener("input", draw);
@@ -256,11 +256,11 @@ export async function need(id) {
 // ---------- Talent ----------
 export async function talent() {
   const real = await result(db.from("profiles").select("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio").eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
-  const rows = real.length ? real : [exampleProfile];
+  const rows = [exampleProfile, ...real.filter((p) => p.user_id !== exampleProfile.user_id)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
     ${filtersForm("talent")}
-    ${real.length ? "" : exampleNotice("No profiles are public yet, so you are seeing an example. Approved professionals will appear here.")}
+    ${real.length ? "" : `<div class="notice" role="note">${pill("Founder")}<span>The founding group is being approved now. Until then you can see the founder’s own impact CV; approved professionals will appear alongside it.</span></div>`}
     <div class="grid" id="results"></div>
     <div class="card row between band-dark" style="border-color:var(--deep)"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Are you an organisation?</span><p class="muted">Post a need and invite the people whose work fits. It is free.</p></div>${btn(`Post a need ${icon("arrow", 18)}`, "#organisations", "light")}</div>
   </div>`;
@@ -269,6 +269,7 @@ export async function talent() {
 
 // ---------- Profile / impact CV ----------
 export async function profile(id) {
+  if (id === "example-maria-lopez") return { redirect: "#profile/" + exampleProfile.user_id };
   const ex = id === exampleProfile.user_id;
   const p = ex ? exampleProfile : await result(db.from("profiles").select("*").eq("user_id", id).maybeSingle()).catch(() => null);
   if (!p) return notFound("This profile isn’t available", "It may be private, awaiting approval, or no longer published.");
@@ -282,19 +283,22 @@ export async function profile(id) {
   const side = (title, inner) => `<div class="card stack" style="--gap:12px">${eyebrow(title)}${inner}</div>`;
   const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:60px">
     ${back("All talent", "#talent")}
-    ${ex ? exampleNotice("Example impact CV. Maria, the organisations and the endorsements are illustrative, shown so you can see how a real record will look.") : ""}
+    ${ex ? `<div class="notice" role="note">${pill("Founder")}<span>This is the founder’s own impact CV, shown as a sample until the first professionals are approved. The work is real; each organisation will add its endorsement after review.</span></div>` : ""}
     ${owner && !isPublic ? `<div class="banner warn">${icon("eye", 22)}<p>Only you can see this page. ${p.review_status === "pending" ? "Your profile is awaiting approval." : "Publish your profile from your workspace when you are ready."}</p></div>` : ""}
     <section class="profile-head">
       ${avatar(p.name, 150)}
       <div class="stack" style="--gap:12px">${eyebrow("Impact CV")}<h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
-        <div class="meta"><span>${icon("map", 19, "#0f6f63")}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("globe", 19, "#0f6f63")}${e(p.arrangement)}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : "Not available right now"}</span></div></div>
+        <div class="meta"><span>${icon("map", 19, "#0f6f63")}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("globe", 19, "#0f6f63")}${e(p.arrangement)}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
         ${canInvite ? `<button class="btn" type="button" data-action="invite" data-id="${e(p.user_id)}">Invite to a need</button>` : owner ? btn("Edit profile", "#workspace/profile") : ""}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
+        ${safeURL(p.linkedin) ? `<a class="btn linkedin" href="${e(safeURL(p.linkedin))}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 18)}View on LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}
         <button class="btn secondary" type="button" data-action="copy-link">${icon("link", 18)}Copy profile link</button>
         <button class="btn secondary" type="button" data-action="print">${icon("download", 18)}Save as PDF</button>
       </div>
     </section>
-    <section class="stats-dark"><div><strong>${contributions.length}</strong><span>reviewed contributions</span></div><div><strong>${orgs}</strong><span>organisations helped</span></div><div><strong>${hours}</strong><span>reviewed hours</span></div><div><strong>${countries}</strong><span>countries</span></div></section>
+    ${(() => { const pending = contributions.filter((c) => c.pending).length; const reviewed = contributions.length - pending;
+      return pending ? `<section class="stats-dark"><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>contributions</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div><div><strong data-counter="${reviewed}">${reviewed}</strong><span>endorsed so far</span></div><div><strong data-counter="${pending}">${pending}</strong><span>endorsements pending</span></div></section>`
+      : `<section class="stats-dark"><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>reviewed contributions</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div><div><strong data-counter="${hours}">${hours}</strong><span>reviewed hours</span></div><div><strong data-counter="${countries}">${countries}</strong><span>countries</span></div></section>`; })()}
     <p class="small muted" style="margin-top:-18px">Only work reviewed by the organisation counts. Ratings stay private to the professional.</p>
     <div class="split left">
       <aside class="stack" style="--gap:18px">
