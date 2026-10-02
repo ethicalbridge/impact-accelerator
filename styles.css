@@ -754,3 +754,6 @@ ul.xp-roles > li { display: flex; flex-direction: column; gap: 1px; position: re
 ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--line-strong); }
 .entry-tools { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
 .entry-tools .link-btn { font-size: 0.9rem; }
+.xp-more { margin-top: 4px; }
+.xp-more > summary { display: inline-flex; color: var(--teal); font-weight: 600; font-size: 0.86rem; cursor: pointer; }
+.xp-more[open] > summary { display: inline-flex; }

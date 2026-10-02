@@ -352,22 +352,15 @@ export const entryDates = (it, kind = "experience") => {
 };
 const orgTile = (name) => `<span class="xp-logo" aria-hidden="true">${e(orgInitials(name || "?"))}</span>`;
 function orgInitials(name) { return String(name).replace(/\(.*?\)/g, "").split(/\s+/).filter((w) => /^[A-Za-zÀ-ÿ]/.test(w) && !/^(of|the|and|de|la|for)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join(""); }
-const more = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-desc">${e(text)}</p>` : `<details class="xp-more"><summary><span class="xp-desc">${e(text.slice(0, 140).replace(/\s+\S*$/, ""))}…</span> <span class="xp-more-btn">more</span></summary><p class="xp-desc">${e(text)}</p></details>`;
+const moreUnused = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-desc">${e(text)}</p>` : `<details class="xp-more"><summary><span class="xp-desc">${e(text.slice(0, 140).replace(/\s+\S*$/, ""))}…</span> <span class="xp-more-btn">more</span></summary><p class="xp-desc">${e(text)}</p></details>`;
 // Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
+// Public view, CV style: role in bold, then organisation · country, then years.
 function roleLines(it, kind, inGroup) {
-  if (kind === "education") return [`<strong class="xp-title">${e(it.organisation || it.title)}</strong>`,
-    [it.organisation ? it.title : "", it.field].filter(Boolean).length ? `<span>${e([it.organisation ? it.title : "", it.field].filter(Boolean).join(", "))}</span>` : "",
-    entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
-    it.country ? `<span class="xp-muted">${e(it.country)}</span>` : ""];
-  return [`<strong class="xp-title">${e(it.title || it.organisation)}</strong>`,
-    inGroup ? (it.employment_type ? `<span>${e(it.employment_type)}</span>` : "")
-      : (it.title && it.organisation) || it.employment_type ? `<span>${e([it.title ? it.organisation : "", it.employment_type].filter(Boolean).join(" · "))}</span>` : "",
-    entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
-    it.country || it.work_mode ? `<span class="xp-muted">${e([it.country, it.work_mode].filter(Boolean).join(" · "))}</span>` : ""];
+  const title = kind === "education" ? [it.title, it.field].filter(Boolean).join(", ") || it.organisation : it.title || it.organisation;
+  const place = inGroup ? "" : [title === it.organisation ? "" : it.organisation, it.country].filter(Boolean).join(" · ");
+  return [`<strong class="xp-title">${e(title)}</strong>`, place ? `<span>${e(place)}</span>` : "", entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""];
 }
-const roleExtra = (it) => `${more(it.description)}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.slice(0, 3).join(", "))}${it.skills.length > 3 ? ` and +${it.skills.length - 3} skill${it.skills.length > 4 ? "s" : ""}` : ""}</span>` : ""}`;
-// Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
-// Consecutive roles at the same organisation are grouped under it, with the total time there.
+const roleExtra = (it) => (it.description || (it.skills || []).length) ? `<details class="xp-more"><summary>Show details</summary>${it.description ? `<p class="xp-desc">${e(it.description)}</p>` : ""}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.join(", "))}</span>` : ""}</details>` : "";
 export function entryList(items, kind = "experience") {
   const groups = [];
   for (const it of items) {
@@ -380,13 +373,10 @@ export function entryList(items, kind = "experience") {
     const end = ends.includes("present") ? "present" : ends.sort().pop();
     const total = duration(starts[0], end);
     const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
-    const sameType = types.length === 1 && g.every((x) => x.employment_type === types[0]);
-    const gMode = modes.length === 1 && g.every((x) => x.work_mode === modes[0]) ? modes[0] : "";
     const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? countries[0] : "";
-    const head = [sameType ? types[0] : "", total].filter(Boolean).join(" · "), place = [gCountry, gMode].filter(Boolean).join(" · ");
-    return `<li>${orgTile(g[0].organisation)}<div class="xp-body"><strong class="xp-title">${e(g[0].organisation)}</strong>${head ? `<span>${e(head)}</span>` : ""}${place ? `<span class="xp-muted">${e(place)}</span>` : ""}
-      <ul class="xp-roles">${g.map((it) => { const pl = [gCountry ? "" : it.country, gMode ? "" : it.work_mode].filter(Boolean).join(" · ");
-        return `<li><strong class="xp-title">${e(it.title)}</strong>${!sameType && it.employment_type ? `<span>${e(it.employment_type)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${pl ? `<span class="xp-muted">${e(pl)}</span>` : ""}${roleExtra(it)}</li>`; }).join("")}</ul></div></li>`;
+    const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" - ");
+    return `<li>${orgTile(g[0].organisation)}<div class="xp-body"><strong class="xp-title">${e([g[0].organisation, gCountry].filter(Boolean).join(" · "))}</strong>${range ? `<span class="xp-muted">${e([range, total].filter(Boolean).join(" · "))}</span>` : ""}
+      <ul class="xp-roles">${g.map((it) => `<li><strong class="xp-title">${e(it.title)}</strong>${!gCountry && it.country ? `<span>${e(it.country)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${roleExtra(it)}</li>`).join("")}</ul></div></li>`;
   }).join("")}</ul>`;
 }
 
