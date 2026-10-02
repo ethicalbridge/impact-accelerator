@@ -55,6 +55,15 @@ async function page(r) {
 }
 
 let version = 0;
+// Once per sign-in, professionals who have not verified their identity get a short prompt.
+function idNudge(route) {
+  const p = state.profile;
+  if (!p || p.id_status === "approved" || ["in_review", "name_mismatch"].includes(p.id_status) || ["verify-done", "signin", "join", "onboarding"].includes(route)) return;
+  const key = "hv-id-nudge-" + state.user.id;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch { return; }
+  acc.idNudgeDialog();
+}
+
 async function render() {
   const v = ++version;
   const r = parse();
@@ -72,6 +81,7 @@ async function render() {
     if (meta) meta.content = out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.";
     out.after?.();
     enhance(main, r.name);
+    idNudge(r.name);
     trackPage(out.title);
   } catch (err) {
     if (v !== version) return;
@@ -110,6 +120,13 @@ const actions = {
     render();
   },
   invite: (el) => ws.inviteDialog(el.dataset.id),
+  // Shown to everyone who is not yet an approved organisation: explains the next step instead of hiding the option.
+  "invite-cta": (el) => {
+    if (!state.user) { toast("Sign in or join as an organisation to invite professionals."); go(`#signin?role=organisation&next=${encodeURIComponent(location.hash)}`); return; }
+    if (!state.memberships.length) { go("#onboarding"); toast("Set up your organisation first. Once we approve it, you can invite professionals."); return; }
+    if (el.dataset.sample === "1") { toast("Invitations open as soon as this profile is approved."); return; }
+    toast("Your organisation is being reviewed. You can invite professionals as soon as it is approved, usually within two working days.");
+  },
   introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
   withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),

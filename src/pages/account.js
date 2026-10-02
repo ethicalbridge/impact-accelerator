@@ -203,7 +203,11 @@ export function identityCard(p) {
     approved: ["Identity verified", `Verified${p.id_verified_at ? " on " + new Date(p.id_verified_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}. Your profile shows “ID verified”.`],
   }[st] || ["Verify your identity", ""];
   const canStart = ["", "started", "declined"].includes(st);
-  return `<div class="full id-card ${st === "approved" ? "ok" : ""}"><span class="icon-tile">${icon(st === "approved" ? "check" : "lock", 22, "#0f6f63")}</span><div class="stack" style="--gap:6px"><strong>${text[0]}</strong><p class="small muted" style="margin:0">${text[1]}</p>${canStart ? `<div><button type="button" class="btn sm" data-action="verify-id">${st === "started" ? "Continue identity check" : st === "declined" ? "Try again" : "Verify my identity"}</button></div>` : ""}</div></div>`;
+  if (st === "approved") return `<div class="full id-card ok"><span class="icon-tile">${icon("check", 22, "#0f6f63")}</span><div class="stack" style="--gap:6px"><strong>${text[0]}</strong><p class="small muted" style="margin:0">${text[1]}</p></div></div>`;
+  return `<div class="full id-card hero ${canStart ? "" : "wait"}"><span class="id-icon">${icon(canStart ? "lock" : "clock", 30, "currentColor")}</span><div class="stack" style="--gap:8px"><span class="id-step">${canStart ? "Next step" : "In progress"}</span><strong>${text[0]}</strong><p>${text[1]}</p>${canStart ? `<div><button type="button" class="btn id-btn" data-action="verify-id">${st === "started" ? "Continue identity check" : st === "declined" ? "Try again" : "Verify my identity"} ${icon("arrow", 18)}</button></div>` : ""}</div></div>`;
+}
+export function idNudgeDialog() {
+  openDialog("Verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations trust verified professionals. It takes about three minutes: a photo of your passport or ID card and a short selfie.</p><p class="small muted">Handled by our provider Didit. Handova only receives the result and the name on your document, never the images.${state.idRequired ? " <strong>Required before you sign your first contribution agreement.</strong>" : ""}</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div></div>`);
 }
 export async function startIdCheck(el) {
   el?.setAttribute("disabled", "");
