@@ -362,10 +362,12 @@ function roleLines(it, kind, inGroup) {
 }
 const roleExtra = (it) => (it.description || (it.skills || []).length) ? `<details class="xp-more"><summary>Show details</summary>${it.description ? `<p class="xp-desc">${e(it.description)}</p>` : ""}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.join(", "))}</span>` : ""}</details>` : "";
 export function entryList(items, kind = "experience") {
-  const groups = [];
+  // All roles at the same organisation sit together, at the place of the most recent one.
+  const groups = [], byOrg = new Map();
   for (const it of items) {
-    const last = groups[groups.length - 1];
-    if (kind === "experience" && last && it.organisation && last[0].organisation === it.organisation) last.push(it); else groups.push([it]);
+    const key = kind === "experience" && it.organisation ? it.organisation.trim().toLowerCase() : null;
+    if (key && byOrg.has(key)) byOrg.get(key).push(it);
+    else { const g = [it]; groups.push(g); if (key) byOrg.set(key, g); }
   }
   return `<ul class="xp-li">${groups.map((g) => {
     if (g.length === 1) return `<li>${orgTile(g[0].organisation)}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
