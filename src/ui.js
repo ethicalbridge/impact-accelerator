@@ -50,6 +50,11 @@ export function avatar(name, size = 56) {
   return `<svg class="avatar" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false"><circle cx="${r}" cy="${r}" r="${r}" fill="${c}"/><circle cx="${size * 0.78}" cy="${size * 0.22}" r="${size * 0.3}" fill="#fff" fill-opacity="0.12"/><text x="${r}" y="${r + fs * 0.36}" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="${fs}" font-weight="600" fill="#fff">${e(initials(name))}</text></svg>`;
 }
 
+// A real photo when the profile has one (only the founder's, a static asset), otherwise initials.
+export const avatarFor = (p, size = 56) => p.photo
+  ? `<img class="avatar photo" src="${e(p.photo)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`
+  : avatar(p.name, size);
+
 // Illustrations: drawn, not photographed, so no real person or place is implied.
 const KINDS = ["data", "fund", "finance", "access", "people", "video", "train", "design"];
 export const COVER_BG = { data: "#dcebe6", fund: "#efe6d4", finance: "#e7efe0", access: "#e3ecf2", people: "#f3e2d6", video: "#e9e3f0", train: "#f6e8cc", design: "#e3ecf2" };
@@ -156,7 +161,7 @@ export function needCard(n) {
 export function talentCard(p) {
   return `<a class="card card-link" href="#profile/${e(p.user_id)}">
   <div class="stack" style="--gap:14px">
-    <div class="row between">${avatar(p.name, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : ""}</div>
+    <div class="row between">${avatarFor(p, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : ""}</div>
     <div><span class="card-title">${e(p.name)}</span><p class="muted">${e(p.headline || "Professional")}</p></div>
     <div class="meta" style="flex-direction:column;gap:6px">
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>

@@ -557,3 +557,4 @@ details.faq[open] p { animation: hv-panel 0.4s cubic-bezier(.2,.8,.2,1); }
 #main:focus { outline: none; }
 .btn.linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
 .btn.linkedin:hover { background: #004182; border-color: #004182; color: #fff; }
+.avatar.photo { object-fit: cover; background: var(--mint); box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--line); }

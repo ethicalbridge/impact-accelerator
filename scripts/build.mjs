@@ -18,5 +18,6 @@ const out = process.env.OUT || "dist";
 await mkdir(out, { recursive: true });
 for (const f of ["index.html", "styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt"]) await cp(f, `${out}/${f}`);
 await cp("fonts", `${out}/fonts`, { recursive: true });
+await cp("assets", `${out}/assets`, { recursive: true });
 if (!process.env.OUT) await cp("app.js", `${out}/app.js`);
 console.log("built", out);

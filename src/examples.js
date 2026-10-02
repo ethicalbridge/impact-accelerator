@@ -16,7 +16,7 @@ export const exampleProfile = {
   skills: ["Strategy", "Theory of change", "Compliance and risk", "Branding", "Partnerships", "Legal", "Programme management", "Research"],
   bio: "I help purpose-led organisations turn a meaningful vision into a clear strategy, workable systems and confident next steps. I founded Ethical Bridge and took it from an idea to an organisation ready to launch over three and a half years, and I built Handova so local teams can reach skills like these for free.",
   experience: "Founder, Ethical Bridge\nFounder, Method into Impact and the Local Impact Alliance (being registered)\nInternational development, project administration, awards and compliance, development management, academic research and legal practice, with organisations including Save the Children, Lutheran World Federation, Consulting Base and AdvocAid, across Argentina and South America, Australia, Europe and Africa\nBegan in legal practice in Argentina, including the Public Ministry of Defence\nLaw degree and a Master in African Studies",
-  website: "", linkedin: "", contributions: 3,
+  website: "", linkedin: "", photo: "assets/julieta-castineira-de-dios.jpg", contributions: 3,
 };
 
 export const exampleContributions = [

@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
-import { icon, mark, avatar, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
+import { icon, mark, avatar, avatarFor, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -84,7 +84,7 @@ export async function home() {
       <div class="row">${btn(`See a sample impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "light")}${btn("Create your profile", "#join", "ghost-light")}</div></div>
     <a class="card stack hv-cv" href="#profile/${exampleProfile.user_id}" style="--gap:20px;color:var(--ink);text-decoration:none" data-reveal>
       <div class="row between">${eyebrow("Impact CV")}${pill("Founder")}</div>
-      <div class="row" style="--gap:18px;flex-wrap:nowrap">${avatar(exampleProfile.name, 72)}<div><span class="serif" style="font-size:1.8rem;line-height:1.15">${e(exampleProfile.name)}</span><p class="muted small">${e(exampleProfile.headline)}</p></div></div>
+      <div class="row" style="--gap:18px;flex-wrap:nowrap">${avatarFor(exampleProfile, 72)}<div><span class="serif" style="font-size:1.8rem;line-height:1.15">${e(exampleProfile.name)}</span><p class="muted small">${e(exampleProfile.headline)}</p></div></div>
       <div class="metric-row"><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>contributions</span></div><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>organisations helped</span></div><div class="metric"><strong data-counter="3">3</strong><span>working languages</span></div></div>
       <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>${e(exampleContributions[0].need_title)}</strong>${pill("Endorsement pending", "ochre")}</div><span class="small muted">${e(exampleContributions[0].organisation)}</span><p class="small muted">Endorsements appear here in the organisation’s own words, once it has reviewed the work.</p></div>
     </a></div></section>
@@ -286,7 +286,7 @@ export async function profile(id) {
     ${ex ? `<div class="notice" role="note">${pill("Founder")}<span>This is the founder’s own impact CV, shown as a sample until the first professionals are approved. The work is real; each organisation will add its endorsement after review.</span></div>` : ""}
     ${owner && !isPublic ? `<div class="banner warn">${icon("eye", 22)}<p>Only you can see this page. ${p.review_status === "pending" ? "Your profile is awaiting approval." : "Publish your profile from your workspace when you are ready."}</p></div>` : ""}
     <section class="profile-head">
-      ${avatar(p.name, 150)}
+      ${avatarFor(p, 150)}
       <div class="stack" style="--gap:12px">${eyebrow("Impact CV")}<h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
         <div class="meta"><span>${icon("map", 19, "#0f6f63")}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("globe", 19, "#0f6f63")}${e(p.arrangement)}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
