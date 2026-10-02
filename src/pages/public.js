@@ -303,8 +303,9 @@ export async function profile(id) {
     <div class="split left">
       <aside class="stack" style="--gap:18px">
         ${side("About", `<p class="prose" style="font-size:1rem">${e(p.bio || "No introduction yet.")}</p>`)}
-        ${p.experience ? side("Experience", `<p class="prose" style="font-size:1rem">${e(p.experience)}</p><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
         ${side("Skills", tags(p.skills || []))}
+        ${p.experience ? side("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><strong>${e(role)}</strong>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
+        ${p.background ? p.background.map(([title, items]) => side(title, `<ul class="bullets">${items.map((t) => `<li>${e(t)}</li>`).join("")}</ul>`)).join("") : ""}
         ${p.website ? side("Elsewhere", `${safeLink(p.website, "Professional profile or website")}<span class="small muted">A link the professional added; not an identity check.</span>`) : ""}
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}

@@ -558,3 +558,13 @@ details.faq[open] p { animation: hv-panel 0.4s cubic-bezier(.2,.8,.2,1); }
 .btn.linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
 .btn.linkedin:hover { background: #004182; border-color: #004182; color: #fff; }
 .avatar.photo { object-fit: cover; background: var(--mint); box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--line); }
+ul.xp { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; display: flex; flex-direction: column; gap: 14px; }
+ul.xp::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: var(--line); border-radius: 1px; }
+ul.xp li { position: relative; display: flex; flex-direction: column; gap: 2px; line-height: 1.4; }
+ul.xp li::before { content: ""; position: absolute; left: -18px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--teal); }
+ul.xp li:first-child::before { background: var(--teal); }
+ul.xp strong { font-weight: 700; color: var(--deep); }
+ul.xp span { font-size: 0.93rem; color: var(--muted); }
+ul.bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+ul.bullets li { position: relative; padding-left: 18px; line-height: 1.4; }
+ul.bullets li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--clay); }
