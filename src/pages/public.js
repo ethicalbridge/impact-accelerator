@@ -1,6 +1,6 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
 import { icon, mark, avatar, avatarFor, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
-import { exampleNeeds, exampleProfile, exampleContributions } from "../examples.js";
+import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
@@ -26,7 +26,7 @@ export async function home() {
     ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
   ];
   const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in 6 to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
-  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover. We were previously called Impact Accelerator."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
   const html = `
   <section class="hv-hero">
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
@@ -185,7 +185,7 @@ export async function about() {
         ${EB.social.map(([n, u]) => ext(u, `${n === "LinkedIn" ? icon("linkedin", 20) : icon("link", 20)}<span>${n}</span>`, "about-link")).join("")}
       </div>
     </section>
-    <section class="how-concern"><span class="icon-tile lg">${icon("shield", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Who runs Handova</strong><p class="muted">Handova is operated by Ethical Bridge, which is responsible for the personal information collected through it. It was previously called Impact Accelerator. Write to ${e(config.contactEmail)} with any question.</p></div>${btn("Privacy notice", "#privacy", "dark")}</section>
+    <section class="how-concern"><span class="icon-tile lg">${icon("shield", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Who runs Handova</strong><p class="muted">Handova is operated by Ethical Bridge, which is responsible for the personal information collected through it. Write to ${e(config.contactEmail)} with any question.</p></div>${btn("Privacy notice", "#privacy", "dark")}</section>
   </div>`;
   return { title: "About", description: "Handova is an initiative of Ethical Bridge: extra, skilled support for the organisations in its directory.", html };
 }
@@ -240,6 +240,10 @@ export async function needs() {
     ${filtersForm("needs")}
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <div class="grid" id="results"></div>
+    <section class="stack" style="--gap:18px;padding-top:24px">
+      <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already solved.</h2><p class="lead" style="max-width:680px">Real needs from organisations in the Ethical Bridge directory, delivered and handed over. The capability stays with each team; the record stays on the professional’s impact CV.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
+      <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
+    </section>
     <div class="card row between" style="background:var(--mint);border-color:#bcd6cd"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p></div>${btn(`Create your profile ${icon("arrow", 18)}`, "#join")}</div>
   </div>`;
   return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need") };
@@ -261,13 +265,13 @@ function bindFilters(rows, card, noun) {
 
 // ---------- Need detail ----------
 export async function need(id) {
-  const n = id.startsWith("example-") ? exampleNeeds.find((x) => x.id === id) : await result(db.from("needs").select(NEED_SELECT).eq("id", id).maybeSingle()).catch(() => null);
+  const n = id.startsWith("done-") ? solvedNeeds.find((x) => x.id === id) : id.startsWith("example-") ? exampleNeeds.find((x) => x.id === id) : await result(db.from("needs").select(NEED_SELECT).eq("id", id).maybeSingle()).catch(() => null);
   if (!n) return notFound("This need isn’t available", "It may have been closed, or it may still be a draft.");
   const org = n.organisation || {};
   const isMember = state.memberships.some((m) => m.organisation_id === n.organisation_id);
   const open = n.status === "open" && (!n.deadline || n.deadline >= today());
   let app = null, saved = false;
-  if (state.user && !n.example && !isMember) {
+  if (state.user && !n.example && !n.handed && !isMember) {
     [app, saved] = await Promise.all([
       result(db.from("applications").select("id,status").eq("need_id", id).eq("user_id", state.user.id).maybeSingle()).catch(() => null),
       result(db.from("saved_needs").select("need_id").eq("need_id", id).eq("user_id", state.user.id).maybeSingle()).then(Boolean).catch(() => false),
@@ -275,42 +279,43 @@ export async function need(id) {
   }
   const deliverables = n.deliverables || n.output.split(/\n|;/).map((s) => s.trim()).filter(Boolean);
   let cta;
-  if (n.example) cta = `<p class="small muted">This is an example need, so you can’t apply to it.</p>${btn("See real needs", "#needs", "lg")}`;
+  if (n.handed) cta = `<p class="small muted">This need was delivered and handed over by <a href="#profile/${e(n.contributor.id)}">${e(n.contributor.name)}</a>. ${n.pending ? "The organisation’s endorsement is pending." : ""}</p>${btn("See open needs", "#needs", "lg")}`;
+  else if (n.example) cta = `<p class="small muted">This is an example need, so you can’t apply to it.</p>${btn("See real needs", "#needs", "lg")}`;
   else if (isMember) cta = `${btn("Manage in your workspace", "#org", "lg")}`;
   else if (app) cta = `<p>Your application: ${status(app.status)}</p>${btn("Go to your workspace", "#workspace", "secondary")}`;
   else if (open) cta = `<button class="btn lg" type="button" data-action="apply" data-id="${e(n.id)}">Apply to this need</button>`;
   else cta = `<p class="muted">This need is no longer accepting applications.</p>`;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:60px">
     ${back("All needs", "#needs")}
-    ${n.example ? exampleNotice() : ""}
+    ${n.handed ? `<div class="notice" role="note">${pill("Handed over", "ochre")}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
     ${((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title))}
     <div class="split">
       <div class="stack" style="--gap:36px">
         <div class="stack">
-          <div class="row">${avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example ? "" : pill("Approved organisation")}</div>
+          <div class="row">${avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed ? "" : pill("Approved organisation")}</div>
           <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
-          ${n.example ? "" : `<div class="mobile-cta">${cta}</div>`}
+          ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </div>
         <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose">${e(n.description)}</p></div>
-        <div class="stack"><h2 style="font-size:2rem">What you would deliver</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
+        <div class="stack"><h2 style="font-size:2rem">${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
         <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:10px"><strong>Skills involved</strong>${tags(n.skills)}</div><div class="card stack" style="--gap:10px"><strong>Working languages</strong><p>${e((n.languages || []).join(", "))}. Support in any one of these is welcome.</p></div></div>
         <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">
-          <div class="row between">${open ? pill("Open for applications") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
+          <div class="row between">${n.handed ? pill("Handed over", "ochre") : open ? pill("Open for applications") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
           <div class="stack" style="--gap:12px">
-            <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} hours</strong> estimated</span></span>
+            <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} ${n.hours === 1 ? "hour" : "hours"}</strong> ${n.handed ? "delivered" : "estimated"}</span></span>
             <span class="row">${icon("globe", 22, "#0f6f63")}${e(n.arrangement)}${n.location ? " · " + e(n.location) : ""}</span>
-            <span class="row">${icon("calendar", 22, "#0f6f63")}${n.deadline ? "Apply by " + date(n.deadline) : "No fixed deadline"}</span>
+            <span class="row">${icon("calendar", 22, "#0f6f63")}${n.handed ? "Delivered and handed over" : n.deadline ? "Apply by " + date(n.deadline) : "No fixed deadline"}</span>
             <span class="row">${icon("language", 22, "#0f6f63")}${e((n.languages || []).join(" · "))}</span>
           </div>
           ${cta}
-          ${!n.example && !isMember && state.user ? `<button class="btn secondary" type="button" data-action="save-need" data-id="${e(n.id)}">${icon("bookmark", 18)}${saved ? "Saved · remove" : "Save for later"}</button>` : ""}
+          ${!n.example && !n.handed && !isMember && state.user ? `<button class="btn secondary" type="button" data-action="save-need" data-id="${e(n.id)}">${icon("bookmark", 18)}${saved ? "Saved · remove" : "Save for later"}</button>` : ""}
           <p class="small muted">Unpaid, voluntary contribution. You will sign a contribution agreement with the organisation before any work begins.</p>
         </div>
         <div class="banner">${icon("lock", 22, "#0f6f63")}<p class="small">Never share passwords, card details or access codes. Confidential information is shared only after the agreement is signed.</p></div>
-        ${n.example ? "" : `<button class="link-btn" type="button" data-action="report" data-type="need" data-id="${e(n.id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report a concern about this need</button>`}
+        ${n.example || n.handed ? "" : `<button class="link-btn" type="button" data-action="report" data-type="need" data-id="${e(n.id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report a concern about this need</button>`}
       </aside>
     </div></div>`;
   return { title: n.title, description: n.output, html };
@@ -387,12 +392,13 @@ export async function how(focus = "") {
     ["people", "Match", ["Choose who to work with", "Review applications, message candidates or invite approved professionals."], ["Hear back or get invited", "Accept an invitation, or wait for the organisation’s decision."]],
     ["pen", "Agree", null, null, ["Both sign the agreement", "Scope, hours, access and confidentiality, built from the need. Nothing confidential is shared before both signatures."]],
     ["check", "Deliver", ["Review and complete", "Approve logged hours, write an endorsement and mark the work complete."], ["Do the work, log your hours", "Then choose which reviewed contributions appear on your impact CV."]],
+    ["handover", "Gain", ["Capability that stays", "A tool, a process or a trained team you keep using, and evidence of what changed."], ["A footprint on your impact CV", "Real experience and a reviewed record in the organisation’s own words. Everyone wins."]],
   ];
   const facts = [["gift", "Free", "for organisations and professionals"], ["clock", "6–16 hours", "is a typical contribution"], ["pen", "Signed first", "before any work or access"], ["shield", "Reviewed", "every organisation and profile"]];
   const cell = (who, [t, d]) => `<div class="j-cell ${who}"><strong>${t}</strong><p>${d}</p></div>`;
   const journey = `<div class="journey" role="list">
       <div class="j-lane-label org" aria-hidden="true">Organisation</div><div class="j-lane-label pro" aria-hidden="true">Professional</div>
-      ${stages.map(([ic, name, org, pro, both], i) => `<div class="j-stage" role="listitem" style="--col:${i + 2}"><div class="j-head"><span class="j-num">${i + 1}</span>${icon(ic, 20, "#0f6f63")}<span>${name}</span></div>${both ? `<div class="j-cell both"><span class="j-who">Together</span><strong>${both[0]}</strong><p>${both[1]}</p></div>` : `${cell("org", org).replace("<strong>", `<span class="j-who">Organisation</span><strong>`)}${cell("pro", pro).replace("<strong>", `<span class="j-who">Professional</span><strong>`)}`}</div>`).join("")}
+      ${stages.map(([ic, name, org, pro, both], i) => `<div class="j-stage" role="listitem" style="--col:${i + 2}"><div class="j-head"><span class="j-num">${i + 1}</span>${icon(ic === "handover" ? "gift" : ic, 20, "#0f6f63")}<span>${name}</span></div>${both ? `<div class="j-cell both"><span class="j-who">Together</span><strong>${both[0]}</strong><p>${both[1]}</p></div>` : `${cell("org", org).replace("<strong>", `<span class="j-who">Organisation</span><strong>`)}${cell("pro", pro).replace("<strong>", `<span class="j-who">Professional</span><strong>`)}`}</div>`).join("")}
     </div>`;
   const vis = [["Your profile (after approval)", "Anyone, including search engines", "You: unpublish or delete at any time"], ["Open needs and organisation summary", "Anyone", "The organisation"], ["Applications and messages", "You and the organisation", "Both of you; either can end a conversation"], ["Contribution agreement", "You and the organisation", "Signatures are final"], ["Private rating", "Only the professional who was rated", "Nobody can change it"], ["Endorsements on an impact CV", "Anyone, once the professional publishes them", "The professional"]];
   const html = `<div class="wrap how stack" style="--gap:clamp(40px,5vw,64px);padding-bottom:64px">
@@ -401,7 +407,7 @@ export async function how(focus = "") {
       <div class="how-facts">${facts.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
     </div>
     <nav class="path-switch" aria-label="Jump to your path"><button type="button" data-action="scroll-to" data-id="path-organisations"><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>I’m an organisation</strong><span class="small muted">Publish needs and find skilled help</span></span>${icon("arrow", 18)}</button><button type="button" data-action="scroll-to" data-id="path-professionals"><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>I’m a professional</strong><span class="small muted">Contribute skills and build an impact CV</span></span>${icon("arrow", 18)}</button></nav>
-    <section class="stack" style="--gap:20px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Five steps, side by side")}<h2>What each of you does.</h2></div><p class="muted" style="max-width:420px">Organisations and professionals follow the same five steps. The agreement is the moment you meet.</p></div>${journey}</section>
+    <section class="stack" style="--gap:20px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Six stages, side by side")}<h2>What each of you does.</h2></div><p class="muted" style="max-width:420px">Organisations and professionals follow the same path. The agreement is the moment you meet; the last stage is what you both keep.</p></div>${journey}</section>
     ${pathSection("organisations")}
     ${pathSection("professionals")}
     <section class="how-agree">

@@ -149,11 +149,11 @@ export function needCard(n) {
   return `<a class="card flush card-link" href="#need/${e(n.id)}">
   ${cover(kind)}
   <div class="card-body">
-    <div class="row between">${n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
+    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? pill("Handed over", "ochre") : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
     <span class="card-title">${e(n.title)}</span>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
-    <div class="meta"><span>${icon("clock", 17)}${n.hours} hours</span><span>${icon("globe", 17)}${e(n.arrangement)}</span><span>${icon("language", 17)}${e((n.languages || []).join(" · "))}</span></div>
+    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}${e(n.arrangement)}</span><span>${icon("language", 17)}${e((n.languages || []).join(" · "))}</span></div>
     ${tags((n.skills || []).slice(0, 4))}
   </div></a>`;
 }
@@ -197,7 +197,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p>${e(c.output)}</p></div></div>
     ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
     ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
-    <div class="row between">${tags(c.skills || [])}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
+    <div class="row between">${tags(c.skills || [])}${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
   </div>
 </details>`;
 }
@@ -225,7 +225,7 @@ export function footer(cfg) {
     <nav aria-label="Trust"><h2>Trust</h2><ul><li><a href="#safety">Working responsibly</a></li><li><a href="#privacy">Privacy notice</a></li><li><a href="#terms">Terms of use</a></li><li><a href="#cookies">Cookies</a></li><li><a href="#report">Report a concern</a></li></ul></nav>
     <div><h2>Contact</h2><ul><li><a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></li><li><a href="https://ethicalbridge.org/" rel="noopener" target="_blank">Ethical Bridge <span class="visually-hidden">(opens in a new tab)</span></a></li><li><a href="https://ethicalbridge.org/directory.html" rel="noopener" target="_blank">Ethical Bridge directory <span class="visually-hidden">(opens in a new tab)</span></a></li></ul>
       <div class="footer-social">${[["LinkedIn", "https://www.linkedin.com/company/ethicalbridge/"], ["Instagram", "https://instagram.com/ethical.bridge"], ["Facebook", "https://www.facebook.com/profile.php?id=61588796042823"], ["YouTube", "https://www.youtube.com/@EthicalBridge"], ["TikTok", "https://www.tiktok.com/@ethical.bridge"]].map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank">${n}<span class="visually-hidden"> (Ethical Bridge, opens in a new tab)</span></a>`).join("")}</div></div>
-  </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Handova · An initiative of Ethical Bridge · Previously Impact Accelerator</span><span>Free for organisations and professionals</span></div></div>`;
+  </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Handova · An initiative of Ethical Bridge</span><span>Free for organisations and professionals</span></div></div>`;
 }
 
 export const safeLink = (url, label) => (safeURL(url) ? `<a href="${e(safeURL(url))}" target="_blank" rel="noopener noreferrer">${e(label)} <span class="visually-hidden">(opens in a new tab)</span></a>` : "");

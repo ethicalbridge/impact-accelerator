@@ -36,7 +36,7 @@ export function privacy() {
 
 export function terms() {
   const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
-  <h2>1. About Handova</h2><p>Handova (previously called Impact Accelerator) is an initiative of Ethical Bridge. It connects locally led organisations with professionals who contribute their skills, unpaid, to needs the organisation defines. Contact: ${mail(config.contactEmail)}.</p>
+  <h2>1. About Handova</h2><p>Handova is an initiative of Ethical Bridge. It connects locally led organisations with professionals who contribute their skills, unpaid, to needs the organisation defines. Contact: ${mail(config.contactEmail)}.</p>
   <h2>2. Who can use it</h2><p>You must be 18 or over. Organisations must be locally led and registered, or fiscally hosted by a registered organisation, and the person creating the account must be authorised to represent it. We review organisations and profiles before they become public and may decline or remove them.</p>
   <h2>3. Your account</h2><p>Keep your password safe and your information accurate. You are responsible for what happens under your account. You can delete your account at any time.</p>
   <h2>4. Contributions are voluntary</h2><p>Contributions are unpaid and voluntary. Nothing on Handova creates employment, payment, partnership or agency between anyone. Any expenses or payment must be agreed in separate written terms between the organisation and the professional.</p>
