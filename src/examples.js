@@ -13,7 +13,7 @@ export const exampleNeeds = [
 export const exampleProfile = {
   user_id: "julieta-castineira-de-dios", example: true, founder: true, name: "Julieta Castiñeira de Dios", headline: "Lawyer · strategist · organisation builder", location: "Anywhere · remote", country: "",
   languages: ["English", "Spanish", "Portuguese"], hours_available: null, arrangement: "Remote",
-  skills: ["Strategy", "Theory of change", "Compliance and risk", "Branding", "Partnerships", "Legal", "Programme management", "Research"],
+  skills: ["Strategy", "Theory of change", "Programme management", "Legal", "Policy", "Compliance and risk", "Governance", "Research", "Monitoring and evaluation", "Fundraising", "Partnerships", "Communications", "Branding", "Design", "Inclusion", "Human resources", "Training", "Web and digital tools"],
   bio: "I help purpose-led organisations turn a meaningful vision into a clear strategy, workable systems and confident next steps. I founded Ethical Bridge and took it from an idea to an organisation ready to launch over three and a half years, and I built Handova so local teams can reach skills like these for free.",
   experience: "Founder · Ethical Bridge\nFounder · Method into Impact\nFounder · Local Impact Alliance (being registered)\nInternational development · Programme and development management\nAwards and compliance · Project administration\nAcademic research\nLegal practice · Argentina, including the Public Ministry of Defence",
   background: [
