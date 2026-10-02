@@ -850,3 +850,8 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .invite-btn:hover { background: #a14f2f; border-color: #a14f2f; }
 .invite-btn { white-space: normal; height: auto; min-height: 52px; padding: 12px 22px; line-height: 1.25; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .invite-btn svg { flex-shrink: 0; }
+/* "An initiative of Ethical Bridge" badge */
+.eb-badge { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: var(--mint-2); border: 1px solid #bcd6cd; color: var(--deep); font-size: 0.92rem; text-decoration: none; transition: background 0.2s; }
+.eb-badge:hover { background: var(--mint); }
+.eb-badge strong { font-weight: 700; }
+.eb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--clay); }
