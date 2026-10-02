@@ -223,7 +223,7 @@ const YEARS = Array.from({ length: THIS_YEAR + 6 - 1959 }, (_, i) => String(THIS
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Self-employed", "Freelance", "Contract", "Internship", "Apprenticeship", "Volunteer", "Seasonal"];
 export const WORK_MODES = ["On-site", "Hybrid", "Remote"];
-export const DEGREES = ["Doctorate (PhD)", "Master of Laws (LLM)", "Master’s degree", "MBA", "Bachelor of Laws (LLB)", "Bachelor’s degree", "Postgraduate diploma", "Postgraduate certificate", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school", "Other"];
+export const DEGREES = ["Doctorate (PhD)", "Bachelor’s and master’s degree", "Master of Laws (LLM)", "Master’s degree", "MBA", "Bachelor of Laws (LLB)", "Bachelor’s degree", "Postgraduate diploma", "Postgraduate certificate", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school", "Other"];
 export const FIELDS = ["Accounting", "Agriculture", "Anthropology", "Architecture", "Business administration", "Communications", "Computer science", "Criminology and forensic science", "Data science", "Design", "Development studies", "Economics", "Education", "Engineering", "Environmental science", "Finance", "Gender studies", "Geography", "Health sciences", "History", "Human resources", "Human rights", "International relations", "Journalism", "Languages and linguistics", "Law", "Marketing", "Mathematics and statistics", "Media and film", "Medicine", "Nursing", "Peace and conflict studies", "Philosophy", "Political science", "Psychology", "Public health", "Public policy", "Regional studies (e.g. African, Latin American)", "Social work", "Sociology", "Other"];
 export const TIMEZONES = Array.from({ length: 27 }, (_, i) => i - 12).map((h) => `UTC${h === 0 ? "" : h > 0 ? "+" + h : "−" + -h}`).concat(["UTC+5:30", "UTC+5:45", "UTC+9:30", "UTC+3:30", "UTC+4:30", "UTC+6:30"]).sort((a, b) => tzNum(a) - tzNum(b));
 function tzNum(t) { const m = t.replace("−", "-").match(/UTC([+-]\d+)?(?::(\d+))?/); const h = Number(m?.[1] || 0); return h + Math.sign(h || 1) * (Number(m?.[2] || 0) / 60); }
@@ -257,7 +257,7 @@ export function entryRow(kind, it = {}) {
       ${dateSel("en-end", "End date (or expected)", it.end, "Studying now")}
       <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="Thesis, focus, honours or activities. Optional.">${e(it.description || "")}</textarea></label>
     </div>
-    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove this qualification</button></fieldset>`;
+    <div class="entry-tools"><button type="button" class="link-btn" data-entry-move="up">Move up</button><button type="button" class="link-btn" data-entry-move="down">Move down</button><button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button></div></fieldset>`;
   return `<fieldset class="entry" data-entry="experience"><legend class="visually-hidden">Role</legend>
     <div class="entry-grid">
       <label class="field"><span>Title <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="120" placeholder="e.g. Project and Awards Coordinator"></label>
@@ -270,7 +270,7 @@ export function entryRow(kind, it = {}) {
       <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="What you did and achieved. Optional.">${e(it.description || "")}</textarea></label>
       ${optionPicker(`en_skills_${id}`, "Skills used in this role", SKILL_GROUPS, it.skills || [], { required: false, placeholder: "Choose skills", search: "Search skills" })}
     </div>
-    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove this role</button></fieldset>`;
+    <div class="entry-tools"><button type="button" class="link-btn" data-entry-move="up">Move up</button><button type="button" class="link-btn" data-entry-move="down">Move down</button><button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button></div></fieldset>`;
 }
 const LABELS = {
   experience: { none: "No roles added yet.", add: "Add a role" },
@@ -301,16 +301,23 @@ export function readEntries(form, kind) {
     if (it.start && it.end && it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for “${it.title}”: it ends before it starts.`);
     out.push(it);
   }
-  return sortEntries(out);
+  return out;
 }
 export function bindEntryEditors(root = document) {
   root.addEventListener("click", (ev) => {
     const add = ev.target.closest("[data-entry-add]");
     if (add) {
       const ed = add.closest("[data-entry-editor]");
-      ed.querySelector(".entry-list").insertAdjacentHTML("beforeend", entryRow(add.dataset.entryAdd));
+      ed.querySelector(".entry-list").insertAdjacentHTML("afterbegin", entryRow(add.dataset.entryAdd));
       ed.querySelector(".entry-none").hidden = true;
-      ed.querySelector(".entry-list .entry:last-child input").focus();
+      ed.querySelector(".entry-list .entry:first-child input").focus();
+      return;
+    }
+    const mv = ev.target.closest("[data-entry-move]");
+    if (mv) {
+      const row = mv.closest(".entry"), up = mv.dataset.entryMove === "up";
+      const sib = up ? row.previousElementSibling : row.nextElementSibling;
+      if (sib) { up ? sib.before(row) : sib.after(row); mv.focus(); }
       return;
     }
     const rm = ev.target.closest("[data-entry-remove]");
@@ -347,18 +354,39 @@ const orgTile = (name) => `<span class="xp-logo" aria-hidden="true">${e(orgIniti
 function orgInitials(name) { return String(name).replace(/\(.*?\)/g, "").split(/\s+/).filter((w) => /^[A-Za-zÀ-ÿ]/.test(w) && !/^(of|the|and|de|la|for)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join(""); }
 const more = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-desc">${e(text)}</p>` : `<details class="xp-more"><summary><span class="xp-desc">${e(text.slice(0, 140).replace(/\s+\S*$/, ""))}…</span> <span class="xp-more-btn">more</span></summary><p class="xp-desc">${e(text)}</p></details>`;
 // Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
+function roleLines(it, kind, inGroup) {
+  if (kind === "education") return [`<strong class="xp-title">${e(it.organisation || it.title)}</strong>`,
+    [it.organisation ? it.title : "", it.field].filter(Boolean).length ? `<span>${e([it.organisation ? it.title : "", it.field].filter(Boolean).join(", "))}</span>` : "",
+    entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
+    it.country ? `<span class="xp-muted">${e(it.country)}</span>` : ""];
+  return [`<strong class="xp-title">${e(it.title || it.organisation)}</strong>`,
+    inGroup ? (it.employment_type ? `<span>${e(it.employment_type)}</span>` : "")
+      : (it.title && it.organisation) || it.employment_type ? `<span>${e([it.title ? it.organisation : "", it.employment_type].filter(Boolean).join(" · "))}</span>` : "",
+    entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
+    it.country || it.work_mode ? `<span class="xp-muted">${e([it.country, it.work_mode].filter(Boolean).join(" · "))}</span>` : ""];
+}
+const roleExtra = (it) => `${more(it.description)}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.slice(0, 3).join(", "))}${it.skills.length > 3 ? ` and +${it.skills.length - 3} skill${it.skills.length > 4 ? "s" : ""}` : ""}</span>` : ""}`;
+// Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
+// Consecutive roles at the same organisation are grouped under it, with the total time there.
 export function entryList(items, kind = "experience") {
-  return `<ul class="xp-li">${items.map((it) => {
-    const lines = kind === "experience"
-      ? [`<strong class="xp-title">${e(it.title || it.organisation)}</strong>`,
-         (it.title && it.organisation) || it.employment_type ? `<span>${e([it.title ? it.organisation : "", it.employment_type].filter(Boolean).join(" · "))}</span>` : "",
-         entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
-         it.country || it.work_mode ? `<span class="xp-muted">${e([it.country, it.work_mode].filter(Boolean).join(" · "))}</span>` : ""]
-      : [`<strong class="xp-title">${e(it.organisation || it.title)}</strong>`,
-         [it.organisation ? it.title : "", it.field].filter(Boolean).length ? `<span>${e([it.organisation ? it.title : "", it.field].filter(Boolean).join(", "))}</span>` : "",
-         entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : "",
-         it.country ? `<span class="xp-muted">${e(it.country)}</span>` : ""];
-    return `<li>${orgTile(it.organisation)}<div class="xp-body">${lines.join("")}${more(it.description)}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.slice(0, 3).join(", "))}${it.skills.length > 3 ? ` and +${it.skills.length - 3} skill${it.skills.length > 4 ? "s" : ""}` : ""}</span>` : ""}</div></li>`;
+  const groups = [];
+  for (const it of items) {
+    const last = groups[groups.length - 1];
+    if (kind === "experience" && last && it.organisation && last[0].organisation === it.organisation) last.push(it); else groups.push([it]);
+  }
+  return `<ul class="xp-li">${groups.map((g) => {
+    if (g.length === 1) return `<li>${orgTile(g[0].organisation)}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
+    const starts = g.map((x) => x.start).filter(Boolean).sort(), ends = g.map((x) => x.end).filter(Boolean);
+    const end = ends.includes("present") ? "present" : ends.sort().pop();
+    const total = duration(starts[0], end);
+    const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
+    const sameType = types.length === 1 && g.every((x) => x.employment_type === types[0]);
+    const gMode = modes.length === 1 && g.every((x) => x.work_mode === modes[0]) ? modes[0] : "";
+    const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? countries[0] : "";
+    const head = [sameType ? types[0] : "", total].filter(Boolean).join(" · "), place = [gCountry, gMode].filter(Boolean).join(" · ");
+    return `<li>${orgTile(g[0].organisation)}<div class="xp-body"><strong class="xp-title">${e(g[0].organisation)}</strong>${head ? `<span>${e(head)}</span>` : ""}${place ? `<span class="xp-muted">${e(place)}</span>` : ""}
+      <ul class="xp-roles">${g.map((it) => { const pl = [gCountry ? "" : it.country, gMode ? "" : it.work_mode].filter(Boolean).join(" · ");
+        return `<li><strong class="xp-title">${e(it.title)}</strong>${!sameType && it.employment_type ? `<span>${e(it.employment_type)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${pl ? `<span class="xp-muted">${e(pl)}</span>` : ""}${roleExtra(it)}</li>`; }).join("")}</ul></div></li>`;
   }).join("")}</ul>`;
 }
 
