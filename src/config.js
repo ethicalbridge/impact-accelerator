@@ -4,8 +4,8 @@ export const config = {
   supabaseKey: "sb_publishable_PcrJRRzZANIVHYcMHc5YhA_lN5xNHi1",
   // The address people use to reach the site; used for email links. Update when the custom domain is live.
   siteUrl: "https://handova.org/",
-  contactEmail: "hello@ethicalbridge.org",
-  safeguardingEmail: "hello@ethicalbridge.org",
+  contactEmail: "hello@handova.org",
+  safeguardingEmail: "hello@handova.org",
   // Google Analytics 4 measurement ID (G-XXXXXXX). Empty = no analytics and no consent banner.
   gaMeasurementId: "",
   legalUpdated: "1 October 2026",
