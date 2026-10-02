@@ -654,3 +654,13 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
   .path-switch, .role-tabs, .about-links { grid-template-columns: minmax(0, 1fr); }
   .about-founder { grid-template-columns: minmax(0, 1fr); }
 }
+/* the exchange: what stays on both sides */
+.hv-exchange { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 0; align-items: stretch; background: var(--deep); color: var(--paper); border-radius: 24px; overflow: hidden; }
+.hv-ex-side { display: flex; flex-direction: column; gap: 8px; padding: clamp(24px, 3.5vw, 40px); }
+.hv-ex-side .hv-tag { align-self: flex-start; margin-bottom: 6px; background: rgba(255, 253, 248, 0.1); color: var(--on-deep); }
+.hv-ex-side strong { font: 500 clamp(1.8rem, 3vw, 2.4rem)/1.1 var(--serif); }
+.hv-ex-side:last-child strong { color: #e0a07f; }
+.hv-ex-side p { color: var(--on-deep); }
+.hv-ex-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px 28px; background: rgba(255, 253, 248, 0.06); border-inline: 1px solid rgba(255, 253, 248, 0.14); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-deep-quiet); white-space: nowrap; }
+.motion .hv-ex-mid .hv-dot { animation: hv-handover 6s ease-in-out infinite; }
+@media (max-width: 760px) { .hv-exchange { grid-template-columns: minmax(0, 1fr); } .hv-ex-mid { flex-direction: row; border-inline: 0; border-block: 1px solid rgba(255, 253, 248, 0.14); } .hv-ex-mid svg { width: 44px; height: 44px; } }
