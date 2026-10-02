@@ -35,7 +35,7 @@ export async function loadSession() {
 }
 
 export const role = () => state.user?.user_metadata?.role || (state.memberships.length ? "organisation" : "professional");
-export const homeFor = () => (!state.user ? "#home" : state.memberships.length ? "#org" : state.profile ? "#workspace" : "#onboarding");
+export const homeFor = () => (!state.user ? "#home" : state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding");
 
 export function errorMessage(err) {
   const msg = String(err?.message || err || "");
