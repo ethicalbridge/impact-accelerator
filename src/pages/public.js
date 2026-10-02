@@ -85,8 +85,8 @@ export async function home() {
     <a class="card stack hv-cv" href="#profile/${exampleProfile.user_id}" style="--gap:20px;color:var(--ink);text-decoration:none" data-reveal>
       <div class="row between">${eyebrow("Impact CV")}${pill("Founder")}</div>
       <div class="row" style="--gap:18px;flex-wrap:nowrap">${avatarFor(exampleProfile, 72)}<div><span class="serif" style="font-size:1.8rem;line-height:1.15">${e(exampleProfile.name)}</span><p class="muted small">${e(exampleProfile.headline)}</p></div></div>
-      <div class="metric-row"><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>contributions</span></div><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>organisations helped</span></div><div class="metric"><strong data-counter="3">3</strong><span>working languages</span></div></div>
-      <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>${e(exampleContributions[0].need_title)}</strong>${pill("Endorsement pending", "ochre")}</div><span class="small muted">${e(exampleContributions[0].organisation)}</span><p class="small muted">Endorsements appear here in the organisation’s own words, once it has reviewed the work.</p></div>
+      <div class="metric-row">${(() => { const h = exampleContributions.reduce((a, c) => a + Number(c.hours || 0), 0); return `<div class="metric"><strong data-counter="${h}">${h}</strong><span>hours handed over</span></div>`; })()}<div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>contributions</span></div><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>organisations helped</span></div></div>
+      <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>${e(exampleContributions[0].need_title)}</strong>${pill("Endorsement pending", "ochre")}</div><span class="small muted">${e(exampleContributions[0].organisation)} · ${exampleContributions[0].hours} hours</span><p class="small muted">Endorsements appear here in the organisation’s own words, once it has reviewed the work.</p></div>
     </a></div></section>
   <div class="wrap">
     <section class="block grid-2">
@@ -296,10 +296,9 @@ export async function profile(id) {
         <button class="btn secondary" type="button" data-action="print">${icon("download", 18)}Save as PDF</button>
       </div>
     </section>
-    ${(() => { const pending = contributions.filter((c) => c.pending).length; const reviewed = contributions.length - pending;
-      return pending ? `<section class="stats-dark"><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>contributions</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div><div><strong data-counter="${reviewed}">${reviewed}</strong><span>endorsed so far</span></div><div><strong data-counter="${pending}">${pending}</strong><span>endorsements pending</span></div></section>`
-      : `<section class="stats-dark"><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>reviewed contributions</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div><div><strong data-counter="${hours}">${hours}</strong><span>reviewed hours</span></div><div><strong data-counter="${countries}">${countries}</strong><span>countries</span></div></section>`; })()}
-    <p class="small muted" style="margin-top:-18px">Only work reviewed by the organisation counts. Ratings stay private to the professional.</p>
+    ${(() => { const pending = contributions.filter((c) => c.pending).length;
+      return `<section class="stats-dark"><div><strong data-counter="${hours}">${hours}</strong><span>hours handed over</span></div><div><strong data-counter="${contributions.length}">${contributions.length}</strong><span>${pending ? "contributions" : "reviewed contributions"}</span></div><div><strong data-counter="${orgs}">${orgs}</strong><span>organisations helped</span></div>${pending ? `<div><strong data-counter="${pending}">${pending}</strong><span>endorsements pending</span></div>` : `<div><strong data-counter="${countries}">${countries}</strong><span>countries</span></div>`}</section>`; })()}
+    <p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them. Ratings stay private to the professional." : "Only work reviewed by the organisation counts. Ratings stay private to the professional."}</p>
     <div class="split left">
       <aside class="stack" style="--gap:18px">
         ${side("About", `<p class="prose" style="font-size:1rem">${e(p.bio || "No introduction yet.")}</p>`)}
@@ -310,7 +309,7 @@ export async function profile(id) {
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}
       </aside>
-      <section class="stack" style="--gap:22px"><h2 style="font-size:2.4rem">Contributions</h2>
+      <section class="stack" style="--gap:14px"><div class="row between" style="align-items:baseline"><h2 style="font-size:2.4rem">Contributions</h2><span class="small muted">Open a contribution to see the details</span></div>
         ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Find a need", "#needs", "secondary sm") : "")}
       </section>
     </div></div>`;

@@ -173,20 +173,33 @@ export function talentCard(p) {
   </div></a>`;
 }
 
+// Compact contribution: a small card that opens to show the need, the output, what was delivered and the endorsement.
 export function contributionCard(c, { example = false, owner = false } = {}) {
-  const kind = coverKind(c.skills || [], c.need_title);
-  const when = c.period || (c.completed ? date(c.completed, { month: "long", year: "numeric" }) : "");
+  const when = c.period || (c.completed ? date(c.completed, { month: "short", year: "numeric" }) : "");
   const hasHours = c.hours !== undefined && c.hours !== null;
-  return `<article class="contribution">
-  <div class="art" style="background:${COVER_BG[kind]}">${cover(kind, { w: 384, h: 300, fit: "meet" })}</div>
-  <div class="body">
-    <div class="row between"><div class="row" style="--gap:8px">${c.pending ? pill("Completed · endorsement pending", "ochre") : pill("Completed · reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}</div>${when ? `<span class="small muted">${e(when)}</span>` : ""}</div>
-    <div class="row between" style="align-items:flex-start"><div><h3 class="serif" style="font:500 1.8rem/1.15 var(--serif)">${e(c.need_title)}</h3><span style="font-weight:600;color:var(--teal)">${e(c.organisation)}${c.organisation_country ? " · " + e(c.organisation_country) : ""}</span></div>${hasHours ? `<div style="text-align:right"><strong class="serif" style="font:500 2.2rem/1 var(--serif);color:var(--deep)">${Number(c.hours || 0)}</strong><br><span class="small muted">reviewed hours</span></div>` : ""}</div>
-    <div class="grid-2" style="gap:20px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p>${e(c.output)}</p></div></div>
-    ${c.deliverables ? `<div><span class="label-cap">Delivered</span><p class="prose" style="font-size:1rem">${e(c.deliverables)}</p></div>` : ""}
-    ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<div class="banner warn" style="padding:14px 18px">${icon("clock", 20)}<p class="small">Endorsement pending. ${e(c.organisation)} will review this work and add its own words here.</p></div>` : ""}
-    ${tags(c.skills || [])}
-  </div></article>`;
+  const url = safeURL(c.org_url);
+  const logo = c.org_logo && safeURL(c.org_logo)
+    ? `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}<img src="${e(safeURL(c.org_logo))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`
+    : `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}</span>`;
+  const org = `${e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(c.organisation_country)}</span>` : ""}`;
+  return `<details class="contrib">
+  <summary>
+    ${logo}
+    <span class="c-main">
+      <span class="c-title">${e(c.need_title)}</span>
+      <span class="c-org">${org}</span>
+      <span class="c-pills">${c.pending ? pill("Endorsement pending", "ochre") : pill("Reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+    </span>
+    ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour" : "hours"}</span></span>` : ""}
+    <span class="c-toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="c-body">
+    <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p>${e(c.output)}</p></div></div>
+    ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
+    ${c.endorsement ? `<blockquote class="endorse"><p>“${e(c.endorsement)}”</p><span class="small muted">Endorsed by ${e(c.endorsed_by_role || "the organisation")} · ${e(c.organisation)}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
+    <div class="row between">${tags(c.skills || [])}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
+  </div>
+</details>`;
 }
 
 export function header(active) {
