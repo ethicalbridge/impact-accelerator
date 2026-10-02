@@ -22,11 +22,11 @@ export async function home() {
     ["doc", "Define the need", "The organisation writes the need.", "An approved organisation publishes one specific need: the challenge, the output it will keep, the skills and working languages, and a realistic number of hours.", ["The output is named before anyone applies", "Up to three open needs at a time", "No direct contact with children or vulnerable adults"]],
     ["people", "Apply or invite", "The right person steps forward.", "Professionals apply with a short plan for the output, or the organisation invites an approved professional whose work fits. We can also introduce people by hand.", ["Applications explain how, not just who", "Only approved profiles can apply", "Either side can end a conversation"]],
     ["pen", "Sign the agreement", "Nothing starts until both sign.", "Every match gets its own contribution agreement, built from the need: scope, timing, access, safeguarding and confidentiality.", ["Contact details shared only after both signatures", "Never passwords, card details or access codes", "Signatures are final and dated"]],
-    ["clock", "Do the work", "A short, protected contribution.", "The professional delivers the agreed output, logs time as they go and keeps conversations on the platform. The organisation reviews each entry.", ["Typically 6 to 16 hours", "Remote or local", "Hours count only once reviewed"]],
+    ["clock", "Do the work", "A short, protected contribution.", "The professional delivers the agreed output, logs time as they go and keeps conversations on the platform. The organisation reviews each entry.", ["Typically up to 16 hours", "Remote or local", "Hours count only once reviewed"]],
     ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
   ];
-  const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in 6 to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
-  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Most needs take 6 to 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile closes after three months without endorsed work, with a reminder two weeks before. It can be published again at any time."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in up to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Most needs take up to 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile closes after three months without endorsed work, with a reminder two weeks before. It can be published again at any time."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
   const html = `
   <section class="hv-hero">
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
@@ -41,7 +41,7 @@ export async function home() {
         </div>
         <dl class="hv-facts">
           <div><dt><b>0</b></dt><dd>fees, for anyone</dd></div>
-          <div><dt><b>6–16</b></dt><dd>hours for a typical need</dd></div>
+          <div><dt><b>≤16</b></dt><dd>hours for each need</dd></div>
           <div><dt><b data-counter="5">5</b></dt><dd>steps from need to handover</dd></div>
           <div><dt><b data-counter="100" data-suffix="%">100%</b></dt><dd>of profiles reviewed before public</dd></div>
         </dl>
@@ -96,7 +96,7 @@ export async function home() {
   <div class="wrap">
     <section class="block grid-2">
       ${audience("For organisations", "Skills you could not otherwise reach, on your terms.", ["You define the need, the output and what success looks like", "Browse approved professionals or wait for applications", "Up to three open needs at a time, free", "Keep everything you receive, and the evidence of it"], "Post your first need", "#organisations")}
-      ${audience("For professionals", "Meaningful work that fits around your life.", ["Short, scoped contributions of 6 to 16 hours", "Remote or local, in the languages you work in", "A signed agreement protects you and the organisation", "Open to students and early-career people aged 18 and over"], "Find a need", "#needs")}
+      ${audience("For professionals", "Meaningful work that fits around your life.", ["Short, scoped contributions of up to 16 hours", "Remote or local, in the languages you work in", "A signed agreement protects you and the organisation", "Open to students and early-career people aged 18 and over"], "Find a need", "#needs")}
     </section>
     <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
       <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" style="font-weight:700">Read how we work responsibly</a></div>
@@ -237,7 +237,7 @@ function pathSection(kind) {
     ? ["Listed in the Ethical Bridge directory (free to join)", "Local NGOs, cooperatives, community groups and small mission-led social enterprises", "Led by people based where the organisation works", "Registered, or fiscally hosted by a registered organisation", "Needs that do not involve direct contact with children or vulnerable adults"]
     : ["Professionals with experience in data, finance, design, communications, policy, technology, law and more", "Students, recent graduates and people changing careers", "Aged 18 or over, anywhere in the world", "Able to give a few focused hours, remote or local"];
   const good = org
-    ? [`What a good need looks like`, `<p>One clear output, 6 to 16 hours, the skills and working languages involved. For example: “A data collection template that works offline, and a 90-minute training session for our six field officers.”</p><a href="#need/example-data-tools">See an example need</a>`]
+    ? [`What a good need looks like`, `<p>One clear output, up to 16 hours, the skills and working languages involved. For example: “A data collection template that works offline, and a 90-minute training session for our six field officers.”</p><a href="#need/example-data-tools">See an example need</a>`]
     : [`What a good application looks like`, `<p>Specific and short: how you would approach the output, what you have done that is similar, and when you can do it. For example: “I have built two offline survey templates in KoboToolbox; I can deliver in two weeks, three hours a week.”</p><a href="#profile/julieta-castineira-de-dios">See a sample impact CV</a>`];
   return `<section class="path-section" id="path-${kind}">
     <div class="row between" style="align-items:flex-end;margin-bottom:22px"><div class="stack" style="--gap:8px">${eyebrow(org ? "For organisations" : "For professionals")}<h2>${org ? "Skilled help for the work you define." : "Meaningful work that fits around your life."}</h2><p class="lead" style="max-width:720px">${org ? "Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like." : "Give a few focused hours to an organisation that defined exactly what it needs. The organisation keeps the capability; you keep a reviewed footprint on your impact CV. Everyone wins."}</p></div><div class="row">${btn(`${org ? "Create an organisation account" : "Create your profile"} ${icon("arrow", 18)}`, org ? "#join?role=organisation" : "#join?role=professional")}${btn(org ? "Browse talent" : "Browse needs", org ? "#talent" : "#needs", "secondary")}</div>${org ? `<a class="small" style="font-weight:700" href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Not in the Ethical Bridge directory yet? Join it first ${icon("arrow", 15)}</a>` : ""}</div>
@@ -254,16 +254,16 @@ function pathSection(kind) {
 
 // ---------- Needs directory ----------
 function filtersForm(kind, rows = []) {
-  // Only countries and languages that appear in the list, so every choice gives results.
-  const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const countries = uniq(rows.map((r) => r.country || r.organisation?.country)), langs = uniq(rows.flatMap((r) => r.languages || []));
+    const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  // Main working languages always listed first, then any other language that appears.
+  const MAIN = ["English", "Spanish", "Portuguese", "French"];
+  const langs = [...MAIN, ...uniq(rows.flatMap((r) => r.languages || [])).filter((l) => !MAIN.includes(l))];
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
     <label>Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
-    <label>Country<select name="country"><option value="">Anywhere</option>${opts(countries)}</select></label>
     <label>Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
-    ${kind === "needs" ? `<label>Length<select name="hours"><option value="">Any length</option><option value="short">Up to 8 hours</option><option value="medium">9 to 16 hours</option><option value="long">More than 16 hours</option></select></label>` : `<label>Availability<select name="available"><option value="">Everyone</option><option value="1">Available now</option></select></label>`}
+    <label>Hours<select name="hours"><option value="">${kind === "needs" ? "Any length" : "Any availability"}</option><option value="4">Up to 4 hours</option><option value="8">Up to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
     <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><button class="link-btn" type="reset">Clear filters</button></div>
   </form>`;
 }
@@ -285,13 +285,16 @@ export async function needs() {
   return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need") };
 }
 
+const STANDARD = new Set(SKILL_GROUPS.flatMap(([, l]) => l.map((x) => x.toLowerCase())));
 function bindFilters(rows, card, noun) {
   const f = $("#filters");
   const draw = () => {
     const data = Object.fromEntries(new FormData(f));
+    // A professional area matches the skills people pick, which are grouped by the same areas.
+    if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
     const found = filterRecords(rows, data);
     $("#count").textContent = `${plural(found.length, noun)}${rows.length && rows.every((r) => r.example && !r.founder) ? " (examples)" : ""}`;
-    $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area, country or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
+    $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
   };
   f.addEventListener("input", draw);
   f.addEventListener("reset", () => setTimeout(draw));
@@ -473,7 +476,7 @@ export async function how(focus = "") {
     ["check", "Deliver", ["Review and complete", "Approve logged hours, write an endorsement and mark the work complete."], ["Do the work, log your hours", "Then choose which reviewed contributions appear on your impact CV."]],
     ["handover", "Gain", ["Capability that stays", "A tool, a process or a trained team you keep using, and evidence of what changed."], ["A footprint on your impact CV", "Real experience and a reviewed record in the organisation’s own words. Everyone wins."]],
   ];
-  const facts = [["gift", "Free", "for organisations and professionals"], ["clock", "6–16 hours", "is a typical contribution"], ["pen", "Signed first", "before any work or access"], ["shield", "Reviewed", "every organisation and profile"]];
+  const facts = [["gift", "Free", "for organisations and professionals"], ["clock", "Up to 16 hours", "for each contribution"], ["pen", "Signed first", "before any work or access"], ["shield", "Reviewed", "every organisation and profile"]];
   const cell = (who, [t, d]) => `<div class="j-cell ${who}"><strong>${t}</strong><p>${d}</p></div>`;
   const journey = `<div class="journey" role="list">
       <div class="j-lane-label org" aria-hidden="true">Organisation</div><div class="j-lane-label pro" aria-hidden="true">Professional</div>

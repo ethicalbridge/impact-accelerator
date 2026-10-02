@@ -37,8 +37,12 @@ test("directory filters combine search, area, country, language, hours and avail
   assert.deepEqual(ids({ area: "Technology & web" }), [], "short keywords such as 'it' never match inside words");
   assert.deepEqual(ids({ country: "ghana" }), [2]);
   assert.deepEqual(ids({ language: "swahili" }), [1]);
-  assert.deepEqual(ids({ hours: "short" }), [1]);
-  assert.deepEqual(ids({ hours: "long" }), [2]);
+  assert.deepEqual(ids({ hours: "4" }), []);
+  assert.deepEqual(ids({ hours: "8" }), [1]);
+  assert.deepEqual(ids({ hours: "16" }), [2]);
+  const std = new Set(["data analysis", "graphic design"]);
+  const rows2 = [{ id: 4, skills: ["Data analysis"] }, { id: 5, skills: ["Graphic design"], title: "data" }];
+  assert.deepEqual(filterRecords(rows2, { area: "Data, MEL & research", areaSkills: ["data analysis"], standardSkills: std }).map((r) => r.id), [4], "standard skills match by area, not by words");
   assert.deepEqual(ids({ arrangement: "Hybrid" }), [2]);
   assert.deepEqual(ids({ available: true }), []);
   assert.deepEqual(ids({ search: "fundrais video", country: "Ghana" }), [2]);

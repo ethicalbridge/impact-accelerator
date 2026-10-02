@@ -52,13 +52,21 @@ export function filterRecords(rows, f = {}) {
     // Areas come from what someone offers (skills, headline) or what a need asks for, not from past job titles.
     const hayWords = new Set(norm([r.title, r.headline, r.description, r.output, (r.skills || []).join(" ")].join(" ")).split(" "));
     if (f.search && !norm(f.search).split(" ").every((w) => hay.includes(w))) return false;
-    if (area && !area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))))) return false;
+    if (area) {
+      // Records that use the standard skill list match by skill; older free-text ones fall back to keywords.
+      const skills = (r.skills || []).map((x) => String(x).toLowerCase());
+      const standard = f.standardSkills && skills.some((x) => f.standardSkills.has(x));
+      const ok = standard ? (f.areaSkills || []).some((x) => skills.includes(x)) : area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))));
+      if (!ok) return false;
+    }
     if (f.country && norm(`${r.country || r.organisation?.country || ""} ${r.location}`).indexOf(norm(f.country)) === -1) return false;
     if (f.language && !(r.languages || []).some((l) => norm(l) === norm(f.language))) return false;
     if (f.arrangement && r.arrangement !== f.arrangement) return false;
-    if (f.hours === "short" && !(r.hours <= 8)) return false;
-    if (f.hours === "medium" && !(r.hours > 8 && r.hours <= 16)) return false;
-    if (f.hours === "long" && !(r.hours > 16)) return false;
+    // Needs: estimated hours. Talent: hours offered a month (more than 16 counts as 9 to 16 and up).
+    const h = Number(r.hours ?? r.hours_available ?? 0);
+    if (f.hours === "4" && !(h > 0 && h <= 4)) return false;
+    if (f.hours === "8" && !(h > 0 && h <= 8)) return false;
+    if (f.hours === "16" && !(h > 8)) return false;
     if (f.available && !(r.hours_available > 0)) return false;
     return true;
   });

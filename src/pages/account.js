@@ -163,7 +163,7 @@ export function profileForm(p = {}) {
     ${sec("About")}
     ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
     ${sec("Skills")}
-    ${skillPicker("skills", "Skills you can offer", p.skills || [], { hint: "Organisations and the Talent filters use the same list." })}
+    ${skillPicker("skills", "Skills you can offer", p.skills || [], { hint: "Skills are grouped by professional area. Organisations find you through the Professional area filter by these skills." })}
     ${sec("Experience", "Required. One box per role: role, organisation, country and dates. Put the most recent first; use Move up or down to reorder.")}
     ${oldXp}
     ${entryEditor("experience", "Roles", p.experience_items || [])}

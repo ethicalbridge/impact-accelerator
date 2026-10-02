@@ -123,7 +123,7 @@ function needForm(n, o, approved) {
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
-    ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30, 40].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
+    ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
     ${select("arrangement", "Arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
     ${countrySelect("country", "Country", n.country || o.country || "")}
