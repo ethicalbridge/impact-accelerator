@@ -17,6 +17,9 @@ export async function result(query) {
   return data;
 }
 
+// Every profile column the site may read. Never select("*"): the name on an identity document is admin-only.
+export const PROFILE_COLS = "user_id,name,headline,bio,experience,location,country,skills,languages,hours_available,arrangement,website,age_confirmed,unpaid_confirmed,published,review_status,approved_at,created_at,updated_at,linkedin,photo_url,experience_items,education_items,closed_at,closed_reason,inactive_since,id_status,id_verified_at";
+
 export async function loadSession() {
   const { data } = await db.auth.getSession();
   state.user = data.session?.user || null;
@@ -26,7 +29,7 @@ export async function loadSession() {
   }
   const uid = state.user.id;
   const [profile, memberships, admin, unread, proAgreement, idSetting] = await Promise.all([
-    result(db.from("profiles").select("*").eq("user_id", uid).maybeSingle()).catch(() => null),
+    result(db.from("profiles").select(PROFILE_COLS).eq("user_id", uid).maybeSingle()).catch(() => null),
     result(db.from("organisation_members").select("organisation_id, role, full_name, organisation:organisations(*)").eq("user_id", uid)).catch(() => []),
     result(db.rpc("is_admin")).catch(() => false),
     db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).is("read_at", null),

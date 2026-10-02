@@ -1,8 +1,8 @@
 // Agreements signed on Handova. The exact text shown is sent with the signature and stored with its SHA-256 hash,
 // so we can always show what someone agreed to. Change the version whenever the text changes: everyone is then
 // asked to sign again. Versions must match public.current_agreement() in the database.
-export const PRO_AGREEMENT_VERSION = "professional-2026-10-02";
-export const ORG_AGREEMENT_VERSION = "organisation-2026-10-02";
+export const PRO_AGREEMENT_VERSION = "professional-2026-10-02-v2";
+export const ORG_AGREEMENT_VERSION = "organisation-2026-10-02-v2";
 
 // Shared standard on sexual exploitation and abuse, based on the six core principles used across the aid sector.
 const PSEA = [
@@ -62,6 +62,7 @@ export const PRO_AGREEMENT = [
   ["7. Protection from sexual exploitation and abuse", PSEA],
   ["8. Reporting concerns", [
     "If you see, suspect or are told about harm, abuse, exploitation, harassment or fraud, you report it within 24 hours to the organisation’s safeguarding focal point and to Handova at hello@handova.org, or with Report a concern. If someone is in immediate danger, contact local emergency services first.",
+    "If the concern involves the organisation itself or its focal point, report it only to Handova.",
     "You report in good faith. You will not be penalised for raising a genuine concern, even if it turns out to be unfounded, and you never retaliate against anyone who raises one.",
     "You do not investigate a concern yourself. You cooperate with any investigation by the organisation, Handova or the authorities, and keep it confidential.",
   ]],
@@ -107,7 +108,7 @@ export const PRO_AGREEMENT = [
   ["17. Your data and this record", [
     "We handle your data as described in our privacy notice. Your profile is public only when you publish it and we approve it.",
     "When you sign, we store your name, email address, the date and time, your IP address and browser, the hours you committed and the exact text you agreed to. We keep this record for six years after your account closes, so both sides can rely on it, even if you delete your account.",
-    "For the identity check, Didit processes your document and selfie as our service provider, under its own security and data protection commitments. We keep only the result, the date and the name on the document.",
+    "For the identity check, Didit processes your document and selfie as our service provider, under a data processing agreement with us. Comparing your selfie with your document photo uses biometric data, which is processed only with your explicit consent, given when you start the check. We keep only the result, the date and the name on the document, which only our administrators can see.",
   ]],
   ["18. Changes and contact", [
     "If we change this agreement, we will tell you and ask you to sign the new version before your profile can be published again.",

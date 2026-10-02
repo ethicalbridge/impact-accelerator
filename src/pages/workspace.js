@@ -130,7 +130,7 @@ function needForm(n, o, approved) {
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     ${select("status", "Status", [["draft", "Draft: only your organisation can see it"], ...(approved ? [["open", "Open: accepting applications"]] : []), ...(n.id && n.status !== "draft" ? [["closed", "Closed: no new applications"]] : [])], n.status || (approved ? "open" : "draft"), { full: true })}
-    <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or vulnerable adults, and no access to their personal information.", n.no_vulnerable_contact, true)}</div>
+    <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or adults at risk, and no access to their personal information.", n.no_vulnerable_contact, true)}</div>
   </div>${formEnd(n.id ? "Save need" : "Save need")}</form>`;
 }
 

@@ -338,7 +338,7 @@ function setLogo(box, url) {
   box.querySelector(".logo-pick span").textContent = url ? "Change logo" : "Add logo";
 }
 // "Apr 2026", "2019", or "Present"
-const fmt = (d, present) => { if (d === "present") return present; const { y, m } = split(d); return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : ""; };
+const fmt = (d, present) => { if (d === "present") return present.toLowerCase(); const { y, m } = split(d); return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : ""; };
 // LinkedIn-style duration, counting both the first and the last month: Apr–Oct is 7 mos.
 export function duration(start, end, now = new Date()) {
   const s = split(start); if (!s.y || !s.m) return "";
@@ -347,12 +347,12 @@ export function duration(start, end, now = new Date()) {
   const n = (Number(e2.y) * 12 + Number(e2.m)) - (Number(s.y) * 12 + Number(s.m)) + 1;
   if (n < 1) return "";
   const y = Math.floor(n / 12), m = n % 12;
-  return [y ? `${y} yr${y > 1 ? "s" : ""}` : "", m ? `${m} mo${m > 1 ? "s" : ""}` : ""].filter(Boolean).join(" ");
+  return [y ? `${y} year${y > 1 ? "s" : ""}` : "", m ? `${m} month${m > 1 ? "s" : ""}` : ""].filter(Boolean).join(" ");
 }
 export const entryDates = (it, kind = "experience") => {
   const present = kind === "education" ? "Present" : "Present";
   const a = fmt(it.start, present), b = fmt(it.end, present);
-  const range = a && b ? (a === b ? a : `${a} - ${b}`) : a || b;
+  const range = a && b ? (a === b ? a : `${a} – ${b}`) : a || b;
   const d = kind === "experience" ? duration(it.start, it.end) : "";
   return [range, d].filter(Boolean).join(" · ");
 };
@@ -389,7 +389,7 @@ export function entryList(items, kind = "experience") {
     const total = duration(starts[0], end);
     const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
     const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? countries[0] : "";
-    const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" - ");
+    const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" – ");
     return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body"><strong class="xp-title">${e([g[0].organisation, gCountry].filter(Boolean).join(" · "))}</strong>${range ? `<span class="xp-muted">${e([range, total].filter(Boolean).join(" · "))}</span>` : ""}
       <ul class="xp-roles">${g.map((it) => `<li><strong class="xp-title">${e(it.title)}</strong>${!gCountry && it.country ? `<span>${e(it.country)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${roleExtra(it)}</li>`).join("")}</ul></div></li>`;
   }).join("")}</ul>`;
@@ -445,7 +445,7 @@ export function talentCard(p) {
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
-    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · endorsements pending` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
+    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · awaiting review` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
   </div></a>`;
 }
 
@@ -464,7 +464,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Endorsement pending", "ochre") : pill("Reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review", "ochre") : pill("Reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
     ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour" : "hours"}</span></span>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>

@@ -209,7 +209,12 @@ export function identityCard(p) {
 export function idNudgeDialog() {
   openDialog("Verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations trust verified professionals. It takes about three minutes: a photo of your passport or ID card and a short selfie.</p><p class="small muted">Handled by our provider Didit. Handova only receives the result and the name on your document, never the images.${state.idRequired ? " <strong>Required before you sign your first contribution agreement.</strong>" : ""}</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div></div>`);
 }
+// The selfie comparison uses biometric data, so we ask for explicit consent before sending anyone to Didit.
 export async function startIdCheck(el) {
+  if (!el?.dataset.consented) {
+    openDialog("Before you start", `<div class="stack" style="--gap:14px"><p>Our provider <strong>Didit</strong> will ask for a photo of your passport or ID card and a short selfie, and compare the two. Comparing faces uses biometric data.</p><p class="small muted">Didit processes your document and selfie under a data processing agreement with us. Handova receives only the result and the name on your document, which only our administrators can see. You can withdraw your consent at any time by writing to ${e(config.contactEmail)}. See the <a href="#privacy">privacy notice</a>.</p><div class="row"><button type="button" class="btn" data-action="verify-id" data-consented="1">I consent, continue to Didit</button><button type="button" class="btn secondary" data-action="close">Not now</button></div></div>`);
+    return;
+  }
   el?.setAttribute("disabled", "");
   try {
     const { data, error } = await db.functions.invoke("id-verify", { body: { action: "start" } });
@@ -249,7 +254,7 @@ function agreementBlock() {
       ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred or sanctioned.", false, true)}
       ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.", false, true)}
     </div>
-    ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with the date, time and the exact text you agreed to." })}
+    ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with your email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to." })}
   </div>`;
 }
 
@@ -324,7 +329,7 @@ export async function account() {
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${formEnd("Change password")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show only a short title and a link, never message content.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
-    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
+    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”. We keep records of agreements you signed for six years, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
   return { title: "Account and privacy", html };
 }
@@ -423,7 +428,7 @@ export async function submitAccount(kind, form) {
 }
 
 export async function deleteAccount() {
-  openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications and messages. It cannot be undone.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications and messages. It cannot be undone. Records of agreements you signed are kept for six years, as explained in the privacy notice.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function confirmDelete(form) {
   await withForm(form, async (fd) => {

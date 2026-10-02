@@ -855,3 +855,20 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .eb-badge:hover { background: var(--mint); }
 .eb-badge strong { font-weight: 700; }
 .eb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--clay); }
+
+/* Audit fixes, 2 October 2026 */
+/* Focus ring with enough contrast on light backgrounds; ochre stays on dark teal areas. */
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.hv-hero :focus-visible, .stats-dark :focus-visible, .band-dark :focus-visible, .site-footer :focus-visible, .id-card.hero :focus-visible { outline-color: #f0c27a; }
+/* Form controls with a visible border (at least 3:1). */
+.field input, .field select, .field textarea, .filters input, .filters select, .date-pair select, .lp summary, .lp-search, .lp-other input, .entry-opt textarea { border-color: #8f8878; }
+/* LinkedIn as a secondary action, so "Invite to help" stays the main one. */
+.btn.linkedin { background: #fff; border-color: var(--line-strong); color: var(--ink); }
+.btn.linkedin svg { color: #0a66c2; }
+.btn.linkedin:hover { background: #f3f7fb; border-color: #0a66c2; color: var(--ink); }
+/* Clay hours tile: readable small text. */
+.stat-avail .stat-note { color: #fff !important; font-size: 0.86rem !important; }
+/* Mobile: the workspace tabs show that they scroll; notices wrap neatly; footer links are easy to tap. */
+@media (max-width: 900px) { .side-nav { mask-image: linear-gradient(90deg, #000 85%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); } }
+@media (max-width: 640px) { .banner { flex-wrap: wrap; } .banner > a, .banner > .btn { width: 100%; } }
+.footer-social a { display: inline-block; padding-block: 10px; }
