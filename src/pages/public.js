@@ -427,7 +427,13 @@ export async function profile(id) {
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
       // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
       const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span><span class="stat-more">See contributions ${icon("arrow", 14)}</span></button>`;
-      return `<section class="stats-dark stats-btns" aria-label="Impact so far">${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "endorsements pending") : tile(countries, "countries")}</section>`; })()}
+      return `<section class="stats-dark stats-btns stats-5" aria-label="Impact so far and availability">${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "endorsements pending") : tile(countries, "countries")}${(() => {
+        // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
+        const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const used = contributions.filter((c) => { const d = new Date(c.completed_at || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
+        const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `hours left this month, out of ${per} a month` : "hours available a month"}</span><span class="stat-note">${per ? (left < per ? `${per} more hours unlock on ${next}` : `Back to ${per} hours on ${next}`) : "Not available right now"}</span>${canInvite && left ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}`;
+      })()}</div></section>`; })()}
     <p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them. Ratings stay private to the professional." : "Only work reviewed by the organisation counts. Ratings stay private to the professional."}</p>
     <div class="split left">
       <aside class="stack" style="--gap:18px">
