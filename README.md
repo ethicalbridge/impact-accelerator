@@ -4,7 +4,7 @@
 
 Skilled professionals contributing, unpaid, to the needs locally led organisations define. An initiative of Ethical Bridge, run as an independent platform with its own database. Previously called Impact Accelerator; the repository name and web address keep the old slug so existing links keep working.
 
-**Live site:** https://ethicalbridge.github.io/impact-accelerator/ (GitHub Pages, branch root)
+**Live site:** https://handova.org/ (GitHub Pages, branch root, custom domain via the CNAME file)
 **Database:** Supabase project `jcfezemkbseaqbwuojhs` (EU, Frankfurt), used only by Handova.
 
 ## How the product works

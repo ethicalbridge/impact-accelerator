@@ -3,7 +3,7 @@
 // Inactive until the RESEND_API_KEY and NOTIFY_FROM secrets are set (Supabase → Edge Functions → Secrets).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const SITE = Deno.env.get("SITE_URL") ?? "https://ethicalbridge.github.io/impact-accelerator/";
+const SITE = Deno.env.get("SITE_URL") ?? "https://handova.org/";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const esc = (s: string) =>
