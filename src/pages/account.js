@@ -4,7 +4,7 @@ import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, language
 const HOURS_MONTH = [4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText } from "../agreement.js";
+import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 const ORG_TYPES = ["Community organisation", "Local NGO", "Cooperative", "Social enterprise", "Collective or informal group (fiscally hosted)", "Other"];
@@ -129,7 +129,11 @@ export function orgForm(o = {}, fullName = "") {
     ${field("ethical_bridge_url", "Ethical Bridge directory page", { value: o.ethical_bridge_url, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova supports organisations listed in the Ethical Bridge directory. Not listed yet? <a href="${"https://ethicalbridge.org/organisation-register.html"}" target="_blank" rel="noopener">Join the directory</a>, it is free.` })}
     ${field("summary", "What your organisation does", { value: o.summary, type: "textarea", required: true, full: true, attrs: 'maxlength="600" minlength="20"', hint: "Two or three sentences. This appears on your needs." })}
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
-    ${edit ? "" : `<div class="checkbox-box full">${check("locally_led", "We are a locally led organisation: our leadership is based where we work, and we are registered or fiscally hosted by a registered organisation.", false, true)}${check("authorised", "I am authorised to represent this organisation.", false, true)}</div>`}
+    ${edit ? "" : `<div class="full form-sec"><h2>Organisation agreement</h2><p class="muted small">Please read it in full. It covers safeguarding, data, how you work with professionals and what you can expect from us.</p></div>
+    <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
+      <div class="checkbox-box">${check("locally_led", "We are a locally led organisation: our leadership is based where we work, and we are registered or fiscally hosted by a registered organisation.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not on any sanctions list and are not involved in the activities listed in section 1.", false, true)}${check("org_agree", "On behalf of the organisation, I have read and agree to the Handova organisation agreement, including its safeguarding and reporting duties.", false, true)}</div>
+      <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
+    </div>`}
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
 }
 
@@ -183,7 +187,7 @@ export function profileForm(p = {}) {
 
 // The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.
 const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
-const agreementBody = () => `<div class="agreement-text" tabindex="0" aria-label="Handova professional agreement">${PRO_AGREEMENT.map(([h, items], i) => `<h3>${e(h)}</h3>${i === 0 ? `<p>${e(items[0])}</p>` : `<ul>${items.map((t) => `<li>${e(t)}</li>`).join("")}</ul>`}`).join("")}</div>`;
+const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `<div class="agreement-text" tabindex="0" aria-label="${label}">${agreementHtml(sections, e)}</div>`;
 function agreementBlock() {
   if (signedCurrent()) {
     const a = state.proAgreement;
@@ -195,7 +199,8 @@ function agreementBlock() {
     ${agreementBody()}
     <div class="checkbox-box">
       ${check("age_confirmed", "I am 18 or older.", false, true)}
-      ${check("unpaid_confirmed", "I understand contributions are unpaid and voluntary.", false, true)}
+      ${check("unpaid_confirmed", "I understand contributions are unpaid, voluntary and remote.", false, true)}
+      ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred or sanctioned.", false, true)}
       ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.", false, true)}
     </div>
     ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with the date, time and the exact text you agreed to." })}
@@ -318,6 +323,8 @@ export async function submitAccount(kind, form) {
     const website = val(fd, "website");
     if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
     if (!EB_URL.test(val(fd, "ethical_bridge_url"))) throw Error("Add your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
+    if (!["locally_led", "authorised", "org_declare", "org_agree"].every((k) => fd.has(k))) throw Error("Read the organisation agreement and tick all four boxes to sign it.");
+    await result(db.rpc("sign_org_agreement", { p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
     const newOrg = await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
     if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url") }).eq("id", newOrg));
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
@@ -348,7 +355,7 @@ export async function submitAccount(kind, form) {
     if (!row.education_items.length) throw Error("Add at least one qualification under Education.");
     if (row.hours_available < 4) throw Error("Choose at least 4 hours a month.");
     if (!signedCurrent()) {
-      if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed")) throw Error("Read the agreement and tick the three boxes to sign it.");
+      if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) throw Error("Read the agreement and tick all four boxes to sign it.");
       const signName = val(fd, "sign_name");
       if (signName.length < 2) throw Error("Type your full name to sign the agreement.");
       await result(db.rpc("sign_agreement", { p_kind: "professional", p_version: PRO_AGREEMENT_VERSION, p_name: signName, p_text: proAgreementText(), p_hours: row.hours_available }));

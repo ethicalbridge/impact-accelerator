@@ -1,4 +1,4 @@
-import { e, initials, hashOf, date, plural, safeURL } from "./utils.js";
+import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS } from "./utils.js";
 import { state } from "./core.js";
 
 const IC = {
@@ -135,22 +135,7 @@ export function field(name, label, { value = "", type = "text", required = false
 // Language picker: a dropdown of common working languages with search, plus "add another" for local and sign languages.
 // It writes a comma-separated list into a hidden input, so forms read it exactly like the old text field.
 export const LANGUAGES = ["English", "Spanish", "French", "Portuguese", "Arabic", "Swahili", "Hindi", "Bengali", "Urdu", "Indonesian", "Malay", "Tagalog / Filipino", "Vietnamese", "Thai", "Burmese", "Khmer", "Nepali", "Chinese (Mandarin)", "Chinese (Cantonese)", "Japanese", "Korean", "Russian", "Ukrainian", "Turkish", "Persian (Farsi / Dari)", "Pashto", "Kurdish", "Amharic", "Tigrinya", "Somali", "Oromo", "Hausa", "Yoruba", "Igbo", "Zulu", "Xhosa", "Afrikaans", "Shona", "Kinyarwanda", "Luganda", "Lingala", "Wolof", "Fula", "Twi / Akan", "Krio", "Malagasy", "German", "Italian", "Dutch", "Polish", "Romanian", "Greek", "Hebrew", "Swedish", "Danish", "Norwegian", "Finnish", "Czech", "Hungarian", "Serbian / Croatian / Bosnian", "Albanian", "Armenian", "Georgian", "Quechua", "Guarani", "Aymara", "Haitian Creole", "Tetum", "Tok Pisin", "Samoan", "Tongan", "Fijian", "Māori", "International Sign", "American Sign Language", "British Sign Language", "French Sign Language", "Ghanaian Sign Language", "Kenyan Sign Language", "Indonesian Sign Language", "Spanish Sign Language"];
-// Standard skills, grouped by the same professional areas the Talent and Needs filters use.
-export const SKILL_GROUPS = [
-  ["Accessibility & inclusion", ["Accessibility", "Inclusion", "Disability inclusion", "Gender equality and inclusion"]],
-  ["Accounting & finance", ["Accounting", "Bookkeeping", "Budgeting", "Financial management", "Payroll"]],
-  ["Communications & storytelling", ["Communications", "Storytelling", "Ethical storytelling", "Advocacy", "Social media", "Copywriting", "Content writing", "Media relations"]],
-  ["Data, MEL & research", ["Data analysis", "Monitoring and evaluation (MEL)", "Program evaluation", "Research", "Qualitative research", "Quantitative research", "Surveys", "Dashboards"]],
-  ["Design & UX", ["Graphic design", "Branding", "UX research", "UI design", "Illustration"]],
-  ["Fundraising & grants", ["Fundraising", "Grant writing", "Proposal writing", "Award and grant management", "Donor relations", "Donor research", "Individual giving"]],
-  ["HR & people", ["Human resources", "Recruitment", "People and wellbeing", "People management"]],
-  ["Legal & policy", ["Legal", "Legal research", "Human rights", "Access to justice", "Policy", "Compliance and risk", "Governance", "Contracts"]],
-  ["Strategy & operations", ["Strategy", "Strategic planning", "Theory of change", "Operations", "Project management", "Programme management", "Partnerships", "Entrepreneurship", "Start-up leadership"]],
-  ["Technology & web", ["Website development", "Software development", "Digital tools", "IT support"]],
-  ["Training & facilitation", ["Training", "Facilitation", "Workshop design", "Coaching", "Mentoring"]],
-  ["Translation & languages", ["Translation", "Interpretation", "Localisation"]],
-  ["Video & photography", ["Video editing", "Photography", "Film", "Animation"]],
-];
+export { SKILL_GROUPS };
 
 // A dropdown of checkboxes with search. It writes a comma-separated list into a hidden input,
 // so forms read it exactly like the old text field. `other` lets people add their own entry.

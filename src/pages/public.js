@@ -263,7 +263,7 @@ function filtersForm(kind, rows = []) {
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
     <label>Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
     <label>Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
-    <label>Hours<select name="hours"><option value="">${kind === "needs" ? "Any length" : "Any availability"}</option><option value="4">Up to 4 hours</option><option value="8">Up to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
+    <label>Hours<select name="hours"><option value="">${kind === "needs" ? "Any length" : "Any hours a month"}</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
     <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><button class="link-btn" type="reset">Clear filters</button></div>
   </form>`;
 }

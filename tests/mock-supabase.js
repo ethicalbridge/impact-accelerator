@@ -183,6 +183,14 @@ function updateRow(t, r, v) {
 
 // ---------- server functions ----------
 const rpcs = {
+  sign_org_agreement({ p_version, p_name, p_role, p_text }) {
+    if (!me()) throw Error("Please sign in first.");
+    if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");
+    if (String(p_role || "").trim().length < 2) throw Error("Add your role in the organisation.");
+    D.agreement_signatures = D.agreement_signatures || [];
+    const row = { id: uid(), user_id: me(), kind: "organisation", version: p_version, full_name: p_name.trim(), signer_role: p_role.trim(), agreement_text: p_text, signed_at: now(), organisation_id: null };
+    D.agreement_signatures.push(row); return row.id;
+  },
   sign_agreement({ p_kind, p_version, p_name, p_text, p_hours }) {
     if (!me()) throw Error("Please sign in first.");
     if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");

@@ -8,5 +8,5 @@ export const config = {
   safeguardingEmail: "hello@handova.org",
   // Google Analytics 4 measurement ID (G-XXXXXXX). Empty = no analytics and no consent banner.
   gaMeasurementId: "",
-  legalUpdated: "1 October 2026",
+  legalUpdated: "2 October 2026",
 };

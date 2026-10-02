@@ -25,21 +25,36 @@ export function languages(value) {
   return out;
 }
 
-export const professionalAreas = [
-  ["Accessibility & inclusion", "accessibility inclusive inclusion disability"],
-  ["Accounting & finance", "accounting bookkeeping finance financial budgeting budget payroll"],
-  ["Communications & storytelling", "communications communication storytelling media social content copywriting writing advocacy"],
-  ["Data, MEL & research", "data analysis analytics monitoring evaluation learning mel research survey dashboard"],
-  ["Design & UX", "design ux ui user experience figma graphic branding illustration"],
-  ["Fundraising & grants", "fundraising grant grants donor donors philanthropy proposal award awards"],
-  ["HR & people", "human resources recruitment people wellbeing hr"],
-  ["Legal & policy", "legal law policy compliance governance contracts rights justice"],
-  ["Strategy & operations", "strategy operations planning project management programme partnerships entrepreneurship startup leadership"],
-  ["Technology & web", "software web website development developer technology digital it"],
-  ["Training & facilitation", "training facilitation workshop coaching mentoring"],
-  ["Translation & languages", "translation interpretation localisation localization"],
-  ["Video & photography", "video photography film editing animation"],
-].map(([label, keywords]) => ({ label, keywords: keywords.split(" ") }));
+// Professional areas and their skills: one standard list for profiles, needs and the filters.
+// Each skill belongs to exactly one area, so the Professional area filter matches by the skills people pick.
+export const SKILL_GROUPS = [
+  ["Strategy & planning", ["Strategy", "Strategic planning", "Theory of change", "Business planning", "Organisational development", "Change management", "Entrepreneurship", "Start-up leadership"]],
+  ["Programme & project management", ["Programme management", "Project management", "Programme design", "Logframes and results frameworks", "Work planning", "Agile and lean methods"]],
+  ["Operations & administration", ["Operations", "Administration", "Process improvement", "Procurement", "Logistics and supply chain", "Office and systems set-up"]],
+  ["Governance, risk & compliance", ["Governance", "Board development", "Compliance and risk", "Risk management", "Policies and procedures", "Donor compliance", "Due diligence", "Anti-fraud and anti-corruption", "Internal audit"]],
+  ["Safeguarding & protection", ["Safeguarding", "Safeguarding policy", "Protection from sexual exploitation and abuse (PSEA)", "Child safeguarding", "Code of conduct", "Incident reporting systems", "Duty of care"]],
+  ["Legal", ["Legal", "Legal research", "Contracts", "Registration and legal structures", "Employment law", "Data protection and privacy (GDPR)", "Intellectual property", "Human rights", "Access to justice"]],
+  ["Policy & advocacy", ["Policy", "Policy analysis", "Advocacy", "Campaigning", "Public affairs", "Coalition building"]],
+  ["Fundraising & grants", ["Fundraising", "Fundraising strategy", "Grant writing", "Proposal writing", "Donor research", "Donor relations", "Award and grant management", "Donor reporting", "Individual giving", "Corporate partnerships", "Major gifts", "Crowdfunding", "Fundraising events"]],
+  ["Finance & accounting", ["Accounting", "Bookkeeping", "Budgeting", "Financial management", "Financial reporting", "Financial modelling", "Payroll", "Tax", "Audit preparation"]],
+  ["Monitoring, evaluation & learning", ["Monitoring and evaluation (MEL)", "Program evaluation", "Indicators and data collection tools", "Impact measurement", "Learning and knowledge management", "Results reporting"]],
+  ["Research & data", ["Research", "Qualitative research", "Quantitative research", "Surveys", "Data analysis", "Statistics", "Data visualisation", "Dashboards", "Data management", "GIS and mapping"]],
+  ["Communications & media", ["Communications", "Communications strategy", "Storytelling", "Ethical storytelling", "Copywriting", "Content writing", "Editing and proofreading", "Plain language", "Social media", "Media relations", "Newsletters", "Internal communications", "Crisis communications"]],
+  ["Marketing", ["Marketing", "Digital marketing", "Brand strategy", "Email marketing", "SEO", "Market research"]],
+  ["Design & creative", ["Graphic design", "Branding", "Illustration", "Layout and publications", "Presentation design", "Infographics", "Print design"]],
+  ["UX & digital products", ["UX research", "UI design", "Service design", "Product management", "User testing", "Digital accessibility"]],
+  ["Technology & IT", ["Website development", "Software development", "Digital tools", "IT support", "Cybersecurity", "Databases", "CRM set-up", "Microsoft 365 and Google Workspace", "No-code and automation", "AI tools"]],
+  ["HR & people", ["Human resources", "Recruitment", "HR policies", "People management", "Performance management", "People and wellbeing", "Volunteer management", "Organisational culture"]],
+  ["Training, coaching & facilitation", ["Training", "Training design", "Facilitation", "Workshop design", "Coaching", "Mentoring", "Leadership development", "E-learning"]],
+  ["Inclusion & accessibility", ["Accessibility", "Inclusion", "Disability inclusion", "Gender equality and inclusion", "Diversity, equity and inclusion", "Youth engagement"]],
+  ["Partnerships & community", ["Partnerships", "Stakeholder engagement", "Community engagement", "Network building", "Localisation"]],
+  ["Sector expertise", ["Health", "Mental health", "Education", "Climate and environment", "Conservation", "Agriculture and food security", "Water, sanitation and hygiene (WASH)", "Livelihoods and economic development", "Humanitarian response", "Peacebuilding", "Migration and refugees", "Animal welfare"]],
+  ["Translation & languages", ["Translation", "Interpretation", "Localisation of content", "Subtitling"]],
+  ["Video, photo & audio", ["Video editing", "Videography", "Photography", "Film", "Animation", "Podcasts and audio"]],
+];
+// Keywords per area, only used for older records whose skills are not on the standard list.
+const STOP = new Set(["and", "of", "the", "for", "to", "in", "a", "set", "up", "e", "g"]);
+export const professionalAreas = SKILL_GROUPS.map(([label, skills]) => ({ label, keywords: [...new Set(skills.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w)))] }));
 
 const words = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
 const norm = (text) => words(text).join(" ");
@@ -62,10 +77,11 @@ export function filterRecords(rows, f = {}) {
     if (f.country && norm(`${r.country || r.organisation?.country || ""} ${r.location}`).indexOf(norm(f.country)) === -1) return false;
     if (f.language && !(r.languages || []).some((l) => norm(l) === norm(f.language))) return false;
     if (f.arrangement && r.arrangement !== f.arrangement) return false;
-    // Needs: estimated hours. Talent: hours offered a month (more than 16 counts as 9 to 16 and up).
+    // Needs: estimated hours. Talent: hours offered a month (more than 16 counts in the top bracket).
     const h = Number(r.hours ?? r.hours_available ?? 0);
+    // Separate brackets, so each record appears under exactly one.
     if (f.hours === "4" && !(h > 0 && h <= 4)) return false;
-    if (f.hours === "8" && !(h > 0 && h <= 8)) return false;
+    if (f.hours === "8" && !(h > 4 && h <= 8)) return false;
     if (f.hours === "16" && !(h > 8)) return false;
     if (f.available && !(r.hours_available > 0)) return false;
     return true;
