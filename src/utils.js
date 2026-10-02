@@ -48,7 +48,7 @@ const norm = (text) => words(text).join(" ");
 export function filterRecords(rows, f = {}) {
   const area = professionalAreas.find((a) => a.label === f.area);
   return rows.filter((r) => {
-    const hay = norm([r.name, r.title, r.headline, r.description, r.output, r.bio, (r.skills || []).join(" "), r.organisation?.name, r.country, r.location].join(" "));
+    const hay = norm([r.name, r.title, r.headline, r.description, r.output, r.bio, (r.skills || []).join(" "), r.organisation?.name, r.country, r.location, ...(r.experience_items || []).map((x) => `${x.title} ${x.organisation} ${x.country}`)].join(" "));
     const hayWords = new Set(hay.split(" "));
     if (f.search && !norm(f.search).split(" ").every((w) => hay.includes(w))) return false;
     if (area && !area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))))) return false;

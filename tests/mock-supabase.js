@@ -232,6 +232,12 @@ export function createClient() {
   return {
     auth,
     from: (t) => new Query(t),
+    // Storage: files kept as data URLs in localStorage, so photo uploads work offline.
+    storage: { from: (bucket) => ({
+      async upload(path, blob) { const url = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); localStorage.setItem(`ia-mock-file:${bucket}/${path}`, url); return { data: { path }, error: null }; },
+      getPublicUrl(path) { return { data: { publicUrl: localStorage.getItem(`ia-mock-file:${bucket}/${path}`) || "" } }; },
+      async remove(paths) { paths.forEach((p) => localStorage.removeItem(`ia-mock-file:${bucket}/${p}`)); return { data: [], error: null }; },
+    }) },
     rpc: (fn, args = {}) => ({ then(res, rej) { return Promise.resolve().then(() => { try { D = load(); const data = rpcs[fn](args); save(); return { data: data ?? null, error: null }; } catch (e) { return { data: null, error: { message: e.message } }; } }).then(res, rej); } }),
   };
 }

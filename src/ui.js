@@ -51,8 +51,8 @@ export function avatar(name, size = 56) {
 }
 
 // A real photo when the profile has one (only the founder's, a static asset), otherwise initials.
-export const avatarFor = (p, size = 56) => p.photo
-  ? `<img class="avatar photo" src="${e(p.photo)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`
+export const avatarFor = (p, size = 56) => (p.photo || p.photo_url)
+  ? `<img class="avatar photo" src="${e(p.photo || p.photo_url)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`
   : avatar(p.name, size);
 
 // Illustrations: drawn, not photographed, so no real person or place is implied.
@@ -132,6 +132,162 @@ export function field(name, label, { value = "", type = "text", required = false
     : `<input id="${id}" name="${name}" type="${type}" value="${e(value)}" ${required ? "required" : ""} ${attrs}>`;
   return `<label class="field ${full ? "full" : ""}" for="${id}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>${control}${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;
 }
+// Language picker: a dropdown of common working languages with search, plus "add another" for local and sign languages.
+// It writes a comma-separated list into a hidden input, so forms read it exactly like the old text field.
+export const LANGUAGES = ["English", "Spanish", "French", "Portuguese", "Arabic", "Swahili", "Hindi", "Bengali", "Urdu", "Indonesian", "Malay", "Tagalog / Filipino", "Vietnamese", "Thai", "Burmese", "Khmer", "Nepali", "Chinese (Mandarin)", "Chinese (Cantonese)", "Japanese", "Korean", "Russian", "Ukrainian", "Turkish", "Persian (Farsi / Dari)", "Pashto", "Kurdish", "Amharic", "Tigrinya", "Somali", "Oromo", "Hausa", "Yoruba", "Igbo", "Zulu", "Xhosa", "Afrikaans", "Shona", "Kinyarwanda", "Luganda", "Lingala", "Wolof", "Fula", "Twi / Akan", "Krio", "Malagasy", "German", "Italian", "Dutch", "Polish", "Romanian", "Greek", "Hebrew", "Swedish", "Danish", "Norwegian", "Finnish", "Czech", "Hungarian", "Serbian / Croatian / Bosnian", "Albanian", "Armenian", "Georgian", "Quechua", "Guarani", "Aymara", "Haitian Creole", "Tetum", "Tok Pisin", "Samoan", "Tongan", "Fijian", "Māori", "International Sign", "American Sign Language", "British Sign Language", "French Sign Language", "Ghanaian Sign Language", "Kenyan Sign Language", "Indonesian Sign Language", "Spanish Sign Language"];
+// Standard skills, grouped by the same professional areas the Talent and Needs filters use.
+export const SKILL_GROUPS = [
+  ["Accessibility & inclusion", ["Accessibility", "Inclusion", "Disability inclusion", "Gender equality and inclusion"]],
+  ["Accounting & finance", ["Accounting", "Bookkeeping", "Budgeting", "Financial management", "Payroll"]],
+  ["Communications & storytelling", ["Communications", "Storytelling", "Social media", "Copywriting", "Content writing", "Media relations"]],
+  ["Data, MEL & research", ["Data analysis", "Monitoring and evaluation (MEL)", "Research", "Surveys", "Dashboards"]],
+  ["Design & UX", ["Graphic design", "Branding", "UX research", "UI design", "Illustration"]],
+  ["Fundraising & grants", ["Fundraising", "Grant writing", "Donor research", "Individual giving"]],
+  ["HR & people", ["Human resources", "Recruitment", "People and wellbeing", "People management"]],
+  ["Legal & policy", ["Legal", "Policy", "Compliance and risk", "Governance", "Contracts"]],
+  ["Strategy & operations", ["Strategy", "Strategic planning", "Theory of change", "Operations", "Project management", "Programme management", "Partnerships"]],
+  ["Technology & web", ["Website development", "Software development", "Digital tools", "IT support"]],
+  ["Training & facilitation", ["Training", "Facilitation", "Workshop design", "Coaching", "Mentoring"]],
+  ["Translation & languages", ["Translation", "Interpretation", "Localisation"]],
+  ["Video & photography", ["Video editing", "Photography", "Film", "Animation"]],
+];
+
+// A dropdown of checkboxes with search. It writes a comma-separated list into a hidden input,
+// so forms read it exactly like the old text field. `other` lets people add their own entry.
+export function optionPicker(name, label, groups, selected = [], { required = true, hint = "", other = "", placeholder = "Choose", search = "Search" } = {}) {
+  const known = new Set(groups.flatMap(([, opts]) => opts.map((o) => o.toLowerCase())));
+  const extra = selected.filter((s) => !known.has(s.toLowerCase()));
+  const all = extra.length ? [["Your additions", extra], ...groups] : groups;
+  const isOn = (l) => selected.some((s) => s.toLowerCase() === l.toLowerCase());
+  const chips = selected.length ? selected.map((l) => `<span class="tag">${e(l)}</span>`).join("") : `<span class="muted">${placeholder}</span>`;
+  return `<div class="field full lang-picker" data-lang-picker data-placeholder="${e(placeholder)}">
+    <span id="lp-${name}-label">${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>
+    <input type="hidden" name="${name}" value="${e(selected.join(", "))}">
+    <details class="lp">
+      <summary aria-labelledby="lp-${name}-label"><span class="lp-chips">${chips}</span>${icon("plus", 18)}</summary>
+      <div class="lp-panel">
+        <input type="search" class="lp-search" placeholder="${e(search)}" aria-label="${e(search)}" autocomplete="off">
+        <div class="lp-list" role="group" aria-labelledby="lp-${name}-label">${all.map(([g, opts]) => `<div class="lp-group">${g ? `<span class="lp-glabel">${e(g)}</span>` : ""}${opts.map((l) => `<label class="check lp-item"><input type="checkbox" value="${e(l)}" ${isOn(l) ? "checked" : ""}><span>${e(l)}</span></label>`).join("")}</div>`).join("")}</div>
+        ${other ? `<div class="lp-other"><input type="text" class="lp-add-input" placeholder="${e(other)}" maxlength="60" aria-label="${e(other)}"><button type="button" class="btn secondary sm lp-add">Add</button></div>` : ""}
+      </div>
+    </details>
+    ${hint ? `<span class="hint">${hint}</span>` : ""}
+  </div>`;
+}
+export const languagePicker = (name, label, selected = [], opts = {}) => optionPicker(name, label, [["", LANGUAGES]], selected, { placeholder: "Choose languages", search: "Search languages", other: "Another language, e.g. a local or sign language", ...opts });
+export const skillPicker = (name, label, selected = [], opts = {}) => optionPicker(name, label, SKILL_GROUPS, selected, { placeholder: "Choose skills", search: "Search skills", ...opts });
+export function bindLanguagePickers(root = document) {
+  const sync = (box) => {
+    const on = [...box.querySelectorAll(".lp-list input:checked")].map((i) => i.value);
+    box.querySelector('input[type="hidden"]').value = on.join(", ");
+    box.querySelector(".lp-chips").innerHTML = on.length ? on.map((l) => `<span class="tag">${e(l)}</span>`).join("") : `<span class="muted">${e(box.dataset.placeholder || "Choose")}</span>`;
+  };
+  root.addEventListener("change", (ev) => { const box = ev.target.closest("[data-lang-picker]"); if (box && ev.target.matches(".lp-list input")) sync(box); });
+  root.addEventListener("input", (ev) => {
+    if (!ev.target.matches(".lp-search")) return;
+    const q = ev.target.value.trim().toLowerCase();
+    const box = ev.target.closest("[data-lang-picker]");
+    box.querySelectorAll(".lp-group").forEach((g) => {
+      const gl = (g.querySelector(".lp-glabel")?.textContent || "").toLowerCase();
+      g.querySelectorAll(".lp-item").forEach((it) => { it.hidden = !!q && !gl.includes(q) && !it.textContent.toLowerCase().includes(q); });
+    });
+    box.querySelectorAll(".lp-group").forEach((g) => { g.hidden = ![...g.querySelectorAll(".lp-item")].some((it) => !it.hidden); });
+  });
+  const add = (box) => {
+    const inp = box.querySelector(".lp-add-input"), v = inp.value.trim().replace(/,/g, " ");
+    if (!v) return;
+    const found = [...box.querySelectorAll(".lp-list input")].find((i) => i.value.toLowerCase() === v.toLowerCase());
+    if (found) found.checked = true;
+    else box.querySelector(".lp-group").insertAdjacentHTML("afterbegin", `<label class="check lp-item"><input type="checkbox" value="${e(v)}" checked><span>${e(v)}</span></label>`);
+    inp.value = ""; sync(box);
+  };
+  root.addEventListener("click", (ev) => { if (ev.target.closest(".lp-add")) add(ev.target.closest("[data-lang-picker]")); });
+  root.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.matches(".lp-add-input")) { ev.preventDefault(); add(ev.target.closest("[data-lang-picker]")); } });
+}
+
+// Countries (UN members and observers, plus a few widely used territories), for profiles and entries.
+export const COUNTRIES = ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Côte d’Ivoire", "Croatia", "Cuba", "Cyprus", "Czechia", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "São Tomé and Príncipe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Türkiye", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"];
+const countryOptions = (value, empty = "Choose a country") => {
+  const list = value && !COUNTRIES.includes(value) ? [value, ...COUNTRIES] : COUNTRIES;
+  return `<option value="">${empty}</option><option value="Remote / several countries" ${value === "Remote / several countries" ? "selected" : ""}>Remote / several countries</option>${list.map((c) => `<option ${c === value ? "selected" : ""}>${e(c)}</option>`).join("")}`;
+};
+export const countrySelect = (name, label, value = "", { required = false, full = false } = {}) =>
+  `<label class="field ${full ? "full" : ""}" for="f-${name}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select id="f-${name}" name="${name}" ${required ? "required" : ""} autocomplete="country-name">${countryOptions(value)}</select></label>`;
+
+// Experience and education entries: one box per entry, the same fields the public profile shows.
+// Both use the same shape: { title, organisation, country, start, end } (end "present" while ongoing).
+const THIS_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: THIS_YEAR - 1959 }, (_, i) => String(THIS_YEAR - i));
+export const ENTRY_KINDS = {
+  experience: { title: "Role or title", titlePh: "e.g. Programme manager", org: "Organisation", orgPh: "e.g. Save the Children", present: "Present", add: "Add a role", none: "No roles added yet." },
+  education: { title: "Qualification", titlePh: "e.g. Master of Laws", org: "University or institution", orgPh: "e.g. University of Buenos Aires", present: "Studying now", add: "Add a qualification", none: "No qualifications added yet." },
+};
+export function entryRow(kind, it = {}) {
+  const k = ENTRY_KINDS[kind];
+  const yearSel = (cls, label, val, extra = "") => `<label class="field"><span>${label}</span><select class="${cls}">${extra}<option value="">Year</option>${YEARS.map((y) => `<option ${y === String(val) ? "selected" : ""}>${y}</option>`).join("")}</select></label>`;
+  return `<fieldset class="entry" data-entry="${kind}">
+    <legend class="visually-hidden">${kind === "experience" ? "Role" : "Qualification"}</legend>
+    <div class="entry-grid">
+      <label class="field"><span>${k.title} <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="120" placeholder="${k.titlePh}"></label>
+      <label class="field"><span>${k.org} <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="${k.orgPh}"></label>
+      <label class="field"><span>Country</span><select class="en-country">${countryOptions(it.country || "")}</select></label>
+      <div class="entry-years">${yearSel("en-start", "From", it.start)}${yearSel("en-end", "To", it.end, `<option value="present" ${it.end === "present" ? "selected" : ""}>${k.present}</option>`)}</div>
+    </div>
+    <button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button>
+  </fieldset>`;
+}
+export function entryEditor(kind, label, items = [], hint = "") {
+  const k = ENTRY_KINDS[kind];
+  return `<div class="field full entry-editor" data-entry-editor="${kind}"><span>${label}</span>${hint ? `<span class="hint">${hint}</span>` : ""}
+    <div class="entry-list">${items.map((it) => entryRow(kind, it)).join("")}</div>
+    <p class="muted small entry-none" ${items.length ? "hidden" : ""}>${k.none}</p>
+    <div><button type="button" class="btn secondary sm" data-entry-add="${kind}">${icon("plus", 16)}${k.add}</button></div>
+  </div>`;
+}
+// Newest first: ongoing entries, then by end year, then by start year.
+export const sortEntries = (list) => [...list].sort((a, b) => {
+  const end = (x) => (x.end === "present" ? 9999 : Number(x.end) || Number(x.start) || 0);
+  return end(b) - end(a) || (Number(b.start) || 0) - (Number(a.start) || 0);
+});
+export function readEntries(form, kind) {
+  const out = [];
+  for (const row of form.querySelectorAll(`[data-entry="${kind}"]`)) {
+    const v = (c) => row.querySelector(c).value.trim();
+    const it = { title: v(".en-title"), organisation: v(".en-org"), country: v(".en-country"), start: v(".en-start"), end: v(".en-end") };
+    if (!it.title && !it.organisation) continue;
+    const what = kind === "experience" ? "role" : "qualification";
+    if (!it.title || !it.organisation) throw Error(`Each ${what} needs ${kind === "experience" ? "a title and an organisation" : "a qualification and an institution"}.`);
+    if (it.start && it.end && it.end !== "present" && Number(it.end) < Number(it.start)) throw Error(`Check the years for “${it.title}”: it ends before it starts.`);
+    out.push(it);
+  }
+  return sortEntries(out);
+}
+export function bindEntryEditors(root = document) {
+  root.addEventListener("click", (ev) => {
+    const add = ev.target.closest("[data-entry-add]");
+    if (add) {
+      const ed = add.closest("[data-entry-editor]");
+      ed.querySelector(".entry-list").insertAdjacentHTML("beforeend", entryRow(add.dataset.entryAdd));
+      ed.querySelector(".entry-none").hidden = true;
+      ed.querySelector(".entry-list .entry:last-child .en-title").focus();
+      return;
+    }
+    const rm = ev.target.closest("[data-entry-remove]");
+    if (rm) {
+      const ed = rm.closest("[data-entry-editor]");
+      rm.closest(".entry").remove();
+      ed.querySelector(".entry-none").hidden = !!ed.querySelector(".entry");
+      ed.querySelector("[data-entry-add]").focus();
+    }
+  });
+}
+export const entryYears = (it, kind = "experience") => {
+  const end = it.end === "present" ? ENTRY_KINDS[kind].present : it.end;
+  return it.start && end ? (it.start === end ? it.start : `${it.start} – ${end}`) : it.start || end || "";
+};
+// Public view: title in bold, organisation and country underneath, years on the right.
+export const entryList = (items, kind = "experience") => `<ul class="xp">${items.map((it) => `<li><div class="xp-top"><strong>${e(it.title || it.organisation)}</strong>${entryYears(it, kind) ? `<span class="xp-years">${e(entryYears(it, kind))}</span>` : ""}</div>${[it.title ? it.organisation : "", it.country].filter(Boolean).length ? `<span>${e([it.title ? it.organisation : "", it.country].filter(Boolean).join(" · "))}</span>` : ""}</li>`).join("")}</ul>`;
+
 export function select(name, label, options, value = "", { full = false, required = false } = {}) {
   const id = `f-${name}`;
   return `<label class="field ${full ? "full" : ""}" for="${id}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span><select id="${id}" name="${name}" ${required ? "required" : ""}>${options

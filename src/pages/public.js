@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status } from "../ui.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -356,7 +356,7 @@ export async function need(id) {
 
 // ---------- Talent ----------
 export async function talent() {
-  const real = await result(db.from("profiles").select("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio").eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
+  const real = await result(db.from("profiles").select("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items").eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
   const rows = [exampleProfile, ...real.filter((p) => p.user_id !== exampleProfile.user_id)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
@@ -404,8 +404,9 @@ export async function profile(id) {
       <aside class="stack" style="--gap:18px">
         ${side("About", `<p class="prose" style="font-size:1rem">${e(p.bio || "No introduction yet.")}</p>`)}
         ${side("Skills", tags(p.skills || []))}
-        ${p.experience ? side("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><strong>${e(role)}</strong>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
-        ${p.background ? p.background.map(([title, items]) => side(title, `<ul class="bullets">${items.map((t) => `<li>${e(t)}</li>`).join("")}</ul>`)).join("") : ""}
+        ${(p.experience_items || []).length ? side("Experience", `${entryList(p.experience_items, "experience")}<span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`)
+          : p.experience ? side("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><div class="xp-top"><strong>${e(role)}</strong></div>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
+        ${(p.education_items || []).length ? side("Education", entryList(p.education_items, "education")) : ""}
         ${p.website ? side("Elsewhere", `${safeLink(p.website, "Professional profile or website")}<span class="small muted">A link the professional added; not an identity check.</span>`) : ""}
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}

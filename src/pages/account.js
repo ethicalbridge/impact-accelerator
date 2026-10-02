@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
-import { icon, mark, eyebrow, field, select, check, formEnd, btn, back } from "../ui.js";
+import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries } from "../ui.js";
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 
@@ -132,18 +132,41 @@ export function orgForm(o = {}, fullName = "") {
 
 export function profileForm(p = {}) {
   const edit = !!p.user_id;
+  const sec = (title, sub = "") => `<div class="full form-sec"><h2>${title}</h2>${sub ? `<p class="muted small">${sub}</p>` : ""}</div>`;
+  // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
+  const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="full notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
   return `<form class="form card" data-form="profile" data-edit="${edit ? 1 : 0}"><div class="form-grid">
+    ${sec("Profile", "What appears at the top of your impact CV.")}
+    <div class="field full photo-field" data-photo-field>
+      <span>Profile photo</span>
+      <div class="photo-row">
+        <span class="photo-preview">${avatarFor({ name: p.name || "You", photo_url: p.photo_url }, 96)}</span>
+        <div class="stack" style="--gap:8px">
+          <div class="row" style="--gap:8px"><label class="btn secondary sm photo-pick">${icon("plus", 16)}<span>${p.photo_url ? "Change photo" : "Upload a photo"}</span><input type="file" accept="image/jpeg,image/png,image/webp" class="visually-hidden photo-file"></label><button type="button" class="link-btn photo-remove" ${p.photo_url ? "" : "hidden"}>Remove</button></div>
+          <span class="hint">A clear photo of your face, like on LinkedIn. JPG, PNG or WebP. We crop it square and remove location data.</span>
+          <span class="small photo-status" role="status"></span>
+        </div>
+      </div>
+      <input type="hidden" name="photo_url" value="${e(p.photo_url || "")}">
+    </div>
     ${field("name", "Full or professional name", { value: p.name, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
-    ${field("headline", "Professional headline", { value: p.headline, required: true, attrs: 'maxlength="160" placeholder="e.g. Finance consultant"' })}
-    ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
-    ${field("experience", "Experience", { value: p.experience, type: "textarea", full: true, attrs: 'maxlength="8000"', hint: "Roles, organisations and years. Optional." })}
-    ${field("skills", "Skills (separate with commas)", { value: (p.skills || []).join(", "), required: true, full: true, attrs: 'maxlength="800" placeholder="e.g. Budgeting, Training, Excel"' })}
-    ${field("languages", "Languages you can work in (separate with commas)", { value: (p.languages || []).join(", "), required: true, full: true, attrs: 'maxlength="800" placeholder="e.g. English, Spanish"', hint: "Include local or sign languages where relevant." })}
+    ${field("headline", "Title", { value: p.headline, required: true, attrs: 'maxlength="160" placeholder="e.g. Finance consultant · trainer"', hint: "One line under your name." })}
     ${field("location", "City or time zone", { value: p.location, attrs: 'maxlength="160" placeholder="e.g. Nairobi · UTC+3"' })}
-    ${field("country", "Country", { value: p.country, attrs: 'maxlength="100" autocomplete="country-name"' })}
+    ${countrySelect("country", "Country", p.country || "")}
+    ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
     ${select("arrangement", "How you can work", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}
     ${field("hours_available", "Hours a month you can give", { value: p.hours_available ?? 8, type: "number", required: true, attrs: 'min="0" max="160" step="1"' })}
-    ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name and experience match." })}
+    ${sec("About")}
+    ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
+    ${sec("Skills")}
+    ${skillPicker("skills", "Skills you can offer", p.skills || [], { hint: "Organisations and the Talent filters use the same list." })}
+    ${sec("Experience", "One box per role, newest first. The organisation and country show next to each role.")}
+    ${oldXp}
+    ${entryEditor("experience", "Roles", p.experience_items || [])}
+    ${sec("Education")}
+    ${entryEditor("education", "Qualifications", p.education_items || [], "Degrees, diplomas and certificates.")}
+    ${sec("Links")}
+    ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name, photo and experience match." })}
     ${field("website", "Other professional website", { value: p.website, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}
     <div class="checkbox-box full">
       ${check("age_confirmed", "I am 18 or older.", p.age_confirmed ?? true, true)}
@@ -151,6 +174,51 @@ export function profileForm(p = {}) {
       ${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}
     </div>
   </div>${formEnd(edit ? "Save profile" : "Create profile")}</form>`;
+}
+
+// Profile photo: cropped to a 480px square and re-encoded as JPEG in the browser (this also drops
+// EXIF data such as GPS location), then uploaded to the person's own folder in the avatars bucket.
+async function squareJpeg(file, size = 480) {
+  const bmp = await createImageBitmap(file).catch(() => { throw Error("That file could not be read as an image."); });
+  const s = Math.min(bmp.width, bmp.height), c = document.createElement("canvas");
+  c.width = c.height = Math.min(size, s);
+  c.getContext("2d").drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, c.width, c.height);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(Error("Could not prepare the photo."))), "image/jpeg", 0.86));
+}
+const ownAvatarPath = (url) => { const m = String(url || "").match(/\/object\/public\/avatars\/(.+)$/); return m && m[1].startsWith(state.user?.id + "/") ? decodeURIComponent(m[1]) : null; };
+let photoBound = false;
+export function bindPhotoFields() {
+  if (photoBound) return; photoBound = true;
+  const set = (box, url, msg) => {
+    box.querySelector('input[name="photo_url"]').value = url;
+    const name = box.closest("form")?.querySelector('[name="name"]')?.value || "You";
+    box.querySelector(".photo-preview").innerHTML = avatarFor({ name, photo_url: url }, 96);
+    box.querySelector(".photo-remove").hidden = !url;
+    box.querySelector(".photo-pick span").textContent = url ? "Change photo" : "Upload a photo";
+    box.querySelector(".photo-status").textContent = msg;
+  };
+  document.addEventListener("change", async (ev) => {
+    if (!ev.target.matches(".photo-file")) return;
+    const box = ev.target.closest("[data-photo-field]"), file = ev.target.files?.[0];
+    ev.target.value = "";
+    if (!file || !state.user) return;
+    const status = box.querySelector(".photo-status");
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { status.textContent = "Use a JPG, PNG or WebP image."; return; }
+    if (file.size > 15 * 1024 * 1024) { status.textContent = "That image is over 15 MB. Try a smaller one."; return; }
+    status.textContent = "Uploading…";
+    try {
+      const blob = await squareJpeg(file);
+      const path = `${state.user.id}/${Date.now()}.jpg`;
+      const up = await db.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+      if (up.error) throw up.error;
+      const { data } = db.storage.from("avatars").getPublicUrl(path);
+      set(box, data.publicUrl, "Photo ready. Save your profile to keep it.");
+    } catch (err) { status.textContent = err.message || "The photo could not be uploaded. Try again."; }
+  });
+  document.addEventListener("click", (ev) => {
+    const rm = ev.target.closest(".photo-remove");
+    if (rm) set(rm.closest("[data-photo-field]"), "", "Photo removed. Save your profile to confirm.");
+  });
 }
 
 // ---------- account settings ----------
@@ -231,12 +299,17 @@ export async function submitAccount(kind, form) {
     const linkedin = val(fd, "linkedin");
     if (!linkedin) throw Error("Add your LinkedIn profile. We use it to check who you are before approving your profile.");
     if (linkedin && !/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) throw Error("Use your LinkedIn profile address, starting with https://www.linkedin.com/");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience: val(fd, "experience"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: fd.has("age_confirmed"), unpaid_confirmed: fd.has("unpaid_confirmed"), published: fd.has("published") };
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: fd.has("age_confirmed"), unpaid_confirmed: fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) throw Error("Add at least one skill.");
+    if (!row.languages.length) throw Error("Choose at least one language you can work in.");
     const exists = !!state.profile;
+    const oldPhoto = state.profile?.photo_url;
     if (exists) { const { user_id, ...upd } = row; await result(db.from("profiles").update(upd).eq("user_id", state.user.id)); }
     else await result(db.from("profiles").insert(row));
     if (!exists && state.user.user_metadata?.role !== "professional") await db.auth.updateUser({ data: { role: "professional" } });
+    // Tidy up the previous photo once the new one is saved (best effort).
+    const oldPath = oldPhoto && oldPhoto !== row.photo_url ? ownAvatarPath(oldPhoto) : null;
+    if (oldPath) db.storage.from("avatars").remove([oldPath]).catch(() => {});
     await loadSession();
     const p = state.profile;
     toast(p.published && p.review_status === "pending" ? "Saved. Your profile is now awaiting approval." : "Profile saved.");

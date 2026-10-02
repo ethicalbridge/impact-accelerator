@@ -1,5 +1,5 @@
 import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result, homeFor, e } from "./core.js";
-import { header, footer } from "./ui.js";
+import { header, footer, bindLanguagePickers, bindEntryEditors } from "./ui.js";
 import { config } from "./config.js";
 import { initConsent, trackPage } from "./consent.js";
 import { enhance, bindHeader } from "./motion.js";
@@ -199,4 +199,7 @@ $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 initConsent();
 bindHeader();
+bindLanguagePickers();
+bindEntryEditors();
+acc.bindPhotoFields();
 render();

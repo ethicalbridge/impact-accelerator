@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession } from "../core.js";
-import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags } from "../ui.js";
+import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker } from "../ui.js";
 import { profileForm, orgForm } from "./account.js";
 import { list, languages, date, plural, today } from "../utils.js";
 
@@ -121,8 +121,8 @@ function needForm(n, o, approved) {
     ${field("title", "Title", { value: n.title, required: true, full: true, attrs: 'maxlength="160" minlength="5" placeholder="e.g. Improve our community data tools"' })}
     ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? Don’t include names of the people you support." })}
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
-    ${field("skills", "Skills involved (separate with commas)", { value: (n.skills || []).join(", "), required: true, full: true, attrs: 'maxlength="800"' })}
-    ${field("languages", "Working languages (separate with commas)", { value: (n.languages || []).join(", "), required: true, full: true, attrs: 'maxlength="800"', hint: "Support in any one of these is welcome." })}
+    ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
+    ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
     ${field("hours", "Estimated hours", { value: n.hours || 8, type: "number", required: true, attrs: 'min="1" max="200"' })}
     ${select("arrangement", "Arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}
     ${field("location", "Location or time zone", { value: n.location, attrs: 'maxlength="160"' })}
