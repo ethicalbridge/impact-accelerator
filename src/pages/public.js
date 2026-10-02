@@ -426,7 +426,7 @@ export async function profile(id) {
     </section>
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
       // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
-      const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span><span class="stat-more">See contributions ${icon("arrow", 14)}</span></button>`;
+      const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions" title="See contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span></button>`;
       return `<section class="stats-dark stats-btns stats-5" aria-label="Impact so far and availability">${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "endorsements pending") : tile(countries, "countries")}${(() => {
         // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
         const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
