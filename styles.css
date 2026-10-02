@@ -848,3 +848,5 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 @media (max-width: 640px) { .id-card.hero { flex-direction: column; align-items: flex-start; } }
 .invite-btn { background: var(--clay); border-color: var(--clay); color: #fff; }
 .invite-btn:hover { background: #a14f2f; border-color: #a14f2f; }
+.invite-btn { white-space: normal; height: auto; min-height: 52px; padding: 12px 22px; line-height: 1.25; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.invite-btn svg { flex-shrink: 0; }
