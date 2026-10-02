@@ -1,3 +1,4 @@
+import { locale, t } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS } from "../core.js";
 import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
@@ -335,7 +336,7 @@ export async function need(id) {
           <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </div>
-        <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose">${e(n.description)}</p></div>
+        <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose" data-no-i18n>${e(n.description)}</p></div>
         <div class="stack"><h2 style="font-size:2rem">${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
         <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:10px"><strong>Skills involved</strong>${tags(n.skills)}</div><div class="card stack" style="--gap:10px"><strong>Working languages</strong><p>${e((n.languages || []).join(", "))}. Support in any one of these is welcome.</p></div></div>
         <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
@@ -347,7 +348,7 @@ export async function need(id) {
             <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} ${n.hours === 1 ? "hour" : "hours"}</strong> ${n.handed ? "delivered" : "estimated"}</span></span>
             <span class="row">${icon("globe", 22, "#0f6f63")}Remote${n.location ? " · " + e(n.location) : ""}</span>
             <span class="row">${icon("calendar", 22, "#0f6f63")}${n.handed ? "Delivered and handed over" : n.deadline ? "Apply by " + date(n.deadline) : "No fixed deadline"}</span>
-            <span class="row">${icon("language", 22, "#0f6f63")}${e((n.languages || []).join(" · "))}</span>
+            <span class="row">${icon("language", 22, "#0f6f63")}${e((n.languages || []).map(t).join(" · "))}</span>
           </div>
           ${cta}
           ${!n.example && !n.handed && !isMember && state.user ? `<button class="btn secondary" type="button" data-action="save-need" data-id="${e(n.id)}">${icon("bookmark", 18)}${saved ? "Saved · remove" : "Save for later"}</button>` : ""}
@@ -430,7 +431,7 @@ export async function profile(id) {
     <section class="profile-head">
       ${avatarFor(p, 150)}
       <div class="stack" style="--gap:12px"><div class="row" style="--gap:10px">${eyebrow("Impact CV")}${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}${p.inactive_since ? pill("Inactive", "ochre") : ""}</div><h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
-        <div class="meta">${p.country ? `<span>${icon("map", 19, "#0f6f63")}${e(p.country)}</span>` : ""}<span>${icon("globe", 19, "#0f6f63")}${/^UTC/.test(p.location || "") ? `${e(p.location)} · remote` : "Remote"}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
+        <div class="meta">${p.country ? `<span>${icon("map", 19, "#0f6f63")}${e(t(p.country))}</span>` : ""}<span>${icon("globe", 19, "#0f6f63")}${/^UTC/.test(p.location || "") ? `${e(p.location)} · remote` : "Remote"}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).map(t).join(" · "))}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
         ${owner ? btn("Edit profile", "#workspace/profile") : canInvite ? `<button class="btn invite-btn" type="button" data-action="invite" data-id="${e(p.user_id)}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>` : state.profile && !state.memberships.length ? "" : `<button class="btn invite-btn" type="button" data-action="invite-cta" data-id="${e(p.user_id)}" data-sample="${ex ? 1 : 0}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>`}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
         ${safeURL(p.linkedin) ? `<a class="btn linkedin" href="${e(safeURL(p.linkedin))}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 18)}View on LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}
@@ -445,13 +446,13 @@ export async function profile(id) {
         // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
         const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const used = contributions.filter((c) => { const d = new Date(c.completed || c.completed_at || c.started || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
-        const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+        const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(locale(), { day: "numeric", month: "long" });
         return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left < per ? `${per} more hours unlock on ${next}` : `Back to ${per} hours on ${next}`) : "Not available right now"}</span>${canInvite && left ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}`;
       })()}</div></section>`; })()}
     <p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them. Ratings stay private to the professional." : "Only work reviewed by the organisation counts. Ratings stay private to the professional."}</p>
     <div class="split left">
       <aside class="stack" style="--gap:18px">
-        ${side("About", `<p class="prose" style="font-size:1rem">${e(p.bio || "No introduction yet.")}</p>`)}
+        ${side("About", `${p.bio ? `<p class="prose" style="font-size:1rem" data-no-i18n>${e(p.bio)}</p>` : `<p class="prose" style="font-size:1rem">No introduction yet.</p>`}`)}
         ${side("Skills", skillsByArea(p.skills || []))}
         ${p.website ? side("Elsewhere", `${safeLink(p.website, "Professional profile or website")}<span class="small muted">A link the professional added; not an identity check.</span>`) : ""}
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
@@ -464,7 +465,7 @@ export async function profile(id) {
         </div>
         <div role="tabpanel" id="panel-cv" aria-labelledby="tab-cv" class="stack" style="--gap:18px">
           ${(p.experience_items || []).length ? wide("Experience", `${entryList(p.experience_items, "experience")}<span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`)
-            : p.experience ? wide("Experience", `<ul class="xp">${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><div class="xp-top"><strong>${e(role)}</strong></div>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
+            : p.experience ? wide("Experience", `<ul class="xp" data-no-i18n>${String(p.experience).split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => { const [role, ...rest] = l.split(" · "); return `<li><div class="xp-top"><strong>${e(role)}</strong></div>${rest.length ? `<span>${e(rest.join(" · "))}</span>` : ""}</li>`; }).join("")}</ul><span class="small muted">Self-described. Contributions are reviewed by organisations.</span>`) : ""}
           ${(p.education_items || []).length ? wide("Education", entryList(p.education_items, "education")) : ""}
           ${!(p.experience_items || []).length && !p.experience && !(p.education_items || []).length ? empty("No CV details yet", owner ? "Add your roles and qualifications from Edit profile." : "This professional hasn’t added roles or qualifications yet.") : ""}
         </div>

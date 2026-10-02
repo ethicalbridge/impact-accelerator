@@ -1,8 +1,9 @@
+import { getLang } from "../i18n.js";
 import { state, e } from "../core.js";
 import { icon, eyebrow, btn } from "../ui.js";
 import { config } from "../config.js";
 
-const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p></div><article class="reading">${body}</article></div>`;
+const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}</div><article class="reading">${body}</article></div>`;
 const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
 export function privacy() {

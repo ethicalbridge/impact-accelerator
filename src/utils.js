@@ -1,3 +1,4 @@
+import { locale } from "./i18n.js";
 // Pure helpers: no DOM, no network. Covered by tests/utils.test.mjs.
 export const e = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -91,7 +92,7 @@ export function filterRecords(rows, f = {}) {
 export function date(value, opts = { day: "numeric", month: "short", year: "numeric" }) {
   if (!value) return "";
   const d = new Date(String(value).length === 10 ? value + "T12:00:00" : value);
-  return isNaN(d) ? "" : d.toLocaleDateString("en-GB", opts);
+  return isNaN(d) ? "" : d.toLocaleDateString(locale(), opts);
 }
 
 export const today = () => new Date().toISOString().slice(0, 10);

@@ -1,3 +1,4 @@
+import { locale, getLang } from "../i18n.js";
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
 import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
@@ -146,7 +147,7 @@ export function profileForm(p = {}) {
   const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
   return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}">
     ${p.closed_reason === "inactive" && !p.published ? `<div class="banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
-    ${p.inactive_since && p.published ? `<div class="banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
+    ${p.inactive_since && p.published ? `<div class="banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString(locale(), { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
     ${edit ? identityCard(p) : ""}
 
     <section class="card pf-head">
@@ -200,7 +201,7 @@ export function identityCard(p) {
     in_review: ["Your identity check is being reviewed", "This usually takes less than a day. We will notify you."],
     name_mismatch: ["We are checking your identity", "The name on your document is different from your profile name. An administrator will review it shortly."],
     declined: ["Your identity check did not go through", "Please try again with a clear photo of a valid passport or ID card, in good light."],
-    approved: ["Identity verified", `Verified${p.id_verified_at ? " on " + new Date(p.id_verified_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}. Your profile shows “ID verified”.`],
+    approved: ["Identity verified", p.id_verified_at ? `Verified on ${new Date(p.id_verified_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })}. Your profile shows “ID verified”.` : "Verified. Your profile shows “ID verified”."],
   }[st] || ["Verify your identity", ""];
   const canStart = ["", "started", "declined"].includes(st);
   if (st === "approved") return `<div class="full id-card ok"><span class="icon-tile">${icon("check", 22, "#0f6f63")}</span><div class="stack" style="--gap:6px"><strong>${text[0]}</strong><p class="small muted" style="margin:0">${text[1]}</p></div></div>`;
@@ -238,11 +239,11 @@ export async function verifyDone() {
 
 // The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.
 const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
-const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `<div class="agreement-text" tabindex="0" aria-label="${label}">${agreementHtml(sections, e)}</div>`;
+const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
 function agreementBlock() {
   if (signedCurrent()) {
     const a = state.proAgreement;
-    return `<div class="full agreement signed"><p>${icon("check", 20, "#0f6f63", 2.4)}<span>You signed the Handova professional agreement as <strong>${e(a.full_name)}</strong> on ${new Date(a.signed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.</span></p><details><summary>Read the agreement again</summary>${agreementBody()}</details></div>`;
+    return `<div class="full agreement signed"><p>${icon("check", 20, "#0f6f63", 2.4)}<span>You signed the Handova professional agreement as <strong>${e(a.full_name)}</strong> on ${new Date(a.signed_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })}.</span></p><details><summary>Read the agreement again</summary>${agreementBody()}</details></div>`;
   }
   return `<div class="full agreement">
     ${state.proAgreement ? `<p class="notice" role="note">We updated the agreement. Please read it and sign again.</p>` : ""}

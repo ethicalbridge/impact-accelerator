@@ -1,5 +1,6 @@
 import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS } from "./utils.js";
 import { state } from "./core.js";
+import { langMenu, locale, t, tf } from "./i18n.js";
 
 const IC = {
   check: '<path d="M5 12.5l4.2 4.2L19 7"/>',
@@ -205,7 +206,8 @@ export const countrySelect = (name, label, value = "", { required = false, full 
 // Dates are "YYYY-MM" (or "YYYY" when no month is given); end is "present" while ongoing.
 const THIS_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: THIS_YEAR + 6 - 1959 }, (_, i) => String(THIS_YEAR + 5 - i));
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = { map: (f) => Array.from({ length: 12 }, (_, i) => f(monthName(i), i)) };
+const monthName = (i) => { const n = new Date(2000, i, 15).toLocaleDateString(locale(), { month: "short" }).replace(/\.$/, ""); return n.charAt(0).toUpperCase() + n.slice(1); };
 export const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Self-employed", "Freelance", "Contract", "Internship", "Apprenticeship", "Volunteer", "Seasonal"];
 export const WORK_MODES = ["On-site", "Hybrid", "Remote"];
 export const DEGREES = ["Doctorate (PhD)", "Master", "MBA", "Postgraduate diploma", "Specialisation", "Bachelor", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school"];
@@ -338,7 +340,7 @@ function setLogo(box, url) {
   box.querySelector(".logo-pick span").textContent = url ? "Change logo" : "Add logo";
 }
 // "Apr 2026", "2019", or "Present"
-const fmt = (d, present) => { if (d === "present") return present.toLowerCase(); const { y, m } = split(d); return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : ""; };
+const fmt = (d, present) => { if (d === "present") return t(present).toLowerCase(); const { y, m } = split(d); return y ? (m ? `${monthName(Number(m) - 1)} ${y}` : y) : ""; };
 // LinkedIn-style duration, counting both the first and the last month: Apr–Oct is 7 mos.
 export function duration(start, end, now = new Date()) {
   const s = split(start); if (!s.y || !s.m) return "";
@@ -347,7 +349,7 @@ export function duration(start, end, now = new Date()) {
   const n = (Number(e2.y) * 12 + Number(e2.m)) - (Number(s.y) * 12 + Number(s.m)) + 1;
   if (n < 1) return "";
   const y = Math.floor(n / 12), m = n % 12;
-  return [y ? `${y} year${y > 1 ? "s" : ""}` : "", m ? `${m} month${m > 1 ? "s" : ""}` : ""].filter(Boolean).join(" ");
+  return [y ? t(`${y} year${y > 1 ? "s" : ""}`) : "", m ? t(`${m} month${m > 1 ? "s" : ""}`) : ""].filter(Boolean).join(" ");
 }
 export const entryDates = (it, kind = "experience") => {
   const present = kind === "education" ? "Present" : "Present";
@@ -368,11 +370,11 @@ const moreUnused = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-des
 // Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
 // Public view, CV style: role in bold, then organisation · country, then years.
 function roleLines(it, kind, inGroup) {
-  const title = kind === "education" ? (it.field && it.field !== "Other" ? `${it.title} in ${it.field}` : it.title) || it.organisation : it.title || it.organisation;
-  const place = inGroup ? "" : [title === it.organisation ? "" : it.organisation, it.country].filter(Boolean).join(" · ");
+  const title = kind === "education" ? (it.field && it.field !== "Other" ? tf("{degree} in {field}", { degree: t(it.title), field: t(it.field) }) : t(it.title)) || it.organisation : it.title || it.organisation;
+  const place = inGroup ? "" : [title === it.organisation ? "" : it.organisation, t(it.country)].filter(Boolean).join(" · ");
   return [`<strong class="xp-title">${e(title)}</strong>`, place ? `<span>${e(place)}</span>` : "", entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""];
 }
-const roleExtra = (it) => (it.description || (it.skills || []).length) ? `<details class="xp-more"><summary>Show details</summary>${it.description ? `<p class="xp-desc">${e(it.description)}</p>` : ""}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.join(", "))}</span>` : ""}</details>` : "";
+const roleExtra = (it) => (it.description || (it.skills || []).length) ? `<details class="xp-more"><summary>${t("Show details")}</summary>${it.description ? `<p class="xp-desc">${e(it.description)}</p>` : ""}${(it.skills || []).length ? `<span class="xp-skills">${icon("check", 15)}${e(it.skills.join(", "))}</span>` : ""}</details>` : "";
 export function entryList(items, kind = "experience") {
   const logos = logoMap(items), lg = (it) => logos.get((it.organisation || "").trim().toLowerCase()) || "";
   // All roles at the same organisation sit together, at the place of the most recent one.
@@ -382,16 +384,16 @@ export function entryList(items, kind = "experience") {
     if (key && byOrg.has(key)) byOrg.get(key).push(it);
     else { const g = [it]; groups.push(g); if (key) byOrg.set(key, g); }
   }
-  return `<ul class="xp-li">${groups.map((g) => {
+  return `<ul class="xp-li" data-no-i18n>${groups.map((g) => {
     if (g.length === 1) return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
     const starts = g.map((x) => x.start).filter(Boolean).sort(), ends = g.map((x) => x.end).filter(Boolean);
     const end = ends.includes("present") ? "present" : ends.sort().pop();
     const total = duration(starts[0], end);
     const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
-    const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? countries[0] : "";
+    const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? t(countries[0]) : "";
     const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" – ");
     return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body"><strong class="xp-title">${e([g[0].organisation, gCountry].filter(Boolean).join(" · "))}</strong>${range ? `<span class="xp-muted">${e([range, total].filter(Boolean).join(" · "))}</span>` : ""}
-      <ul class="xp-roles">${g.map((it) => `<li><strong class="xp-title">${e(it.title)}</strong>${!gCountry && it.country ? `<span>${e(it.country)}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${roleExtra(it)}</li>`).join("")}</ul></div></li>`;
+      <ul class="xp-roles">${g.map((it) => `<li><strong class="xp-title">${e(it.title)}</strong>${!gCountry && it.country ? `<span>${e(t(it.country))}</span>` : ""}${entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""}${roleExtra(it)}</li>`).join("")}</ul></div></li>`;
   }).join("")}</ul>`;
 }
 
@@ -429,7 +431,7 @@ export function needCard(n) {
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
     <span class="card-title">${e(n.title)}</span>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
-    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).join(" · "))}</span></div>
+    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).map(t).join(" · "))}</span></div>
     ${tags((n.skills || []).slice(0, 4))}
   </div></a>`;
 }
@@ -441,7 +443,7 @@ export function talentCard(p) {
     <div><span class="card-title">${e(p.name)}</span><p class="muted">${e(p.headline || "Professional")}</p>${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}</div>
     <div class="meta" style="flex-direction:column;gap:6px">
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>
-      <span>${icon("language", 17)}${e((p.languages || []).join(" · ") || "Languages not given")}</span>
+      <span>${icon("language", 17)}${e((p.languages || []).map(t).join(" · ") || "Languages not given")}</span>
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
@@ -457,7 +459,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
   const logo = c.org_logo && safeURL(c.org_logo)
     ? `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}<img src="${e(safeURL(c.org_logo))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`
     : `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}</span>`;
-  const org = `${c.org_page ? `<a href="${e(c.org_page)}">${e(c.organisation)}</a>` : e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(c.organisation_country)}</span>` : ""}`;
+  const org = `${c.org_page ? `<a href="${e(c.org_page)}">${e(c.organisation)}</a>` : e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(t(c.organisation_country))}</span>` : ""}`;
   return `<details class="contrib">
   <summary>
     ${logo}
@@ -486,10 +488,10 @@ export function header(active) {
     const name = state.profile?.name || state.memberships[0]?.full_name || state.user.email;
     const ws = state.memberships.length ? `<a href="#org">${icon("grid", 18)}Organisation workspace</a>` : "";
     const pw = state.profile ? `<a href="#workspace">${icon("user", 18)}My workspace</a>` : "";
-    right = `<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
+    right = `${langMenu()}<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
       <details class="account-menu"><summary>${avatar(name, 36)}<span class="hide-sm">${e(String(name).split(" ")[0])}</span></summary><div class="menu">${ws}${pw}${!ws && !pw ? `<a href="#onboarding">${icon("user", 18)}Finish setting up</a>` : ""}${state.isAdmin ? `<a href="#admin">${icon("shield", 18)}Admin</a>` : ""}<a href="#account">${icon("settings", 18)}Account and privacy</a><button type="button" data-action="signout">${icon("logout", 18)}Sign out</button></div></details>`;
   } else {
-    right = `<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
+    right = `${langMenu()}<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
   }
   return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? "" : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
 }

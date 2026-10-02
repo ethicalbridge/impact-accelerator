@@ -1,6 +1,7 @@
 import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result, homeFor, e } from "./core.js";
 import { header, footer, bindLanguagePickers, bindEntryEditors } from "./ui.js";
 import { config } from "./config.js";
+import { loadLang, initialLang, startTranslating, setLang, t } from "./i18n.js";
 import { initConsent, trackPage } from "./consent.js";
 import { enhance, bindHeader } from "./motion.js";
 import * as pub from "./pages/public.js";
@@ -76,9 +77,9 @@ async function render() {
     if (v !== version) return;
     if (out.redirect) { location.replace(out.redirect.startsWith("#") ? out.redirect : "#" + out.redirect); return; }
     main.innerHTML = out.html;
-    document.title = `${out.title} · Handova`;
+    document.title = `${t(out.title)} · Handova`;
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.content = out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.";
+    if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");
     out.after?.();
     enhance(main, r.name);
     idNudge(r.name);
@@ -101,6 +102,7 @@ let firstRender = true;
 const rpc = async (fn, args, message, next) => { await result(db.rpc(fn, args)); await loadSession(); if (message) toast(message); go(next || location.hash); };
 const actions = {
   reload: () => render(),
+  "set-lang": (el) => setLang(el.dataset.id),
   "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
   close: () => closeDialog(),
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); },
@@ -178,7 +180,7 @@ const confirmRpc = {
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {
-    if (!ev.target.closest(".account-menu")) document.querySelectorAll(".account-menu[open]").forEach((d) => d.removeAttribute("open"));
+    document.querySelectorAll(".account-menu[open], .lang-menu[open]").forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
     return;
   }
   const fn = actions[el.dataset.action];
@@ -215,6 +217,8 @@ db.auth.onAuthStateChange(async (event) => {
 });
 
 $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
+await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
+startTranslating();
 $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 initConsent();
