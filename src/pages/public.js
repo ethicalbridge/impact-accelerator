@@ -345,7 +345,7 @@ export async function need(id) {
           <div class="row between">${n.handed ? pill("Handed over", "ochre") : open ? pill("Open for applications") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
           <div class="stack" style="--gap:12px">
             <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} ${n.hours === 1 ? "hour" : "hours"}</strong> ${n.handed ? "delivered" : "estimated"}</span></span>
-            <span class="row">${icon("globe", 22, "#0f6f63")}${e(n.arrangement)}${n.location ? " · " + e(n.location) : ""}</span>
+            <span class="row">${icon("globe", 22, "#0f6f63")}Remote${n.location ? " · " + e(n.location) : ""}</span>
             <span class="row">${icon("calendar", 22, "#0f6f63")}${n.handed ? "Delivered and handed over" : n.deadline ? "Apply by " + date(n.deadline) : "No fixed deadline"}</span>
             <span class="row">${icon("language", 22, "#0f6f63")}${e((n.languages || []).join(" · "))}</span>
           </div>
@@ -432,7 +432,7 @@ export async function profile(id) {
     <section class="profile-head">
       ${avatarFor(p, 150)}
       <div class="stack" style="--gap:12px"><div class="row" style="--gap:10px">${eyebrow("Impact CV")}${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}${p.inactive_since ? pill("Inactive", "ochre") : ""}</div><h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
-        <div class="meta"><span>${icon("map", 19, "#0f6f63")}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("globe", 19, "#0f6f63")}${e(p.arrangement)}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
+        <div class="meta">${p.country ? `<span>${icon("map", 19, "#0f6f63")}${e(p.country)}</span>` : ""}<span>${icon("globe", 19, "#0f6f63")}${/^UTC/.test(p.location || "") ? `${e(p.location)} · remote` : "Remote"}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).join(" · "))}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
         ${canInvite ? `<button class="btn" type="button" data-action="invite" data-id="${e(p.user_id)}">Invite to a need</button>` : owner ? btn("Edit profile", "#workspace/profile") : ""}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
         ${safeURL(p.linkedin) ? `<a class="btn linkedin" href="${e(safeURL(p.linkedin))}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 18)}View on LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}

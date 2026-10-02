@@ -1,7 +1,7 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
 import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
-const HOURS_MONTH = [4, 6, 8, 10, 12, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
+const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
@@ -60,8 +60,8 @@ export async function join(params) {
     </div>
     <label class="check" style="margin-top:14px"><input type="checkbox" name="locally_led" required><span>We are a locally led organisation (led by people based where we work), registered or fiscally hosted.</span></label></fieldset>
     <fieldset data-for="professional" class="only-professional"><legend class="visually-hidden">About you</legend><div class="form-grid">
-      ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
-      ${field("headline", "What you do", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"' })}
+      ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120" placeholder="First and last name"' })}
+      ${field("headline", "Your professional title", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
     </div></fieldset>
     <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend>
       <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}</div>
@@ -137,53 +137,58 @@ export function orgForm(o = {}, fullName = "") {
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
 }
 
+// The edit page is laid out like the public profile: the header first, then About and Skills on the left,
+// Experience and Education on the right, then links and the agreement.
 export function profileForm(p = {}) {
   const edit = !!p.user_id;
-  const sec = (title, sub = "") => `<div class="full form-sec"><h2>${title}</h2>${sub ? `<p class="muted small">${sub}</p>` : ""}</div>`;
+  const head = (title, sub = "") => `<div class="pf-cardhead">${eyebrow(title)}${sub ? `<p class="muted small" style="margin:0">${sub}</p>` : ""}</div>`;
   // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
-  const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="full notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
-  return `<form class="form card" data-form="profile" data-edit="${edit ? 1 : 0}"><div class="form-grid">
-    ${p.closed_reason === "inactive" && !p.published ? `<div class="full banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
-    ${p.inactive_since && p.published ? `<div class="full banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
+  const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
+  return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}">
+    ${p.closed_reason === "inactive" && !p.published ? `<div class="banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
+    ${p.inactive_since && p.published ? `<div class="banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
     ${edit ? identityCard(p) : ""}
-    ${sec("Profile", "What appears at the top of your impact CV.")}
-    <div class="field full photo-field" data-photo-field>
-      <span>Profile photo</span>
-      <div class="photo-row">
-        <span class="photo-preview">${avatarFor({ name: p.name || "You", photo_url: p.photo_url }, 96)}</span>
-        <div class="stack" style="--gap:8px">
-          <div class="row" style="--gap:8px"><label class="btn secondary sm photo-pick">${icon("plus", 16)}<span>${p.photo_url ? "Change photo" : "Upload a photo"}</span><input type="file" accept="image/jpeg,image/png,image/webp" class="visually-hidden photo-file"></label><button type="button" class="link-btn photo-remove" ${p.photo_url ? "" : "hidden"}>Remove</button></div>
-          <span class="hint">A clear photo of your face, like on LinkedIn. JPG, PNG or WebP. We crop it square and remove location data.</span>
-          <span class="small photo-status" role="status"></span>
-        </div>
+
+    <section class="card pf-head">
+      <div class="photo-field pf-photo" data-photo-field>
+        <span class="photo-preview">${avatarFor({ name: p.name || "You", photo_url: p.photo_url || p.photo }, 150)}</span>
+        <div class="row" style="--gap:8px;justify-content:center"><label class="btn secondary sm photo-pick">${icon("plus", 16)}<span>${p.photo_url ? "Change photo" : "Upload a photo"}</span><input type="file" accept="image/jpeg,image/png,image/webp" class="visually-hidden photo-file"></label><button type="button" class="link-btn photo-remove" ${p.photo_url ? "" : "hidden"}>Remove</button></div>
+        <span class="small photo-status" role="status"></span>
+        <input type="hidden" name="photo_url" value="${e(p.photo_url || "")}">
       </div>
-      <input type="hidden" name="photo_url" value="${e(p.photo_url || "")}">
+      <div class="stack pf-main" style="--gap:14px">
+        ${eyebrow("Impact CV")}
+        ${field("name", "Full name", { value: p.name, required: true, attrs: 'maxlength="120" autocomplete="name" class="pf-name"' })}
+        ${field("headline", "Title", { value: p.headline, required: true, attrs: 'maxlength="160" placeholder="e.g. Lawyer · strategist · organisation builder"', hint: "One line under your name." })}
+        <div class="pf-meta">
+          ${countrySelect("country", "Country", p.country || "", { required: true })}
+          ${dropdown("location", "Time zone", TIMEZONES, p.location || "", { required: true, empty: "Choose a time zone" })}
+          ${dropdown("hours_available", "Hours you commit each month", HOURS_MONTH, String(Math.max(Number(p.hours_available) || 4, 4)), { required: true, empty: "", hint: "At least 4. Organisations plan around it." })}
+        </div>
+        ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
+        <p class="small muted" style="margin:0">${icon("globe", 16, "#0f6f63")} All contributions on Handova are remote.</p>
+      </div>
+    </section>
+
+    <div class="split left pf-cols">
+      <aside class="stack" style="--gap:18px">
+        <div class="card stack" style="--gap:12px">${head("About", "What you do and how you like to help.")}${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, attrs: 'maxlength="4000" minlength="30" rows="8"', hint: "Don’t include personal contact details." })}</div>
+        <div class="card stack" style="--gap:12px">${head("Skills", "Grouped by professional area. Organisations find you by these.")}${skillPicker("skills", "Skills you can offer", p.skills || [], {})}</div>
+        <div class="card stack" style="--gap:12px">${head("Links")}${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We check it before approving you; organisations see a “View on LinkedIn” button." })}${field("website", "Other professional website", { value: p.website, type: "url", attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}</div>
+      </aside>
+      <section class="stack" style="--gap:18px">
+        <div class="card stack" style="--gap:12px">${head("Experience", "Required. One box per role, most recent first. Use Move up or down to reorder.")}${oldXp}${entryEditor("experience", "Roles", p.experience_items || [])}</div>
+        <div class="card stack" style="--gap:12px">${head("Education", "Required. One box per qualification.")}${entryEditor("education", "Qualifications", p.education_items || [])}</div>
+      </section>
     </div>
-    ${field("name", "Full or professional name", { value: p.name, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
-    ${field("headline", "Title", { value: p.headline, required: true, attrs: 'maxlength="160" placeholder="e.g. Finance consultant · trainer"', hint: "One line under your name." })}
-    ${dropdown("location", "Time zone", TIMEZONES, p.location || "", { empty: "Choose a time zone" })}
-    ${countrySelect("country", "Country", p.country || "")}
-    ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
-    ${select("arrangement", "How you can work", ["Remote", "Hybrid", "In person"], p.arrangement || "Remote")}
-    ${dropdown("hours_available", "Hours you commit to each month", HOURS_MONTH, String(Math.max(Number(p.hours_available) || 4, 4)), { required: true, empty: "Choose", hint: "At least 4 hours a month. Organisations plan around this, so choose what you can really give." })}
-    ${sec("About")}
-    ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
-    ${sec("Skills")}
-    ${skillPicker("skills", "Skills you can offer", p.skills || [], { hint: "Skills are grouped by professional area. Organisations find you through the Professional area filter by these skills." })}
-    ${sec("Experience", "Required. One box per role: role, organisation, country and dates. Put the most recent first; use Move up or down to reorder.")}
-    ${oldXp}
-    ${entryEditor("experience", "Roles", p.experience_items || [])}
-    ${sec("Education", "Required. One box per qualification: qualification, field, university, country and years.")}
-    ${entryEditor("education", "Qualifications", p.education_items || [])}
-    ${sec("Links")}
-    ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name, photo and experience match." })}
-    ${field("website", "Other professional website", { value: p.website, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}
-    ${sec("Agreement", "Handova only works if organisations can count on the people they find here.")}
-    ${agreementBlock()}
-    <div class="checkbox-box full">
-      ${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}
-    </div>
-  </div>${formEnd(edit ? "Save profile" : "Create profile")}</form>`;
+
+    <section class="card stack" style="--gap:14px">
+      ${head("Agreement", "Handova only works if organisations can count on the people they find here.")}
+      ${agreementBlock()}
+      <div class="checkbox-box">${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}</div>
+      ${formEnd(edit ? "Save profile" : "Create profile")}
+    </section>
+  </form>`;
 }
 
 // Identity check (Didit): passport or ID card plus a live selfie. Handova only receives the result and the name on the document.
@@ -385,7 +390,7 @@ export async function submitAccount(kind, form) {
     const linkedin = val(fd, "linkedin");
     if (!linkedin) throw Error("Add your LinkedIn profile. We use it to check who you are before approving your profile.");
     if (linkedin && !/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) throw Error("Use your LinkedIn profile address, starting with https://www.linkedin.com/");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) throw Error("Add at least one skill.");
     if (!row.languages.length) throw Error("Choose at least one language you can work in.");
     if (!row.experience_items.length) throw Error("Add at least one role under Experience.");

@@ -429,7 +429,7 @@ export function needCard(n) {
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
     <span class="card-title">${e(n.title)}</span>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
-    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}${e(n.arrangement)}</span><span>${icon("language", 17)}${e((n.languages || []).join(" · "))}</span></div>
+    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).join(" · "))}</span></div>
     ${tags((n.skills || []).slice(0, 4))}
   </div></a>`;
 }
@@ -445,7 +445,7 @@ export function talentCard(p) {
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
-    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · endorsements pending` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : e(p.arrangement || "Remote")}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
+    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · endorsements pending` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
   </div></a>`;
 }
 

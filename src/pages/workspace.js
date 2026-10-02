@@ -124,7 +124,6 @@ function needForm(n, o, approved) {
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
     ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
-    ${select("arrangement", "Arrangement", ["Remote", "Hybrid", "In person"], n.arrangement || "Remote")}
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
     ${countrySelect("country", "Country", n.country || o.country || "")}
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
@@ -137,7 +136,7 @@ function needForm(n, o, approved) {
 export async function submitNeed(form) {
   await withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and the safeguarding confirmation.")); }
-    const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: val(fd, "arrangement"), location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
+    const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
     else await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }));
     toast(row.status === "open" ? "Your need is live." : "Need saved.");
