@@ -14,7 +14,8 @@ export async function agreement(id) {
   const hours = x.status === "awaiting_signatures" ? [] : await result(db.from("hours").select("*").eq("engagement_id", id).order("work_date", { ascending: false }));
   const approved = hours.filter((h) => h.status === "approved").reduce((a, h) => a + Number(h.hours), 0);
   const sig = (who, name, when) => `<div class="sig"><span class="small muted">${who}</span><strong>${e(name || "Not yet signed")}</strong><span class="small" style="color:${when ? "var(--teal)" : "var(--ochre-ink)"};font-weight:600;display:inline-flex;gap:6px;align-items:center">${icon(when ? "check" : "clock", 16)}${when ? "Signed " + date(when) : "Signature needed"}</span></div>`;
-  const signForm = x.status === "awaiting_signatures" && (isTalent || isOrg) && !mySigned ? `<form class="form" data-form="sign" data-id="${e(id)}">
+  const needsId = isTalent && state.idRequired && state.profile?.id_status !== "approved";
+  const signForm = needsId && x.status === "awaiting_signatures" && !mySigned ? `<div class="stack" style="--gap:10px"><p class="small"><strong>Verify your identity first.</strong> It takes about three minutes and is required before you sign your first contribution agreement.</p><button type="button" class="btn sm" data-action="verify-id">Verify my identity</button></div>` : x.status === "awaiting_signatures" && (isTalent || isOrg) && !mySigned ? `<form class="form" data-form="sign" data-id="${e(id)}">
       ${check("c1", "I agree to the scope, output, hours and working languages above.", false, true)}
       ${check("c2", "I will follow the confidentiality, minimum-access and data rules, and never share passwords, card details, PINs or access codes on the platform.", false, true)}
       ${check("c3", "I have read every section, including safeguarding and the platform’s role and limits.", false, true)}

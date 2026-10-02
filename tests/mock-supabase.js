@@ -17,7 +17,7 @@ function seed() {
     organisations: [{ id: ORG, name: "Community Research Lab", country: "Kenya", city: "Kisumu", website: "https://example.org", summary: "A community research group helping village committees use evidence.", org_type: "Community organisation", locally_led_confirmed: true, status: "approved", approved_at: now(), created_at: now() }],
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", created_at: now(), updated_at: now() }],
-    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [],
+    applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [], app_settings: [{ key: "require_id_verification", value: "true" }], id_verifications: [],
   };
 }
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { return seed(); } };
@@ -50,6 +50,7 @@ function visible(table, r) {
     case "reports": return r.reporter_id === u || admin;
     case "saved_needs": case "notifications": case "user_settings": return r.user_id === u;
     case "agreement_signatures": return r.user_id === u || admin;
+    case "app_settings": return true;
     case "organisation_members": return r.user_id === u || isMember(r.organisation_id) || admin;
     default: return false;
   }
@@ -249,6 +250,14 @@ export function createClient() {
   return {
     auth,
     from: (t) => new Query(t),
+    // Identity checks: the mock approves straight away, as if Didit had approved the document.
+    functions: { async invoke(name, { body } = {}) {
+      D = load(); const u = me(); const p = D.profiles.find((x) => x.user_id === u);
+      if (name !== "id-verify" || !p) return { data: null, error: { message: "Create your professional profile first." } };
+      if (body?.action === "start") { p.id_status = "started"; save(); return { data: { url: "#verify-done" }, error: null }; }
+      if (body?.action === "check") { if (p.id_status === "started") { p.id_status = "approved"; p.id_verified_at = now(); p.id_document_name = p.name.toUpperCase(); save(); } return { data: { status: p.id_status }, error: null }; }
+      return { data: null, error: { message: "Unknown action" } };
+    } },
     // Storage: files kept as data URLs in localStorage, so photo uploads work offline.
     storage: { from: (bucket) => ({
       async upload(path, blob) { const url = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); localStorage.setItem(`ia-mock-file:${bucket}/${path}`, url); return { data: { path }, error: null }; },

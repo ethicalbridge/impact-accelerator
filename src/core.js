@@ -21,19 +21,20 @@ export async function loadSession() {
   const { data } = await db.auth.getSession();
   state.user = data.session?.user || null;
   if (!state.user) {
-    Object.assign(state, { profile: null, memberships: [], isAdmin: false, unread: 0, proAgreement: null, ready: true });
+    Object.assign(state, { profile: null, memberships: [], isAdmin: false, unread: 0, proAgreement: null, idRequired: false, ready: true });
     return;
   }
   const uid = state.user.id;
-  const [profile, memberships, admin, unread, proAgreement] = await Promise.all([
+  const [profile, memberships, admin, unread, proAgreement, idSetting] = await Promise.all([
     result(db.from("profiles").select("*").eq("user_id", uid).maybeSingle()).catch(() => null),
     result(db.from("organisation_members").select("organisation_id, role, full_name, organisation:organisations(*)").eq("user_id", uid)).catch(() => []),
     result(db.rpc("is_admin")).catch(() => false),
     db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).is("read_at", null),
     // The latest professional agreement this person signed (version and date only).
     result(db.from("agreement_signatures").select("version,signed_at,full_name,hours_committed").eq("user_id", uid).eq("kind", "professional").order("signed_at", { ascending: false }).limit(1)).then((r) => r?.[0] || null).catch(() => null),
+    result(db.from("app_settings").select("value").eq("key", "require_id_verification").maybeSingle()).catch(() => null),
   ]);
-  Object.assign(state, { profile, memberships: memberships || [], isAdmin: !!admin, unread: unread?.count || 0, proAgreement, ready: true });
+  Object.assign(state, { profile, memberships: memberships || [], isAdmin: !!admin, unread: unread?.count || 0, proAgreement, idRequired: idSetting?.value === "true", ready: true });
 }
 
 export const role = () => state.user?.user_metadata?.role || (state.memberships.length ? "organisation" : "professional");

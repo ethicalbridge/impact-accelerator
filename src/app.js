@@ -44,6 +44,7 @@ async function page(r) {
     case "conversation-for": return eng.conversationFor(r.a, r.b);
     case "notifications": return adm.notifications();
     case "admin": return adm.admin();
+    case "verify-done": return acc.verifyDone();
     case "privacy": return legal.privacy();
     case "terms": return legal.terms();
     case "cookies": return legal.cookies();
@@ -95,6 +96,8 @@ const actions = {
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
+  "verify-id": (el) => acc.startIdCheck(el),
+  "admin-id": async (el) => { await result(db.rpc("admin_confirm_identity", { p_user: el.dataset.id, p_approve: el.dataset.ok === "1" })); toast("Identity decision saved."); render(); },
   "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
   print: () => window.print(),
   apply: (el) => pub.applyDialog(el.dataset.id),

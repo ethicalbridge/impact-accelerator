@@ -145,6 +145,7 @@ export function profileForm(p = {}) {
   return `<form class="form card" data-form="profile" data-edit="${edit ? 1 : 0}"><div class="form-grid">
     ${p.closed_reason === "inactive" && !p.published ? `<div class="full banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
     ${p.inactive_since && p.published ? `<div class="full banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
+    ${edit ? identityCard(p) : ""}
     ${sec("Profile", "What appears at the top of your impact CV.")}
     <div class="field full photo-field" data-photo-field>
       <span>Profile photo</span>
@@ -183,6 +184,42 @@ export function profileForm(p = {}) {
       ${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}
     </div>
   </div>${formEnd(edit ? "Save profile" : "Create profile")}</form>`;
+}
+
+// Identity check (Didit): passport or ID card plus a live selfie. Handova only receives the result and the name on the document.
+export function identityCard(p) {
+  const st = p.id_status || "";
+  const text = {
+    "": ["Verify your identity", `Organisations trust verified profiles. It takes about three minutes: a photo of your passport or ID card and a short selfie, on our provider Didit’s secure page. Handova only receives the result and the name on your document, never the images.${state.idRequired ? " <strong>Required before you sign your first contribution agreement.</strong>" : ""}`],
+    started: ["Finish your identity check", "You started a check but it isn’t finished yet. Continue where you left off, or start again."],
+    in_review: ["Your identity check is being reviewed", "This usually takes less than a day. We will notify you."],
+    name_mismatch: ["We are checking your identity", "The name on your document is different from your profile name. An administrator will review it shortly."],
+    declined: ["Your identity check did not go through", "Please try again with a clear photo of a valid passport or ID card, in good light."],
+    approved: ["Identity verified", `Verified${p.id_verified_at ? " on " + new Date(p.id_verified_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}. Your profile shows “ID verified”.`],
+  }[st] || ["Verify your identity", ""];
+  const canStart = ["", "started", "declined"].includes(st);
+  return `<div class="full id-card ${st === "approved" ? "ok" : ""}"><span class="icon-tile">${icon(st === "approved" ? "check" : "lock", 22, "#0f6f63")}</span><div class="stack" style="--gap:6px"><strong>${text[0]}</strong><p class="small muted" style="margin:0">${text[1]}</p>${canStart ? `<div><button type="button" class="btn sm" data-action="verify-id">${st === "started" ? "Continue identity check" : st === "declined" ? "Try again" : "Verify my identity"}</button></div>` : ""}</div></div>`;
+}
+export async function startIdCheck(el) {
+  el?.setAttribute("disabled", "");
+  try {
+    const { data, error } = await db.functions.invoke("id-verify", { body: { action: "start" } });
+    if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch {} throw Error(msg); }
+    if (data?.url) location.href = data.url; else throw Error(data?.error || "The identity check could not start.");
+  } catch (err) { toast(err.message || "The identity check could not start. Please try again."); el?.removeAttribute("disabled"); }
+}
+export async function verifyDone() {
+  if (!state.user) return { redirect: "#signin?next=%23verify-done" };
+  let st = "";
+  try { const { data } = await db.functions.invoke("id-verify", { body: { action: "check" } }); st = data?.status || ""; } catch {}
+  await loadSession();
+  const msg = {
+    approved: ["Your identity is verified", "Thank you. Your profile now shows “ID verified”."],
+    in_review: ["Thank you, your check is being reviewed", "This usually takes less than a day. We will notify you."],
+    name_mismatch: ["Thank you, we are reviewing it", "The name on your document is different from your profile name, so an administrator will confirm it shortly."],
+    declined: ["The check did not go through", "Please try again with a clear photo of a valid passport or ID card, in good light."],
+  }[st] || ["Thank you", "We are processing your check. You will get a notification as soon as it is done."];
+  return { title: "Identity check", html: `<div class="wrap" style="max-width:720px;padding-block:72px 96px"><div class="card stack" style="--gap:16px"><span class="icon-tile lg">${icon(st === "approved" ? "check" : "clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">${msg[0]}</h1><p class="lead">${msg[1]}</p><div class="row">${btn("Back to my profile", "#workspace/profile")}${btn("Find a need", "#needs", "secondary")}</div></div></div>` };
 }
 
 // The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.

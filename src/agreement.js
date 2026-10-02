@@ -21,6 +21,7 @@ export const PRO_AGREEMENT = [
   ["1. Who can join", [
     "You are 18 or older.",
     "You join as yourself. Your name, photo, experience and education are true and match your LinkedIn profile. We may ask for a short video call or a reference before approving you.",
+    "Before you sign your first contribution agreement, you verify your identity with our identity-check provider, Didit, using a valid passport or ID card and a live selfie. Handova receives only the result and the name on your document, never the images.",
     "You have never been dismissed, or left during an investigation, for sexual exploitation, abuse or harassment, and you have never been convicted of an offence against a child or an adult at risk. You are not barred from working with children or adults at risk, and you are not on a government sanctions list.",
     "You tell us promptly if anything important changes, including anything in the point above.",
   ]],
@@ -96,7 +97,7 @@ export const PRO_AGREEMENT = [
   ]],
   ["15. Our role", [
     "Handova reviews organisations and profiles and provides the tools to agree, track and review work. We are not a party to the work between you and the organisation, we do not supervise it, and we cannot guarantee any outcome.",
-    "Our reviews are not background checks, and a profile or organisation page is not a licence or a guarantee.",
+    "Our reviews and identity checks are not background checks, and a profile or organisation page is not a licence or a guarantee.",
     "To the extent the law allows, Handova and Ethical Bridge are not responsible for losses arising from the work arranged between you and an organisation. Nothing in this agreement limits responsibility for our own negligence, fraud, or anything else that cannot legally be limited.",
   ]],
   ["16. Breaches, suspension and appeals", [
@@ -106,6 +107,7 @@ export const PRO_AGREEMENT = [
   ["17. Your data and this record", [
     "We handle your data as described in our privacy notice. Your profile is public only when you publish it and we approve it.",
     "When you sign, we store your name, email address, the date and time, your IP address and browser, the hours you committed and the exact text you agreed to. We keep this record for six years after your account closes, so both sides can rely on it, even if you delete your account.",
+    "For the identity check, Didit processes your document and selfie as our service provider, under its own security and data protection commitments. We keep only the result, the date and the name on the document.",
   ]],
   ["18. Changes and contact", [
     "If we change this agreement, we will tell you and ask you to sign the new version before your profile can be published again.",
@@ -164,7 +166,7 @@ export const ORG_AGREEMENT = [
   ]],
   ["10. Our role", [
     "Handova reviews organisations and profiles and provides the tools to agree, track and review work. We are not a party to the work between you and a professional, we do not supervise it, and we cannot guarantee any outcome.",
-    "Our reviews are not background checks, and a profile is not a licence or a guarantee. You remain responsible for your own checks, policies and decisions.",
+    "Our reviews and identity checks are not background checks, and a profile is not a licence or a guarantee. You remain responsible for your own checks, policies and decisions.",
     "To the extent the law allows, Handova and Ethical Bridge are not responsible for losses arising from the work arranged between you and a professional. Nothing in this agreement limits responsibility for our own negligence, fraud, or anything else that cannot legally be limited.",
   ]],
   ["11. Breaches, suspension and appeals", [
