@@ -28,13 +28,13 @@ export function languages(value) {
 export const professionalAreas = [
   ["Accessibility & inclusion", "accessibility inclusive inclusion disability"],
   ["Accounting & finance", "accounting bookkeeping finance financial budgeting budget payroll"],
-  ["Communications & storytelling", "communications communication storytelling media social content copywriting writing"],
+  ["Communications & storytelling", "communications communication storytelling media social content copywriting writing advocacy"],
   ["Data, MEL & research", "data analysis analytics monitoring evaluation learning mel research survey dashboard"],
   ["Design & UX", "design ux ui user experience figma graphic branding illustration"],
-  ["Fundraising & grants", "fundraising grant grants donor donors philanthropy"],
+  ["Fundraising & grants", "fundraising grant grants donor donors philanthropy proposal award awards"],
   ["HR & people", "human resources recruitment people wellbeing hr"],
-  ["Legal & policy", "legal law policy compliance governance contracts"],
-  ["Strategy & operations", "strategy operations planning project management programme"],
+  ["Legal & policy", "legal law policy compliance governance contracts rights justice"],
+  ["Strategy & operations", "strategy operations planning project management programme partnerships entrepreneurship startup leadership"],
   ["Technology & web", "software web website development developer technology digital it"],
   ["Training & facilitation", "training facilitation workshop coaching mentoring"],
   ["Translation & languages", "translation interpretation localisation localization"],
@@ -49,7 +49,8 @@ export function filterRecords(rows, f = {}) {
   const area = professionalAreas.find((a) => a.label === f.area);
   return rows.filter((r) => {
     const hay = norm([r.name, r.title, r.headline, r.description, r.output, r.bio, (r.skills || []).join(" "), r.organisation?.name, r.country, r.location, ...(r.experience_items || []).map((x) => `${x.title} ${x.organisation} ${x.country}`)].join(" "));
-    const hayWords = new Set(hay.split(" "));
+    // Areas come from what someone offers (skills, headline) or what a need asks for, not from past job titles.
+    const hayWords = new Set(norm([r.title, r.headline, r.description, r.output, (r.skills || []).join(" ")].join(" ")).split(" "));
     if (f.search && !norm(f.search).split(" ").every((w) => hay.includes(w))) return false;
     if (area && !area.keywords.some((k) => hayWords.has(k) || (k.length >= 4 && [...hayWords].some((w) => w.startsWith(k))))) return false;
     if (f.country && norm(`${r.country || r.organisation?.country || ""} ${r.location}`).indexOf(norm(f.country)) === -1) return false;

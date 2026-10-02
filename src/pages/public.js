@@ -1,5 +1,5 @@
 import { db, state, result, e, openDialog, toast, go, withForm, val, $ } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList } from "../ui.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -372,6 +372,14 @@ export async function talent() {
 }
 
 // ---------- Profile / impact CV ----------
+// Skills grouped under the same areas as the filters; anything else goes under "Other".
+function skillsByArea(list) {
+  if (list.length <= 8) return tags(list);
+  const left = new Set(list), out = [];
+  for (const [area, opts] of SKILL_GROUPS) { const hit = opts.filter((o) => left.has(o)); if (hit.length) { out.push([area, hit]); hit.forEach((h) => left.delete(h)); } }
+  if (left.size) out.push(["Other", [...left]]);
+  return `<div class="skill-areas">${out.map(([a, l]) => `<div><span class="skill-area">${e(a)}</span>${tags(l)}</div>`).join("")}</div>`;
+}
 export async function profile(id) {
   if (id === "example-maria-lopez") return { redirect: "#profile/" + exampleProfile.user_id };
   const ex = id === exampleProfile.user_id;
@@ -407,7 +415,7 @@ export async function profile(id) {
     <div class="split left">
       <aside class="stack" style="--gap:18px">
         ${side("About", `<p class="prose" style="font-size:1rem">${e(p.bio || "No introduction yet.")}</p>`)}
-        ${side("Skills", tags(p.skills || []))}
+        ${side("Skills", skillsByArea(p.skills || []))}
         ${p.website ? side("Elsewhere", `${safeLink(p.website, "Professional profile or website")}<span class="small muted">A link the professional added; not an identity check.</span>`) : ""}
         ${side("How this record is built", `<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>An organisation defines a need</li><li>Both sign a contribution agreement</li><li>Hours are logged and reviewed</li><li>The organisation writes an endorsement</li><li>The professional chooses to publish it</li></ol>`)}
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}

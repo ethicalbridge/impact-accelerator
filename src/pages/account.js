@@ -162,11 +162,11 @@ export function profileForm(p = {}) {
     ${field("bio", "Introduction", { value: p.bio, type: "textarea", required: true, full: true, attrs: 'maxlength="4000" minlength="30"', hint: "What you do and how you like to help. Don’t include personal contact details." })}
     ${sec("Skills")}
     ${skillPicker("skills", "Skills you can offer", p.skills || [], { hint: "Organisations and the Talent filters use the same list." })}
-    ${sec("Experience", "One box per role, newest first. The organisation and country show next to each role.")}
+    ${sec("Experience", "Required. One box per role: role, organisation, country and dates. Put the most recent first; use Move up or down to reorder.")}
     ${oldXp}
     ${entryEditor("experience", "Roles", p.experience_items || [])}
-    ${sec("Education")}
-    ${entryEditor("education", "Qualifications", p.education_items || [], "Degrees, diplomas and certificates.")}
+    ${sec("Education", "Required. One box per qualification: qualification, field, university, country and years.")}
+    ${entryEditor("education", "Qualifications", p.education_items || [])}
     ${sec("Links")}
     ${field("linkedin", "LinkedIn profile", { value: p.linkedin, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://www.linkedin.com/in/your-name"', hint: "Required. We use it to check who you are before approving your profile, and organisations see a “View on LinkedIn” button. Make sure your name, photo and experience match." })}
     ${field("website", "Other professional website", { value: p.website, type: "url", full: true, attrs: 'maxlength="300" placeholder="https://"', hint: "Optional, for example a portfolio." })}
@@ -304,6 +304,8 @@ export async function submitAccount(kind, form) {
     const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: val(fd, "arrangement"), hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: fd.has("age_confirmed"), unpaid_confirmed: fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) throw Error("Add at least one skill.");
     if (!row.languages.length) throw Error("Choose at least one language you can work in.");
+    if (!row.experience_items.length) throw Error("Add at least one role under Experience.");
+    if (!row.education_items.length) throw Error("Add at least one qualification under Education.");
     const exists = !!state.profile;
     const oldPhoto = state.profile?.photo_url;
     if (exists) { const { user_id, ...upd } = row; await result(db.from("profiles").update(upd).eq("user_id", state.user.id)); }

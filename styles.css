@@ -757,3 +757,7 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .xp-more { margin-top: 4px; }
 .xp-more > summary { display: inline-flex; color: var(--teal); font-weight: 600; font-size: 0.86rem; cursor: pointer; }
 .xp-more[open] > summary { display: inline-flex; }
+.entry-opt > summary { cursor: pointer; color: var(--teal); font-weight: 600; font-size: 0.92rem; margin-bottom: 6px; }
+.entry-opt textarea { width: 100%; min-height: 80px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; font: 400 1rem var(--sans); }
+.skill-areas { display: flex; flex-direction: column; gap: 12px; }
+.skill-area { display: block; margin-bottom: 6px; font-size: 0.78rem; font-weight: 700; color: var(--muted); }

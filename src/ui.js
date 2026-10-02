@@ -139,13 +139,13 @@ export const LANGUAGES = ["English", "Spanish", "French", "Portuguese", "Arabic"
 export const SKILL_GROUPS = [
   ["Accessibility & inclusion", ["Accessibility", "Inclusion", "Disability inclusion", "Gender equality and inclusion"]],
   ["Accounting & finance", ["Accounting", "Bookkeeping", "Budgeting", "Financial management", "Payroll"]],
-  ["Communications & storytelling", ["Communications", "Storytelling", "Social media", "Copywriting", "Content writing", "Media relations"]],
-  ["Data, MEL & research", ["Data analysis", "Monitoring and evaluation (MEL)", "Research", "Surveys", "Dashboards"]],
+  ["Communications & storytelling", ["Communications", "Storytelling", "Ethical storytelling", "Advocacy", "Social media", "Copywriting", "Content writing", "Media relations"]],
+  ["Data, MEL & research", ["Data analysis", "Monitoring and evaluation (MEL)", "Program evaluation", "Research", "Qualitative research", "Quantitative research", "Surveys", "Dashboards"]],
   ["Design & UX", ["Graphic design", "Branding", "UX research", "UI design", "Illustration"]],
-  ["Fundraising & grants", ["Fundraising", "Grant writing", "Donor research", "Individual giving"]],
+  ["Fundraising & grants", ["Fundraising", "Grant writing", "Proposal writing", "Award and grant management", "Donor relations", "Donor research", "Individual giving"]],
   ["HR & people", ["Human resources", "Recruitment", "People and wellbeing", "People management"]],
-  ["Legal & policy", ["Legal", "Policy", "Compliance and risk", "Governance", "Contracts"]],
-  ["Strategy & operations", ["Strategy", "Strategic planning", "Theory of change", "Operations", "Project management", "Programme management", "Partnerships"]],
+  ["Legal & policy", ["Legal", "Legal research", "Human rights", "Access to justice", "Policy", "Compliance and risk", "Governance", "Contracts"]],
+  ["Strategy & operations", ["Strategy", "Strategic planning", "Theory of change", "Operations", "Project management", "Programme management", "Partnerships", "Entrepreneurship", "Start-up leadership"]],
   ["Technology & web", ["Website development", "Software development", "Digital tools", "IT support"]],
   ["Training & facilitation", ["Training", "Facilitation", "Workshop design", "Coaching", "Mentoring"]],
   ["Translation & languages", ["Translation", "Interpretation", "Localisation"]],
@@ -223,7 +223,7 @@ const YEARS = Array.from({ length: THIS_YEAR + 6 - 1959 }, (_, i) => String(THIS
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Self-employed", "Freelance", "Contract", "Internship", "Apprenticeship", "Volunteer", "Seasonal"];
 export const WORK_MODES = ["On-site", "Hybrid", "Remote"];
-export const DEGREES = ["Doctorate (PhD)", "Bachelor’s and master’s degree", "Master of Laws (LLM)", "Master’s degree", "MBA", "Bachelor of Laws (LLB)", "Bachelor’s degree", "Postgraduate diploma", "Postgraduate certificate", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school", "Other"];
+export const DEGREES = ["Doctorate (PhD)", "Master", "MBA", "Postgraduate diploma", "Specialisation", "Bachelor", "Diploma", "Certificate", "Associate degree", "Professional qualification", "Short course", "Secondary school"];
 export const FIELDS = ["Accounting", "Agriculture", "Anthropology", "Architecture", "Business administration", "Communications", "Computer science", "Criminology and forensic science", "Data science", "Design", "Development studies", "Economics", "Education", "Engineering", "Environmental science", "Finance", "Gender studies", "Geography", "Health sciences", "History", "Human resources", "Human rights", "International relations", "Journalism", "Languages and linguistics", "Law", "Marketing", "Mathematics and statistics", "Media and film", "Medicine", "Nursing", "Peace and conflict studies", "Philosophy", "Political science", "Psychology", "Public health", "Public policy", "Regional studies (e.g. African, Latin American)", "Social work", "Sociology", "Other"];
 export const TIMEZONES = Array.from({ length: 27 }, (_, i) => i - 12).map((h) => `UTC${h === 0 ? "" : h > 0 ? "+" + h : "−" + -h}`).concat(["UTC+5:30", "UTC+5:45", "UTC+9:30", "UTC+3:30", "UTC+4:30", "UTC+6:30"]).sort((a, b) => tzNum(a) - tzNum(b));
 function tzNum(t) { const m = t.replace("−", "-").match(/UTC([+-]\d+)?(?::(\d+))?/); const h = Number(m?.[1] || 0); return h + Math.sign(h || 1) * (Number(m?.[2] || 0) / 60); }
@@ -238,39 +238,35 @@ const sel = (cls, label, list, cur, empty, req = false) => `<label class="field"
 const split = (d) => { const [y, m] = String(d || "").split("-"); return { y: y || "", m: m || "" }; };
 function dateSel(cls, label, value, presentLabel) {
   const present = value === "present", { y, m } = present ? { y: "", m: "" } : split(value);
-  return `<div class="entry-date"><span class="date-label">${label}</span><div class="date-pair">
+  return `<div class="entry-date"><span class="date-label">${label} <span class="req" aria-hidden="true">*</span></span><div class="date-pair">
     <select class="${cls}-m" aria-label="${label}: month"><option value="">Month</option>${MONTHS.map((n, i) => opt(String(i + 1).padStart(2, "0"), m, n)).join("")}</select>
     <select class="${cls}-y" aria-label="${label}: year"><option value="">Year</option>${presentLabel ? opt("present", present ? "present" : "", presentLabel) : ""}${YEARS.map((x) => opt(x, y)).join("")}</select>
   </div></div>`;
 }
 let entrySeq = 0;
 export function entryRow(kind, it = {}) {
-  const id = ++entrySeq;
+  const tools = `<div class="entry-tools"><button type="button" class="link-btn" data-entry-move="up">Move up</button><button type="button" class="link-btn" data-entry-move="down">Move down</button><button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button></div>`;
+  const yearOnly = (cls, label, value, present) => sel(`${cls}-y`, label, [...(present ? [["present", present]] : []), ...YEARS], value === "present" ? "present" : split(value).y, "Year", true);
   if (kind === "education") return `<fieldset class="entry" data-entry="education"><legend class="visually-hidden">Qualification</legend>
     <div class="entry-grid">
-      <label class="field full"><span>School or university <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. University of Buenos Aires"></label>
-      ${sel("en-title", "Degree", DEGREES, it.title, "Choose a degree", true)}
-      ${sel("en-field", "Field of study", FIELDS, it.field, "Choose a field")}
-      ${sel("en-country", "Country", ["Remote / online", ...COUNTRIES], it.country, "Choose a country")}
-      <div></div>
-      ${dateSel("en-start", "Start date", it.start)}
-      ${dateSel("en-end", "End date (or expected)", it.end, "Studying now")}
-      <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="Thesis, focus, honours or activities. Optional.">${e(it.description || "")}</textarea></label>
-    </div>
-    <div class="entry-tools"><button type="button" class="link-btn" data-entry-move="up">Move up</button><button type="button" class="link-btn" data-entry-move="down">Move down</button><button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button></div></fieldset>`;
+      ${sel("en-title", "Qualification", DEGREES, it.title, "Choose a qualification", true)}
+      ${sel("en-field", "Field of study", FIELDS, it.field, "Choose a field", true)}
+      <label class="field"><span>University or institution <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. University of Copenhagen"></label>
+      ${sel("en-country", "Country", ["Online", ...COUNTRIES], it.country, "Choose a country", true)}
+      ${yearOnly("en-start", "From", it.start)}
+      ${yearOnly("en-end", "To", it.end, "Studying now")}
+      <details class="entry-opt full" ${it.description ? "open" : ""}><summary>Add details (optional)</summary><textarea class="en-desc" maxlength="2000" rows="3" placeholder="Focus, thesis or honours.">${e(it.description || "")}</textarea></details>
+    </div>${tools}</fieldset>`;
   return `<fieldset class="entry" data-entry="experience"><legend class="visually-hidden">Role</legend>
     <div class="entry-grid">
-      <label class="field"><span>Title <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="120" placeholder="e.g. Project and Awards Coordinator"></label>
-      ${sel("en-type", "Employment type", EMPLOYMENT_TYPES, it.employment_type, "Choose a type")}
-      <label class="field full"><span>Company or organisation <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. Save the Children Australia"></label>
-      ${dateSel("en-start", "Start date", it.start)}
-      ${dateSel("en-end", "End date", it.end, "Present")}
-      ${sel("en-country", "Country", ["Remote / several countries", ...COUNTRIES], it.country, "Choose a country")}
-      ${sel("en-mode", "Location type", WORK_MODES, it.work_mode, "Choose")}
-      <label class="field full"><span>Description</span><textarea class="en-desc" maxlength="2000" rows="3" placeholder="What you did and achieved. Optional.">${e(it.description || "")}</textarea></label>
-      ${optionPicker(`en_skills_${id}`, "Skills used in this role", SKILL_GROUPS, it.skills || [], { required: false, placeholder: "Choose skills", search: "Search skills" })}
-    </div>
-    <div class="entry-tools"><button type="button" class="link-btn" data-entry-move="up">Move up</button><button type="button" class="link-btn" data-entry-move="down">Move down</button><button type="button" class="link-btn entry-remove" data-entry-remove>Remove</button></div></fieldset>`;
+      <label class="field"><span>Role <span class="req" aria-hidden="true">*</span></span><input class="en-title" value="${e(it.title || "")}" maxlength="140" placeholder="e.g. Compliance & Awards Officer"></label>
+      <label class="field"><span>Organisation <span class="req" aria-hidden="true">*</span></span><input class="en-org" value="${e(it.organisation || "")}" maxlength="140" placeholder="e.g. Save the Children Denmark"></label>
+      ${sel("en-country", "Country", ["Remote / several countries", ...COUNTRIES], it.country, "Choose a country", true)}
+      <div></div>
+      ${dateSel("en-start", "From", it.start)}
+      ${dateSel("en-end", "To", it.end, "Present")}
+      <details class="entry-opt full" ${it.description ? "open" : ""}><summary>Add details (optional)</summary><textarea class="en-desc" maxlength="2000" rows="3" placeholder="What you did and achieved.">${e(it.description || "")}</textarea></details>
+    </div>${tools}</fieldset>`;
 }
 const LABELS = {
   experience: { none: "No roles added yet.", add: "Add a role" },
@@ -293,12 +289,16 @@ export function readEntries(form, kind) {
     const v = (c) => row.querySelector(c)?.value.trim() || "";
     const date = (c) => { const y = v(`${c}-y`), m = v(`${c}-m`); return y === "present" ? "present" : y ? (m ? `${y}-${m}` : y) : ""; };
     const it = kind === "experience"
-      ? { title: v(".en-title"), organisation: v(".en-org"), employment_type: v(".en-type"), start: date(".en-start"), end: date(".en-end"), country: v(".en-country"), work_mode: v(".en-mode"), description: v(".en-desc"), skills: v('[data-lang-picker] input[type="hidden"]').split(",").map((x) => x.trim()).filter(Boolean) }
-      : { organisation: v(".en-org"), title: v(".en-title"), field: v(".en-field"), start: date(".en-start"), end: date(".en-end"), country: v(".en-country"), description: v(".en-desc") };
-    if (!it.title && !it.organisation) continue;
-    if (kind === "experience" && (!it.title || !it.organisation)) throw Error("Each role needs a title and a company or organisation.");
-    if (kind === "education" && (!it.title || !it.organisation)) throw Error("Each qualification needs a school and a degree.");
-    if (it.start && it.end && it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for “${it.title}”: it ends before it starts.`);
+      ? { title: v(".en-title"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc") }
+      : { title: v(".en-title"), field: v(".en-field"), organisation: v(".en-org"), country: v(".en-country"), start: date(".en-start"), end: date(".en-end"), description: v(".en-desc") };
+    if (!it.title && !it.organisation && !it.country && !it.start) continue;
+    const name = kind === "experience" ? `the role “${it.title || "untitled"}”` : `the qualification at “${it.organisation || "your university"}”`;
+    const missing = kind === "experience"
+      ? [!it.title && "role", !it.organisation && "organisation", !it.country && "country", !it.start && "start year", !it.end && "end year or Present"]
+      : [!it.title && "qualification", !it.field && "field of study", !it.organisation && "university", !it.country && "country", !it.start && "start year", !it.end && "end year or Studying now"];
+    const gaps = missing.filter(Boolean);
+    if (gaps.length) throw Error(`Complete ${name}: add the ${gaps.join(", ")}.`);
+    if (it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for ${name}: it ends before it starts.`);
     out.push(it);
   }
   return out;
@@ -356,7 +356,7 @@ const moreUnused = (text) => !text ? "" : text.length <= 160 ? `<p class="xp-des
 // Public view, LinkedIn order: title, organisation · type, dates · duration, place · location type, description, skills.
 // Public view, CV style: role in bold, then organisation · country, then years.
 function roleLines(it, kind, inGroup) {
-  const title = kind === "education" ? [it.title, it.field].filter(Boolean).join(", ") || it.organisation : it.title || it.organisation;
+  const title = kind === "education" ? (it.field && it.field !== "Other" ? `${it.title} in ${it.field}` : it.title) || it.organisation : it.title || it.organisation;
   const place = inGroup ? "" : [title === it.organisation ? "" : it.organisation, it.country].filter(Boolean).join(" · ");
   return [`<strong class="xp-title">${e(title)}</strong>`, place ? `<span>${e(place)}</span>` : "", entryDates(it, kind) ? `<span class="xp-muted">${e(entryDates(it, kind))}</span>` : ""];
 }
