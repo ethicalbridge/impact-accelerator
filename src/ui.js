@@ -140,21 +140,24 @@ export { SKILL_GROUPS };
 
 // A dropdown of checkboxes with search. It writes a comma-separated list into a hidden input,
 // so forms read it exactly like the old text field. `other` lets people add their own entry.
+const pickerChip = (l) => `<span class="lp-chip"><span>${e(l)}</span><button type="button" class="lp-remove" data-value="${e(l)}" aria-label="Remove ${e(l)}">${icon("x", 14, "currentColor", 2.2)}</button></span>`;
+const pickerChips = (on, placeholder) => on.length ? on.map(pickerChip).join("") : `<span class="lp-empty">${e(placeholder)}</span>`;
 export function optionPicker(name, label, groups, selected = [], { required = true, hint = "", other = "", placeholder = "Choose", search = "Search" } = {}) {
   const known = new Set(groups.flatMap(([, opts]) => opts.map((o) => o.toLowerCase())));
   const extra = selected.filter((s) => !known.has(s.toLowerCase()));
   const all = extra.length ? [["Your additions", extra], ...groups] : groups;
   const isOn = (l) => selected.some((s) => s.toLowerCase() === l.toLowerCase());
-  const chips = selected.length ? selected.map((l) => `<span class="tag">${e(l)}</span>`).join("") : `<span class="muted">${placeholder}</span>`;
   return `<div class="field full lang-picker" data-lang-picker data-placeholder="${e(placeholder)}">
     <span id="lp-${name}-label">${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>
     <input type="hidden" name="${name}" value="${e(selected.join(", "))}">
+    <div class="lp-chips" aria-live="polite">${pickerChips(selected, placeholder)}</div>
     <details class="lp">
-      <summary aria-labelledby="lp-${name}-label"><span class="lp-chips">${chips}</span>${icon("plus", 18)}</summary>
+      <summary aria-labelledby="lp-${name}-label"><span class="lp-sum">${icon("plus", 18)}<span>${e(placeholder)}</span></span><span class="lp-count" data-count="${selected.length}">${selected.length} selected</span></summary>
       <div class="lp-panel">
         <input type="search" class="lp-search" placeholder="${e(search)}" aria-label="${e(search)}" autocomplete="off">
-        <div class="lp-list" role="group" aria-labelledby="lp-${name}-label">${all.map(([g, opts]) => `<div class="lp-group">${g ? `<span class="lp-glabel">${e(g)}</span>` : ""}${opts.map((l) => `<label class="check lp-item"><input type="checkbox" value="${e(l)}" ${isOn(l) ? "checked" : ""}><span>${e(l)}</span></label>`).join("")}</div>`).join("")}</div>
+        <div class="lp-list" role="group" aria-labelledby="lp-${name}-label">${all.map(([g, opts]) => `<div class="lp-group">${g ? `<span class="lp-glabel">${e(g)}</span>` : ""}<div class="lp-opts">${opts.map((l) => `<label class="lp-item"><input type="checkbox" value="${e(l)}" ${isOn(l) ? "checked" : ""}><span class="lp-pill">${icon("check", 14, "currentColor", 2.4)}${e(l)}</span></label>`).join("")}</div></div>`).join("")}<p class="lp-none" hidden>No matches. Try another word.</p></div>
         ${other ? `<div class="lp-other"><input type="text" class="lp-add-input" placeholder="${e(other)}" maxlength="60" aria-label="${e(other)}"><button type="button" class="btn secondary sm lp-add">Add</button></div>` : ""}
+        <div class="lp-foot"><span class="lp-count" data-count="${selected.length}">${selected.length} selected</span><button type="button" class="btn sm lp-done">Done</button></div>
       </div>
     </details>
     ${hint ? `<span class="hint">${hint}</span>` : ""}
@@ -166,7 +169,8 @@ export function bindLanguagePickers(root = document) {
   const sync = (box) => {
     const on = [...box.querySelectorAll(".lp-list input:checked")].map((i) => i.value);
     box.querySelector('input[type="hidden"]').value = on.join(", ");
-    box.querySelector(".lp-chips").innerHTML = on.length ? on.map((l) => `<span class="tag">${e(l)}</span>`).join("") : `<span class="muted">${e(box.dataset.placeholder || "Choose")}</span>`;
+    box.querySelector(".lp-chips").innerHTML = pickerChips(on, box.dataset.placeholder || "Choose");
+    box.querySelectorAll(".lp-count").forEach((c) => { c.dataset.count = on.length; c.textContent = `${on.length} selected`; });
   };
   root.addEventListener("change", (ev) => { const box = ev.target.closest("[data-lang-picker]"); if (box && ev.target.matches(".lp-list input")) sync(box); });
   root.addEventListener("input", (ev) => {
@@ -176,18 +180,34 @@ export function bindLanguagePickers(root = document) {
     box.querySelectorAll(".lp-group").forEach((g) => {
       const gl = (g.querySelector(".lp-glabel")?.textContent || "").toLowerCase();
       g.querySelectorAll(".lp-item").forEach((it) => { it.hidden = !!q && !gl.includes(q) && !it.textContent.toLowerCase().includes(q); });
+      g.hidden = ![...g.querySelectorAll(".lp-item")].some((it) => !it.hidden);
     });
-    box.querySelectorAll(".lp-group").forEach((g) => { g.hidden = ![...g.querySelectorAll(".lp-item")].some((it) => !it.hidden); });
+    box.querySelector(".lp-none").hidden = [...box.querySelectorAll(".lp-group")].some((g) => !g.hidden);
   });
   const add = (box) => {
     const inp = box.querySelector(".lp-add-input"), v = inp.value.trim().replace(/,/g, " ");
     if (!v) return;
     const found = [...box.querySelectorAll(".lp-list input")].find((i) => i.value.toLowerCase() === v.toLowerCase());
     if (found) found.checked = true;
-    else box.querySelector(".lp-group").insertAdjacentHTML("afterbegin", `<label class="check lp-item"><input type="checkbox" value="${e(v)}" checked><span>${e(v)}</span></label>`);
+    else box.querySelector(".lp-opts").insertAdjacentHTML("afterbegin", `<label class="lp-item"><input type="checkbox" value="${e(v)}" checked><span class="lp-pill">${icon("check", 14, "currentColor", 2.4)}${e(v)}</span></label>`);
     inp.value = ""; sync(box);
   };
-  root.addEventListener("click", (ev) => { if (ev.target.closest(".lp-add")) add(ev.target.closest("[data-lang-picker]")); });
+  root.addEventListener("click", (ev) => {
+    const box = ev.target.closest("[data-lang-picker]");
+    if (!box) return;
+    if (ev.target.closest(".lp-add")) return add(box);
+    const rm = ev.target.closest(".lp-remove");
+    if (rm) {
+      ev.preventDefault();
+      const input = [...box.querySelectorAll(".lp-list input")].find((i) => i.value === rm.dataset.value);
+      if (input) input.checked = false;
+      sync(box);
+      (box.querySelector(".lp-remove") || box.querySelector(".lp summary"))?.focus();
+      return;
+    }
+    if (ev.target.closest(".lp-done")) { const d = box.querySelector(".lp"); d.open = false; d.querySelector("summary").focus(); }
+  });
+  root.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { const d = ev.target.closest?.(".lp[open]"); if (d) { d.open = false; d.querySelector("summary").focus(); } } });
   root.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.matches(".lp-add-input")) { ev.preventDefault(); add(ev.target.closest("[data-lang-picker]")); } });
 }
 
