@@ -242,6 +242,11 @@ blockquote.endorse p { font: 400 1.2rem/1.45 var(--serif); }
 .list-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px 0; border-top: 1px solid var(--line); }
 .list-row:first-child { border-top: 0; }
 .list-row .row { flex-shrink: 0; }
+.list-row.review-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; align-items: start; gap: 24px; }
+.review-main { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
+.review-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.review-actions .btn { width: 100%; }
+.review-actions .pill { align-self: flex-start; }
 .empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 28px; border: 1px dashed var(--line-strong); border-radius: 16px; }
 .empty .empty-title { margin: 0; color: var(--ink); font: 500 1.35rem var(--serif); }
 .agreement-doc { display: flex; flex-direction: column; padding: clamp(24px, 4vw, 48px) clamp(20px, 4vw, 56px); background: var(--paper); border: 1px solid var(--line); border-radius: 22px; }
@@ -316,6 +321,9 @@ dialog::backdrop { background: rgba(16, 48, 44, 0.45); }
   .contribution { grid-template-columns: 1fr; }
   .contribution .art { max-height: 170px; overflow: hidden; }
   .list-row { flex-direction: column; align-items: flex-start; }
+  .list-row.review-row { grid-template-columns: minmax(0, 1fr); }
+  .review-actions { flex-direction: row; flex-wrap: wrap; }
+  .review-actions .btn { width: auto; }
   .footer-grid { grid-template-columns: 1fr; }
   .collage { display: none; }
   .header-actions .hide-sm { display: none; }
