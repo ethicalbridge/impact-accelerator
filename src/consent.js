@@ -24,15 +24,18 @@ export function trackPage(title) {
 export function initConsent(show = false) {
   const choice = get();
   if (config.gaMeasurementId && choice === "accepted") loadAnalytics();
-  if (choice && !show) return;
-  document.querySelector(".consent")?.remove();
-  const el = document.createElement("div");
-  el.className = "consent";
-  el.setAttribute("role", "region");
-  el.setAttribute("aria-label", "Cookies");
-  el.innerHTML = config.gaMeasurementId
-    ? `<p><strong>Cookies.</strong> We use essential storage to keep you signed in. With your permission we’d also use analytics cookies to understand which pages help people. No advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn secondary sm" type="button" data-consent="declined">Decline</button><button class="btn sm" type="button" data-consent="accepted">Accept analytics</button></div>`
-    : `<p><strong>Cookies.</strong> We only use essential storage to keep you signed in and remember this choice. No analytics, tracking or advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn sm" type="button" data-consent="essential">OK, got it</button></div>`;
+  const existing = document.querySelector(".consent");
+  if (choice && !show) { existing?.remove(); return; }
+  if (show) existing?.remove();
+  const el = !show && existing ? existing : document.createElement("div");
+  if (el !== existing) {
+    el.className = "consent";
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", "Cookies");
+    el.innerHTML = config.gaMeasurementId
+      ? `<p><strong>Cookies.</strong> We use essential storage to keep you signed in. With your permission we’d also use analytics cookies to understand which pages help people. No advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn secondary sm" type="button" data-consent="declined">Decline</button><button class="btn sm" type="button" data-consent="accepted">Accept analytics</button></div>`
+      : `<p><strong>Cookies.</strong> We only use essential storage to keep you signed in and remember this choice. No analytics, tracking or advertising. <a href="#cookies">Cookie notice</a></p><div class="row"><button class="btn sm" type="button" data-consent="essential">OK, got it</button></div>`;
+  }
   el.addEventListener("click", (ev) => {
     const v = ev.target.closest("[data-consent]")?.dataset.consent;
     if (!v) return;
@@ -40,5 +43,5 @@ export function initConsent(show = false) {
     el.remove();
     if (v === "accepted") loadAnalytics();
   });
-  document.body.appendChild(el);
+  if (!el.isConnected) document.body.appendChild(el);
 }
