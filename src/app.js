@@ -76,7 +76,12 @@ async function render() {
     const out = await page(r);
     if (v !== version) return;
     if (out.redirect) { location.replace(out.redirect.startsWith("#") ? out.redirect : "#" + out.redirect); return; }
-    main.innerHTML = out.html;
+    if (r.name === "home" && main.dataset.bootHome === "1" && out.rest) {
+      main.insertAdjacentHTML("beforeend", out.rest);
+      delete main.dataset.bootHome;
+    } else {
+      main.innerHTML = out.html;
+    }
     document.title = `${t(out.title)} · Handova`;
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");

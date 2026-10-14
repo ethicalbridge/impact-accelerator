@@ -5,7 +5,10 @@ import { initConsent } from "./consent.js";
 if (!location.hash || location.hash === "#home") {
   const main = document.getElementById("main");
   const shell = document.getElementById("home-shell");
-  if (main && shell) main.replaceChildren(shell.content.cloneNode(true));
+  if (main && shell) {
+    main.replaceChildren(shell.content.cloneNode(true));
+    main.dataset.bootHome = "1";
+  }
 }
 
 // Render the independent cookie notice before the much larger application bundle loads.
