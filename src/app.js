@@ -220,8 +220,9 @@ $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").f
 await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
 startTranslating();
 $("#site-footer").innerHTML = footer(config);
-try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
+// Consent does not depend on the signed-in session; show it without waiting for auth.
 initConsent();
+try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 bindHeader();
 bindLanguagePickers();
 bindEntryEditors();
