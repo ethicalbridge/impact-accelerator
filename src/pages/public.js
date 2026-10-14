@@ -15,21 +15,9 @@ async function openNeeds(limit) {
 }
 
 // ---------- Home ----------
-export async function home() {
-  const real = await openNeeds(3);
-  const featured = real.length ? real : exampleNeeds.slice(0, 3);
-  const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
-  const steps = [
-    ["doc", "Define the need", "The organisation writes the need.", "An approved organisation publishes one specific need: the challenge, the output it will keep, the skills and working languages, and a realistic number of hours.", ["The output is named before anyone applies", "Up to three open needs at a time", "No direct contact with children or adults at risk"]],
-    ["people", "Apply or invite", "The right person steps forward.", "Professionals apply with a short plan for the output, or the organisation invites an approved professional whose work fits. We can also introduce people by hand.", ["Applications explain how, not just who", "Only approved profiles can apply", "Either side can end a conversation"]],
-    ["pen", "Sign the agreement", "Nothing starts until both sign.", "Every match gets its own contribution agreement, built from the need: scope, timing, access, safeguarding and confidentiality.", ["Contact details shared only after both signatures", "Never passwords, card details or access codes", "Signatures are final and dated"]],
-    ["clock", "Do the work", "A short, protected contribution.", "The professional delivers the agreed output, logs time as they go and keeps conversations on the platform. The organisation reviews each entry.", ["At most 16 hours", "Remote only", "Hours count only once reviewed"]],
-    ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
-  ];
-  const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in up to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
-  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We send an email two weeks before each step, and a closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
-  const html = `
-  <section class="hv-hero">
+// Shared by the early page shell and the interactive home route.
+export function homeHero() {
+  return `<section class="hv-hero">
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
     <div class="wrap hv-hero-grid">
       <div class="stack hv-copy" style="--gap:24px">
@@ -50,7 +38,31 @@ export async function home() {
       ${stage()}
     </div>
     <a class="hv-cue" href="#how" data-action="scroll-to" data-id="hv-how" aria-label="Scroll to how it works"><span></span></a>
-  </section>
+  </section>`;
+}
+
+function homeNeeds(real = []) {
+  const featured = real.length ? real : exampleNeeds.slice(0, 3);
+  return `<section class="stack" id="home-open-needs" style="--gap:36px;padding-bottom:110px">
+      <div class="row between" style="align-items:flex-end" data-reveal><div class="stack">${eyebrow(real.length ? "Open needs" : "Example needs")}<h2>Where your expertise can help.</h2><p class="lead">Each need is written by the organisation, with a clear output and a realistic number of hours.</p></div>${btn(`Explore all needs ${icon("arrow", 18)}`, "#needs")}</div>
+      ${real.length ? "" : exampleNotice("These are example needs. Real needs from approved organisations will replace them.")}
+      <div class="grid">${featured.map(needCard).join("")}</div>
+    </section>`;
+}
+
+export function home() {
+  const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
+  const steps = [
+    ["doc", "Define the need", "The organisation writes the need.", "An approved organisation publishes one specific need: the challenge, the output it will keep, the skills and working languages, and a realistic number of hours.", ["The output is named before anyone applies", "Up to three open needs at a time", "No direct contact with children or adults at risk"]],
+    ["people", "Apply or invite", "The right person steps forward.", "Professionals apply with a short plan for the output, or the organisation invites an approved professional whose work fits. We can also introduce people by hand.", ["Applications explain how, not just who", "Only approved profiles can apply", "Either side can end a conversation"]],
+    ["pen", "Sign the agreement", "Nothing starts until both sign.", "Every match gets its own contribution agreement, built from the need: scope, timing, access, safeguarding and confidentiality.", ["Contact details shared only after both signatures", "Never passwords, card details or access codes", "Signatures are final and dated"]],
+    ["clock", "Do the work", "A short, protected contribution.", "The professional delivers the agreed output, logs time as they go and keeps conversations on the platform. The organisation reviews each entry.", ["At most 16 hours", "Remote only", "Hours count only once reviewed"]],
+    ["handover", "Hand over and record", "The work stays with the team.", "The output is handed over so the team can use it without help. The organisation writes an endorsement, and the professional chooses to add it to their impact CV. Six months later, we ask if it is still in use.", ["A handover the team can run alone", "An endorsement in the organisation’s words", "A six-month “still in use?” check"]],
+  ];
+  const gaps = [["Help shaped around the helper", "The organisation defines the need and the output"], ["Unscoped, open-ended favours", "One clear output in up to 16 hours"], ["Access before trust", "Approval first, a signed agreement before any access"], ["Nothing to show for it", "Hours and outcomes reviewed by the organisation"], ["Hard to get real experience", "An impact CV built from reviewed work"]];
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We send an email two weeks before each step, and a closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  const html = `
+  ${homeHero()}
   <div class="wrap">
     <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
     <section class="block stack" style="--gap:40px">
@@ -78,11 +90,7 @@ export async function home() {
         </div>`).join("")}
       </div>
     </section>
-    <section class="stack" style="--gap:36px;padding-bottom:110px">
-      <div class="row between" style="align-items:flex-end" data-reveal><div class="stack">${eyebrow(real.length ? "Open needs" : "Example needs")}<h2>Where your expertise can help.</h2><p class="lead">Each need is written by the organisation, with a clear output and a realistic number of hours.</p></div>${btn(`Explore all needs ${icon("arrow", 18)}`, "#needs")}</div>
-      ${real.length ? "" : exampleNotice("These are example needs. Real needs from approved organisations will replace them.")}
-      <div class="grid">${featured.map(needCard).join("")}</div>
-    </section>
+    ${homeNeeds()}
   </div>
   <section class="band-dark block hv-band"><div class="wrap grid-2" style="gap:72px;align-items:center">
     <div class="stack" style="--gap:26px" data-reveal>${eyebrow("For professionals")}<h2>Let your work speak for you.</h2><p class="lead">Every completed contribution becomes a record on your impact CV: the need, what you did, the outcome and the organisation’s own words. You choose what is public.</p>
@@ -114,7 +122,13 @@ export async function home() {
       <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
     </div>
   </section>`;
-  return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html };
+  return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html, after: () => {
+    void openNeeds(3).then((real) => {
+      if (!real.length) return;
+      const section = document.getElementById("home-open-needs");
+      if (section) section.outerHTML = homeNeeds(real);
+    });
+  } };
 }
 
 function audience(eb, title, items, cta, href) {
