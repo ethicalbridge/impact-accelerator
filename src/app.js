@@ -71,17 +71,16 @@ async function render() {
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
   $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : ACTIVE[r.name]);
   const main = $("#main");
-  main.setAttribute("aria-busy", "true");
+  const staticHome = r.name === "home" && main.dataset.staticHome === "1";
+  if (!staticHome) main.setAttribute("aria-busy", "true");
   try {
     const out = await page(r);
     if (v !== version) return;
     if (out.redirect) { location.replace(out.redirect.startsWith("#") ? out.redirect : "#" + out.redirect); return; }
-    if (r.name === "home" && main.dataset.bootHome === "1" && out.rest) {
-      main.insertAdjacentHTML("beforeend", out.rest);
-      delete main.dataset.bootHome;
-    } else {
+    if (!staticHome) {
       main.innerHTML = out.html;
     }
+    delete main.dataset.staticHome;
     document.title = `${t(out.title)} · Handova`;
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");

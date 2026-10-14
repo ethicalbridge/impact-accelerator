@@ -2,7 +2,9 @@
 // Optional: SUPABASE_SRC=/path/to/supabase-js/packages bundles the client from source (used where npm is unavailable).
 import { build } from "esbuild";
 import { mkdir, cp, readFile, writeFile } from "node:fs/promises";
-import { homeHero } from "../src/pages/public.js";
+import { home } from "../src/pages/public.js";
+import { header, footer } from "../src/ui.js";
+import { config } from "../src/config.js";
 const src = process.env.SUPABASE_SRC;
 const alias = src
   ? {
@@ -19,9 +21,13 @@ await build({ entryPoints: ["src/consent-boot.js"], bundle: true, minify: !proce
 const out = process.env.OUT || "dist";
 await mkdir(out, { recursive: true });
 const sourceHtml = await readFile("index.html", "utf8");
-const start = "<!-- home-hero:start -->", end = "<!-- home-hero:end -->";
-if (!sourceHtml.includes(start) || !sourceHtml.includes(end)) throw Error("Missing home hero markers in index.html");
-const indexHtml = sourceHtml.replace(/<!-- home-hero:start -->[\s\S]*?<!-- home-hero:end -->/, `${start}\n${homeHero()}\n${end}`);
+const sections = { header: header(), home: home().html, footer: footer(config) };
+let indexHtml = sourceHtml;
+for (const [name, html] of Object.entries(sections)) {
+  const start = `<!-- static-${name}:start -->`, end = `<!-- static-${name}:end -->`;
+  if (!indexHtml.includes(start) || !indexHtml.includes(end)) throw Error(`Missing ${name} markers in index.html`);
+  indexHtml = indexHtml.replace(new RegExp(`${start}[\\s\\S]*?${end}`), `${start}\n${html}\n${end}`);
+}
 if (!process.env.OUT) await writeFile("index.html", indexHtml);
 await writeFile(`${out}/index.html`, indexHtml);
 for (const f of ["styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt", "CNAME"]) await cp(f, `${out}/${f}`);

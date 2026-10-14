@@ -1,6 +1,6 @@
 /* Handova · design system v1 (from the approved prototype) */
-@font-face { font-family: "Newsreader"; src: url("fonts/newsreader.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: optional; }
-@font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: optional; }
+@font-face { font-family: "Newsreader"; src: url("fonts/newsreader.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
 
 :root {
   --ink: #10302c; --deep: #123e3a; --teal: #0f6f63; --teal-hover: #0c5a50; --mint: #dcebe6; --mint-2: #eaf3ef; --sage: #7fa99b;
@@ -12,6 +12,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--ivory); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+html.non-home #main[data-static-home="1"] { min-height: 80vh; }
+html.non-home #main[data-static-home="1"] > * { display: none !important; }
 img, svg { max-width: 100%; }
 a { color: var(--teal); text-underline-offset: 3px; }
 a:hover { color: var(--deep); }
