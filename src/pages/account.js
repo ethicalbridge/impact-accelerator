@@ -6,6 +6,7 @@ const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].m
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
+import { removeAccountPhotos } from "../account-photos.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 const ORG_TYPES = ["Community organisation", "Local NGO", "Cooperative", "Social enterprise", "Collective or informal group (fiscally hosted)", "Other"];
@@ -330,7 +331,7 @@ export async function account() {
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${formEnd("Change password")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show only a short title and a link, never message content.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
-    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”. We keep records of agreements you signed for six years, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
+    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications, messages and Handova identity-check result. Organisations keep a private record of completed work with your name replaced by “Former member”. We keep signed Handova professional or organisation agreement records for six years after deletion, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
   return { title: "Account and privacy", html };
 }
@@ -429,11 +430,12 @@ export async function submitAccount(kind, form) {
 }
 
 export async function deleteAccount() {
-  openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications and messages. It cannot be undone. Records of agreements you signed are kept for six years, as explained in the privacy notice.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications, messages and Handova identity-check result. It cannot be undone. Signed Handova professional or organisation agreement records are kept for six years after deletion, as explained in the privacy notice.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function confirmDelete(form) {
   await withForm(form, async (fd) => {
     if (val(fd, "confirm") !== "DELETE") throw Error("Type DELETE in capital letters to confirm.");
+    await removeAccountPhotos(db.storage.from("avatars"), state.user.id);
     await result(db.rpc("delete_my_account"));
     await db.auth.signOut().catch(() => {});
     closeDialog();

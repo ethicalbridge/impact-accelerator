@@ -40,7 +40,9 @@ export function privacy() {
   <h2>How long we keep it</h2><ul>
     <li><strong>Your account and profile:</strong> until you delete them. A profile closed for inactivity is kept, unpublished, so you can publish it again.</li>
     <li><strong>When you delete your account:</strong> we remove your profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”.</li>
-    <li><strong>Signed agreements, contribution agreements and identity-check results:</strong> six years after your account closes, even if you delete it, so both sides can rely on them if a question or legal claim arises.</li>
+    <li><strong>Signed Handova professional or organisation agreements:</strong> the signature record, including your name, email, signing time, IP address, browser and agreement text, is kept for six years after you close your account, then deleted. This helps us respond to questions or legal claims about what was agreed.</li>
+    <li><strong>Identity-check results:</strong> the result and document name stored by Handova are deleted when you delete your account. Didit holds the document and selfie for the retention period set for our verification application. Write to ${mail(config.contactEmail)} if you want us to review or delete your Didit verification session.</li>
+    <li><strong>Contribution records:</strong> an organisation keeps a private record of completed work after account deletion, with your name replaced by “Former member”. We are reviewing how long these records need to remain and whether any free-text fields still identify you.</li>
     <li><strong>Reports of concern:</strong> as long as needed to handle them, and up to two years afterwards, for safety.</li>
     <li><strong>Analytics:</strong> Google Analytics cookies may remain for up to two years unless you withdraw consent or clear them sooner. Analytics user and event data retention is set to two months. You can withdraw consent at any time in the cookie settings.</li>
     <li><strong>Technical logs:</strong> for the short period our providers set, usually days to weeks.</li></ul>
