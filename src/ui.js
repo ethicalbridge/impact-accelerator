@@ -526,14 +526,16 @@ export function header(active) {
 }
 
 export function footer(cfg) {
-  return `<div class="wrap"><div class="footer-grid">
-    <div class="stack" style="--gap:16px"><a class="brand" href="#home" style="color:var(--paper)">${mark(34, true)}<span>Handova</span></a><p class="serif" style="font-size:1.6rem;line-height:1.3">Skills handed over.<br><span style="color:#e0a07f">Capability that stays.</span></p><p style="color:var(--on-deep);max-width:360px">Skilled people contributing to the needs locally led organisations define. Free for everyone.</p>
-      <a class="footer-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="200" height="55" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a></div>
-    <nav aria-label="Platform"><h2>Platform</h2><ul><li><a href="#about">About</a></li><li><a href="#how">How it works</a></li><li><a href="#organisations">For organisations</a></li><li><a href="#professionals">For professionals</a></li><li><a href="#needs">Explore needs</a></li><li><a href="#talent">Discover talent</a></li><li><a href="#join">Join free</a></li></ul></nav>
-    <nav aria-label="Trust"><h2>Trust</h2><ul><li><a href="#safety">Working responsibly</a></li><li><a href="#privacy">Privacy notice</a></li><li><a href="#terms">Terms of use</a></li><li><a href="#cookies">Cookies</a></li><li><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></li><li><a href="#report">Report a concern</a></li></ul></nav>
-    <div><h2>Contact</h2><ul><li><a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></li><li><a href="https://ethicalbridge.org/" rel="noopener" target="_blank">Ethical Bridge <span class="visually-hidden">(opens in a new tab)</span></a></li><li><a href="https://ethicalbridge.org/directory.html" rel="noopener" target="_blank">Ethical Bridge directory <span class="visually-hidden">(opens in a new tab)</span></a></li></ul>
-      <div class="footer-social">${[["LinkedIn", "https://www.linkedin.com/company/ethicalbridge/"], ["Instagram", "https://instagram.com/ethical.bridge"], ["Facebook", "https://www.facebook.com/profile.php?id=61588796042823"], ["YouTube", "https://www.youtube.com/@EthicalBridge"], ["TikTok", "https://www.tiktok.com/@ethical.bridge"]].map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank">${n}<span class="visually-hidden"> (Ethical Bridge, opens in a new tab)</span></a>`).join("")}</div></div>
-  </div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Handova · An initiative of Ethical Bridge</span><span>Free for organisations and professionals</span></div></div>`;
+  const social = [["LinkedIn", "https://www.linkedin.com/company/ethicalbridge/"], ["Instagram", "https://instagram.com/ethical.bridge"], ["Facebook", "https://www.facebook.com/profile.php?id=61588796042823"], ["YouTube", "https://www.youtube.com/@EthicalBridge"], ["TikTok", "https://www.tiktok.com/@ethical.bridge"]];
+  // One slim bar: brand and tagline, the Ethical Bridge link, and the same links as the main menu.
+  return `<div class="wrap"><div class="ft-row">
+    <a class="ft-brand" href="#home" aria-label="Handova home">${mark(30, true)}<span class="ft-name">Handova</span><span class="ft-tag">Skills handed over. <b>Capability that stays.</b></span></a>
+    <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="120" height="33" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
+    <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
+  </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
+    <span class="ft-legal"><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
+    <span class="ft-social">${social.map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank" aria-label="Ethical Bridge on ${n} (opens in a new tab)">${icon(n.toLowerCase(), 17)}</a>`).join("")}</span>
+  </div></div>`;
 }
 
 export const safeLink = (url, label) => (safeURL(url) ? `<a href="${e(safeURL(url))}" target="_blank" rel="noopener noreferrer">${e(label)} <span class="visually-hidden">(opens in a new tab)</span></a>` : "");
