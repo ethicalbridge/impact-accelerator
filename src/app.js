@@ -25,7 +25,7 @@ function parse() {
 async function page(r) {
   switch (r.name) {
     case "home": return pub.home();
-    case "about": return ["ethical-bridge", "founder"].includes(r.a) ? pub.about(r.a) : pub.about("mission");
+    case "about": return ["ethical-bridge", "founder", "faq"].includes(r.a) ? pub.about(r.a) : pub.about("mission");
     case "organisations": return r.a ? pub.orgPage(r.a) : pub.organisations();
     case "professionals": return pub.professionals();
     case "needs": return pub.needs();

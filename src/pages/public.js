@@ -61,9 +61,23 @@ function demoVideo() {
     </figure>`;
 }
 
+// Safety principles and the questions. Shown on About › FAQ & safety.
+function faqAndSafety() {
+  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We send an email two weeks before each step, and a closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
+  return `  <div class="wrap">
+    <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
+      <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" style="font-weight:700">Read how we work responsibly</a></div>
+      <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No work with children or adults at risk", "Needs never involve direct contact with children or adults at risk."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time. Either side can end a conversation."]].map(([ic, t, d]) => `<div class="card row hv-lift" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
+    </section>
+    <section class="block grid-2 faq-grid">
+      <div class="stack" data-reveal>${eyebrow("Questions")}<h2>Good to know before you start.</h2></div>
+      <div data-faq>${faqs.map(([q, a], i) => `<details class="faq" ${i === 0 ? "open" : ""}><summary>${q}<span class="faq-icon" aria-hidden="true"></span></summary><p>${a}</p></details>`).join("")}</div>
+    </section>
+  </div>`;
+}
+
 export function home() {
   const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
-  const faqs = [["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Locally led organisations listed in the Ethical Bridge directory, registered or fiscally hosted, and professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month, and each professional chooses how many. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We send an email two weeks before each step, and a closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience and a reviewed footprint on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. It is an exchange where both sides keep something."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every engagement ends with a handover."], ["What if something goes wrong?", "Either side can pause or end a conversation or engagement, and anyone can report a concern. Our safeguarding lead reviews every report."]];
   const rest = `
   <div class="wrap">
     <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
@@ -83,16 +97,6 @@ export function home() {
     <section class="stack hv-video" id="hv-demo" style="--gap:28px;padding-bottom:clamp(56px,8vw,110px)">
       <div class="hv-head" data-reveal><div class="stack">${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div><p class="lead">How an organisation and a professional work together on Handova, and what each of them keeps.</p></div>
       ${demoVideo()}
-    </section>
-  </div>
-  <div class="wrap">
-    <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
-      <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" style="font-weight:700">Read how we work responsibly</a></div>
-      <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No work with children or adults at risk", "Needs never involve direct contact with children or adults at risk."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time. Either side can end a conversation."]].map(([ic, t, d]) => `<div class="card row hv-lift" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
-    </section>
-    <section class="block grid-2 faq-grid">
-      <div class="stack" data-reveal>${eyebrow("Questions")}<h2>Good to know before you start.</h2></div>
-      <div data-faq>${faqs.map(([q, a], i) => `<details class="faq" ${i === 0 ? "open" : ""}><summary>${q}<span class="faq-icon" aria-hidden="true"></span></summary><p>${a}</p></details>`).join("")}</div>
     </section>
   </div>
   <section class="hv-cta"><span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span>
@@ -166,6 +170,10 @@ export async function about(sub = "mission") {
 
   </div>`;
     return { title: "Our founder", description: "Julieta Castiñeira de Dios founded Ethical Bridge and built Handova.", html };
+  }
+  if (sub === "faq") {
+    const html = `<div style="padding-top:clamp(40px,5vw,64px)">${faqAndSafety()}</div><div class="wrap stack" style="--gap:20px;padding-bottom:64px"><section class="how-concern"><span class="icon-tile lg" style="background:var(--ochre-bg)">${icon("flag", 28, "#7a4f0e")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Raise a concern</strong><p class="muted">Use Report a concern on any profile, need or conversation, or write to ${e(config.safeguardingEmail)}. If someone is in immediate danger, contact local emergency services first.</p></div>${btn("Working responsibly", "#safety", "dark")}</section><section class="how-concern"><span class="icon-tile lg">${icon("doc", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Legal</strong><p class="muted">How we handle your information, and the terms everyone agrees to.</p></div><div class="row">${btn("Privacy notice", "#privacy", "secondary sm")}${btn("Terms of use", "#terms", "secondary sm")}${btn("Cookies", "#cookies", "secondary sm")}</div></section></div>`;
+    return { title: "FAQ & safety", description: "Common questions about Handova, how we keep contributions safe, and our legal terms.", html };
   }
   // Our mission: for now the same content as the home page.
   return { ...home(), title: "Our mission" };
