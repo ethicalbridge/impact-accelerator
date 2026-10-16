@@ -50,6 +50,19 @@ function homeNeeds(real = []) {
     </section>`;
 }
 
+// The 1:39 demo. Click to play (no autoplay), nothing downloads until then; subtitles are separate tracks
+// (Spanish and English) so visitors switch them on, off or between languages from the player's CC menu.
+function demoVideo() {
+  return `<figure class="hv-video-frame">
+      <video controls preload="none" playsinline width="1920" height="1080" poster="assets/handova-demo-poster.jpg" aria-label="Handova demo video, 1 minute 39 seconds, in English" data-demo-video>
+        <source src="assets/handova-demo.mp4" type="video/mp4">
+        <track kind="subtitles" src="assets/handova-demo.en.vtt" srclang="en" label="English">
+        <track kind="subtitles" src="assets/handova-demo.es.vtt" srclang="es" label="Español">
+        <a href="assets/handova-demo.mp4">Download the demo video (MP4, 25 MB)</a>
+      </video>
+    </figure>`;
+}
+
 export function home() {
   const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
   const steps = [
@@ -75,6 +88,10 @@ export function home() {
         <div class="hv-ex-mid" aria-hidden="true">${mark(84, true)}<span>Everyone wins</span></div>
         <div class="hv-ex-side"><span class="hv-tag">What stays with the professional</span><strong>A footprint</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p></div>
       </div>
+    </section>
+    <section class="stack hv-video" id="hv-demo" style="--gap:28px;padding-bottom:clamp(56px,8vw,110px)">
+      <div class="hv-head" data-reveal><div class="stack">${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div><p class="lead">How an organisation and a professional work together on Handova, and what each of them keeps.</p></div>
+      ${demoVideo()}
     </section>
     <section class="stack" id="hv-how" style="--gap:32px;padding-bottom:clamp(56px,8vw,110px)">
       <div class="row between" style="align-items:flex-end" data-reveal><div class="stack">${eyebrow("How it works")}<h2>Five steps, one handover.</h2></div>${btn(`See the full process ${icon("arrow", 18)}`, "#how", "secondary")}</div>
@@ -522,6 +539,10 @@ export async function how(focus = "") {
       <div class="stack" style="--gap:16px">${eyebrow("How it works")}<h1>Professional support, with clear expectations.</h1><p class="lead">Short, well-scoped contributions, agreed in writing and reviewed by the organisation. Here is exactly what happens, and what stays private.</p><div class="row" style="--gap:12px">${btn("Post a need", "#join?role=organisation")}${btn("Find a need", "#needs", "secondary")}</div></div>
       <div class="how-facts">${facts.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
     </div>
+    <section class="stack hv-video" style="--gap:20px">
+      <div class="stack" style="--gap:8px">${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div>
+      ${demoVideo()}
+    </section>
     <nav class="path-switch" aria-label="Jump to your path"><button type="button" data-action="scroll-to" data-id="path-organisations"><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>I’m an organisation</strong><span class="small muted">Publish needs and find skilled help</span></span>${icon("arrow", 18)}</button><button type="button" data-action="scroll-to" data-id="path-professionals"><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>I’m a professional</strong><span class="small muted">Contribute skills and build an impact CV</span></span>${icon("arrow", 18)}</button></nav>
     <section class="stack" style="--gap:20px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Six stages, side by side")}<h2>What each of you does.</h2></div><p class="muted" style="max-width:420px">Organisations and professionals follow the same path. The agreement is the moment you meet; the last stage is what you both keep.</p></div>${journey}</section>
     ${pathSection("organisations")}

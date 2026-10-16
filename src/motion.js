@@ -2,6 +2,8 @@
 // the five-step stepper, a gently responsive hero and a header that settles on scroll.
 // Zero dependencies. Everything is skipped under prefers-reduced-motion.
 
+import { getLang } from "./i18n.js";
+
 const reduce = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const PUBLIC = new Set(["home", "about", "professionals", "organisations", "needs", "need", "talent", "profile", "how", "join", "signin", "privacy", "terms", "cookies", "safety", "report"]);
 const AUTO = ".page-head, .card, .contribution, .j-stage, .how-fact, .how-agree, .how-concern, details.faq, .stats-dark, .filters, .trust-strip > div, .steps li, .banner, .notice, .hv-compare > *, .hv-cta";
@@ -19,6 +21,7 @@ export function enhance(root, route) {
   io?.disconnect(); io = null;
   bindStepper(root);
   bindFaq(root);
+  bindDemoVideo(root);
   if (reduce() || !("IntersectionObserver" in window)) { root.querySelectorAll("[data-counter]").forEach(setFinal); return; }
   document.documentElement.classList.add("motion");
   if (PUBLIC.has(route)) {
@@ -114,6 +117,17 @@ function bindHeroTilt(root) {
 
 // Header gains a shadow once the page scrolls.
 let headerBound = false;
+// Demo video: subtitles start on in the site language (Spanish for Spanish, English otherwise).
+// Visitors can switch them off or change language from the player's CC menu.
+function bindDemoVideo(root) {
+  root.querySelectorAll("video[data-demo-video]").forEach((video) => {
+    const want = getLang() === "es" ? "es" : "en";
+    const apply = () => [...video.textTracks].forEach((tr) => { tr.mode = tr.language === want ? "showing" : "disabled"; });
+    apply();
+    video.textTracks.addEventListener?.("addtrack", apply, { once: true });
+  });
+}
+
 export function bindHeader() {
   if (headerBound) return; headerBound = true;
   const h = document.getElementById("site-header");
