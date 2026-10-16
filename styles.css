@@ -111,8 +111,8 @@ section.block { padding-block: clamp(56px, 8vw, 110px); }
 .site-footer { background: var(--deep); color: var(--paper); padding: 36px 0 22px; margin-top: 40px; }
 /* Slim footer */
 .ft-row { display: flex; flex-wrap: wrap; align-items: center; gap: 20px 32px; }
-.ft-brand { display: grid; grid-template-columns: auto auto; column-gap: 10px; row-gap: 2px; align-items: center; }
-.ft-brand svg { grid-row: span 2; }
+.ft-brand { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.ft-top { display: inline-flex; align-items: center; gap: 8px; }
 .site-footer a.ft-brand:hover { text-decoration: none; }
 .ft-name { font: 500 1.45rem/1 var(--serif); }
 .ft-tag { font: 400 0.95rem/1.25 var(--serif); color: var(--on-deep); } .ft-tag b { font-weight: 400; color: #e0a07f; }
