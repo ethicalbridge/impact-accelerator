@@ -96,6 +96,9 @@ section.block { padding-block: clamp(56px, 8vw, 110px); }
 .footer-grid h2 { font: 700 0.8rem var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-deep-quiet); margin-bottom: 14px; }
 .footer-grid ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .footer-grid li a { display: inline-flex; align-items: center; min-height: 36px; }
+.footer-action { display: inline-flex; align-items: center; min-height: 36px; padding: 0; border: 0; background: transparent; color: var(--paper); font: inherit; cursor: pointer; }
+.footer-action:hover { text-decoration: underline; }
+.footer-action:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
 .footer-bottom { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255, 253, 248, 0.18); color: var(--on-deep); font-size: 0.9rem; }
 
 /* cards */
