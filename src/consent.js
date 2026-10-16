@@ -1,6 +1,16 @@
 import { config } from "./config.js";
 
 const KEY = "ia-consent-v1";
+const PAGE_NAMES = {
+  home: "Home", about: "About", organisations: "Organisations", professionals: "Professionals",
+  needs: "Open needs", need: "Need", talent: "Talent", profile: "Professional profile",
+  how: "How it works", join: "Join", signin: "Sign in", reset: "Reset password",
+  onboarding: "Onboarding", account: "Account", workspace: "Workspace", org: "Organisation workspace",
+  agreement: "Agreement", conversation: "Conversation", "conversation-for": "Conversation",
+  notifications: "Notifications", admin: "Admin", "verify-done": "Verification",
+  privacy: "Privacy notice", terms: "Terms of use", cookies: "Cookie notice",
+  safety: "Working responsibly", report: "Report a concern",
+};
 const get = () => { try { const v = localStorage.getItem(KEY); return config.gaMeasurementId && v === "essential" ? null : v; } catch { return null; } };
 const set = (v) => { try { localStorage.setItem(KEY, v); } catch {} };
 
@@ -24,13 +34,24 @@ function loadAnalytics() {
   window.dataLayer = window.dataLayer || [];
   window.gtag = function () { window.dataLayer.push(arguments); };
   window.gtag("js", new Date());
-  window.gtag("config", config.gaMeasurementId, { anonymize_ip: true, send_page_view: false });
+  window.gtag("config", config.gaMeasurementId, {
+    anonymize_ip: true,
+    send_page_view: false,
+    page_title: "Handova",
+    page_location: `${location.origin}${location.pathname}`,
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false,
+  });
 }
 
-export function trackPage(title) {
+export function trackPage() {
   if (window.gtag && get() === "accepted") {
-    const route = location.hash.slice(1).split("/")[0] || "home";
-    window.gtag("event", "page_view", { page_title: title, page_location: `${location.origin}${location.pathname}#${route}` });
+    const requestedRoute = location.hash.slice(1).split(/[/?]/)[0] || "home";
+    const route = Object.hasOwn(PAGE_NAMES, requestedRoute) ? requestedRoute : "other";
+    window.gtag("event", "page_view", {
+      page_title: PAGE_NAMES[route] || "Other page",
+      page_location: `${location.origin}${location.pathname}#${route}`,
+    });
   }
 }
 
@@ -54,7 +75,7 @@ export function initConsent(show = false) {
     el.remove();
     if (v === "accepted") {
       loadAnalytics();
-      trackPage(document.title);
+      trackPage();
     } else if (v === "declined") {
       clearAnalyticsCookies();
       // A loaded Google tag cannot be unloaded reliably; reload with consent denied.

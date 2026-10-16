@@ -87,7 +87,7 @@ async function render() {
     out.after?.();
     enhance(main, r.name);
     idNudge(r.name);
-    trackPage(out.title);
+    trackPage();
   } catch (err) {
     if (v !== version) return;
     console.error(err);

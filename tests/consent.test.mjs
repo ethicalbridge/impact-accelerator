@@ -23,6 +23,9 @@ test("Analytics loads only after consent and stops tracking after withdrawal", (
     assert.match(document.querySelector("script[src*='googletagmanager']").src, /G-151TT1KXTL/);
     assert.equal(localStorage.getItem("ia-consent-v1"), "accepted");
     assert.ok(window.dataLayer.some((entry) => entry[0] === "event" && entry[2].page_location === "https://handova.org/#profile"));
+    assert.ok(window.dataLayer.some((entry) => entry[0] === "event" && entry[2].page_title === "Professional profile"));
+    assert.ok(window.dataLayer.some((entry) => entry[0] === "config" && entry[2].allow_google_signals === false));
+    assert.ok(window.dataLayer.some((entry) => entry[0] === "config" && entry[2].page_title === "Handova"));
 
     document.cookie = "_ga=visitor; Path=/";
     document.cookie = "_ga_151TT1KXTL=session; Path=/";
