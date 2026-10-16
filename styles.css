@@ -115,9 +115,9 @@ section.block { padding-block: clamp(56px, 8vw, 110px); }
 .ft-top { display: inline-flex; align-items: center; gap: 8px; }
 .site-footer a.ft-brand:hover { text-decoration: none; }
 .ft-name { font: 500 1.45rem/1 var(--serif); }
-.ft-tag { font: 400 0.95rem/1.25 var(--serif); color: var(--on-deep); } .ft-tag b { font-weight: 400; color: #e0a07f; }
+.ft-tag { font: 400 0.95rem/1.25 var(--serif); color: var(--on-deep); } .ft-tag b { display: block; font-weight: 400; color: #e0a07f; }
 .ft-eb { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding-left: 28px; border-left: 1px solid rgba(255, 253, 248, 0.18); color: var(--on-deep-quiet); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-.ft-eb img { display: block; width: 120px; height: auto; opacity: 0.92; } .site-footer a.ft-eb:hover { text-decoration: none; } .ft-eb:hover img { opacity: 1; }
+.ft-eb img { display: block; width: 160px; height: auto; opacity: 0.92; } .site-footer a.ft-eb:hover { text-decoration: none; } .ft-eb:hover img { opacity: 1; }
 .ft-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; margin-left: auto; font-weight: 500; }
 .ft-nav a { display: inline-flex; align-items: center; min-height: 44px; }
 .site-footer .ft-nav a.ft-join { min-height: 40px; padding: 0 18px; border-radius: 999px; background: var(--paper); color: var(--deep); font-weight: 700; text-decoration: none; }
@@ -255,7 +255,7 @@ legend { font-weight: 700; margin-bottom: 12px; }
 .prose { white-space: pre-line; font-size: 1.05rem; line-height: 1.7; }
 .reading { max-width: none; }
 /* Our founder: her story and closing statement */
-.founder-story h2 { max-width: 900px; }
+.founder-story h2 { max-width: none; font-size: clamp(2rem, 3.1vw, 2.7rem); }
 .fs-route { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; align-self: flex-start; padding: 8px 16px; border-radius: 999px; background: var(--mint); color: var(--deep); font-weight: 700; font-size: 0.9rem; }
 .fs-route i { width: 22px; height: 2px; border-radius: 1px; background: var(--sage); }
 .fs-beats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; counter-reset: none; }
@@ -265,8 +265,8 @@ legend { font-weight: 700; margin-bottom: 12px; }
 .fs-n { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--mint); color: var(--deep); font-weight: 700; }
 .fs-beat.final { background: var(--deep); border-color: var(--deep); color: var(--paper); }
 .fs-beat.final p { color: var(--on-deep); } .fs-beat.final strong { color: #e0a07f; } .fs-beat.final .fs-n { background: #e0a07f; color: var(--deep); }
-.founder-quote { position: relative; overflow: hidden; padding: clamp(72px, 9vw, 112px) clamp(32px, 6vw, 72px) clamp(32px, 6vw, 72px); background: var(--deep); color: var(--paper); border-radius: 28px; }
-.fq-glyph { position: absolute; top: clamp(14px, 2vw, 26px); left: clamp(16px, 3vw, 40px); font: 500 clamp(6rem, 11vw, 9rem)/0.8 var(--serif); color: #e0a07f; opacity: 0.6; pointer-events: none; }
+.founder-quote { position: relative; overflow: hidden; padding: clamp(32px, 6vw, 72px); background: var(--deep); color: var(--paper); border-radius: 28px; }
+.fq-glyph { position: relative; z-index: 1; display: block; height: 0.42em; margin-bottom: 18px; font: 500 clamp(5rem, 8vw, 7rem)/0.8 var(--serif); color: #e0a07f; pointer-events: none; }
 .founder-quote blockquote { position: relative; z-index: 1; margin: 0; max-width: 980px; display: flex; flex-direction: column; gap: 18px; }
 .fq-big { font: 500 clamp(1.8rem, 3.6vw, 3rem)/1.18 var(--serif); letter-spacing: -0.01em; }
 .fq-hl { color: #e0a07f; }
