@@ -367,14 +367,29 @@ function setLogo(box, url) {
 // "Apr 2026", "2019", or "Present"
 const fmt = (d, present) => { if (d === "present") return t(present).toLowerCase(); const { y, m } = split(d); return y ? (m ? `${monthName(Number(m) - 1)} ${y}` : y) : ""; };
 // LinkedIn-style duration, counting both the first and the last month: Apr–Oct is 7 mos.
-export function duration(start, end, now = new Date()) {
-  const s = split(start); if (!s.y || !s.m) return "";
-  const e2 = end === "present" ? { y: String(now.getFullYear()), m: String(now.getMonth() + 1) } : split(end);
-  if (!e2.y || !e2.m) return "";
-  const n = (Number(e2.y) * 12 + Number(e2.m)) - (Number(s.y) * 12 + Number(s.m)) + 1;
-  if (n < 1) return "";
+const monthIndex = (d, now = new Date()) => {
+  const v = d === "present" ? { y: String(now.getFullYear()), m: String(now.getMonth() + 1) } : split(d);
+  return v.y && v.m ? Number(v.y) * 12 + Number(v.m) : null;
+};
+const monthsLabel = (n) => {
+  if (!(n >= 1)) return "";
   const y = Math.floor(n / 12), m = n % 12;
   return [y ? t(`${y} year${y > 1 ? "s" : ""}`) : "", m ? t(`${m} month${m > 1 ? "s" : ""}`) : ""].filter(Boolean).join(" ");
+};
+export function duration(start, end, now = new Date()) {
+  const s = monthIndex(start, now), e2 = monthIndex(end, now);
+  return s && e2 ? monthsLabel(e2 - s + 1) : "";
+}
+// Total time across several roles at one organisation: the months actually covered, so gaps between roles are left out and overlaps count once.
+export function totalDuration(roles, now = new Date()) {
+  const spans = roles.map((r) => [monthIndex(r.start, now), monthIndex(r.end || "present", now)]).filter(([a, b]) => a && b && b >= a).sort((x, y) => x[0] - y[0]);
+  let total = 0, cur = null;
+  for (const [a, b] of spans) {
+    if (cur && a <= cur[1] + 1) cur[1] = Math.max(cur[1], b);
+    else { if (cur) total += cur[1] - cur[0] + 1; cur = [a, b]; }
+  }
+  if (cur) total += cur[1] - cur[0] + 1;
+  return monthsLabel(total);
 }
 export const entryDates = (it, kind = "experience") => {
   const present = kind === "education" ? "Present" : "Present";
@@ -413,7 +428,7 @@ export function entryList(items, kind = "experience") {
     if (g.length === 1) return `<li>${orgTile(g[0].organisation, lg(g[0]))}<div class="xp-body">${roleLines(g[0], kind, false).join("")}${roleExtra(g[0])}</div></li>`;
     const starts = g.map((x) => x.start).filter(Boolean).sort(), ends = g.map((x) => x.end).filter(Boolean);
     const end = ends.includes("present") ? "present" : ends.sort().pop();
-    const total = duration(starts[0], end);
+    const total = totalDuration(g);
     const types = [...new Set(g.map((x) => x.employment_type).filter(Boolean))], modes = [...new Set(g.map((x) => x.work_mode).filter(Boolean))], countries = [...new Set(g.map((x) => x.country).filter(Boolean))];
     const gCountry = countries.length === 1 && g.every((x) => x.country === countries[0]) ? t(countries[0]) : "";
     const range = [fmt(starts[0], "Present"), fmt(end, "Present")].filter(Boolean).join(" – ");

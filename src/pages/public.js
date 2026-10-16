@@ -21,10 +21,12 @@ export function homeHero() {
   return `<section class="hv-hero">
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
     <div class="wrap hv-hero-grid">
-      <div class="stack hv-copy" style="--gap:24px">
+      <div class="stack hv-copy hv-top" style="--gap:18px">
         <a class="eb-badge" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span class="eb-dot" aria-hidden="true"></span><span>An initiative of</span> <strong>Ethical Bridge</strong>${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>
         ${eyebrow("Skills for locally led change")}
-        <h1>Skills handed over.<br><span>Capability that stays.</span></h1>
+        <h1>Skills handed over. <span>Capability that stays.</span></h1>
+      </div>
+      <div class="stack hv-copy" style="--gap:24px">
         <p class="lead">Local organisations publish the specific help they need. Skilled professionals give a few focused hours. Then the work is handed over: the team keeps the capability, and the professional keeps a reviewed footprint on their impact CV.</p>
         <div class="doors">
           <a class="door light" href="#organisations"><span class="door-icon">${icon("home", 24, "#0f6f63")}</span><span class="door-title">I’m an organisation</span><p>Publish a need and find skilled help. Free, always.</p><span class="door-cta">Post a need ${icon("arrow", 18)}</span></a>
