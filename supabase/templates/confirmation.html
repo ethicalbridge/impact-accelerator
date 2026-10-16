@@ -1,0 +1,38 @@
+{{ $l := or .Data.lang "en" }}<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#f6f3ec">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f3ec"><tr><td align="center" style="padding:32px 14px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fffdf8;border:1px solid #ddd6c7;border-radius:18px">
+<tr><td style="padding:28px 36px 10px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="width:34px;height:34px;border-radius:17px;background:#0f6f63;color:#fffdf8;font:bold 18px/34px Georgia,serif;text-align:center">H</td><td style="padding-left:10px;font:600 20px Georgia,'Times New Roman',serif;color:#123e3a">Handova</td></tr></table></td></tr>
+{{ if eq $l "es" }}
+<tr><td style="padding:8px 36px 0;font:400 28px/1.25 Georgia,'Times New Roman',serif;color:#10302c">Confirma tu correo</td></tr>
+<tr><td style="padding:14px 36px 0;font:16px/1.6 Arial,Helvetica,sans-serif;color:#3f4f4c">Te damos la bienvenida a Handova. Confirma tu dirección de correo para terminar de crear tu cuenta.</td></tr>
+<tr><td style="padding:26px 36px 8px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#0f6f63;color:#ffffff;text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:14px 26px;border-radius:999px">Confirmar mi correo</a></td></tr>
+<tr><td style="padding:14px 36px 0;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">¿El botón no funciona? Copia este enlace en tu navegador:<br><a href="{{ .ConfirmationURL }}" style="color:#0f6f63;word-break:break-all">{{ .ConfirmationURL }}</a></td></tr>
+<tr><td style="padding:22px 36px 30px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">Si no creaste una cuenta en Handova, puedes ignorar este correo.</td></tr>
+<tr><td style="padding:18px 36px;border-top:1px solid #ddd6c7;font:12px/1.5 Arial,Helvetica,sans-serif;color:#7a8784">Handova · Habilidades que se transmiten. Capacidades que quedan. · handova.org</td></tr>
+{{ else if eq $l "pt" }}
+<tr><td style="padding:8px 36px 0;font:400 28px/1.25 Georgia,'Times New Roman',serif;color:#10302c">Confirme seu e-mail</td></tr>
+<tr><td style="padding:14px 36px 0;font:16px/1.6 Arial,Helvetica,sans-serif;color:#3f4f4c">Boas-vindas à Handova. Confirme seu endereço de e-mail para concluir a criação da sua conta.</td></tr>
+<tr><td style="padding:26px 36px 8px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#0f6f63;color:#ffffff;text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:14px 26px;border-radius:999px">Confirmar meu e-mail</a></td></tr>
+<tr><td style="padding:14px 36px 0;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">O botão não funciona? Copie este link no seu navegador:<br><a href="{{ .ConfirmationURL }}" style="color:#0f6f63;word-break:break-all">{{ .ConfirmationURL }}</a></td></tr>
+<tr><td style="padding:22px 36px 30px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">Se você não criou uma conta na Handova, pode ignorar este e-mail.</td></tr>
+<tr><td style="padding:18px 36px;border-top:1px solid #ddd6c7;font:12px/1.5 Arial,Helvetica,sans-serif;color:#7a8784">Handova · Habilidades transmitidas. Capacidades que ficam. · handova.org</td></tr>
+{{ else if eq $l "fr" }}
+<tr><td style="padding:8px 36px 0;font:400 28px/1.25 Georgia,'Times New Roman',serif;color:#10302c">Confirmez votre adresse e-mail</td></tr>
+<tr><td style="padding:14px 36px 0;font:16px/1.6 Arial,Helvetica,sans-serif;color:#3f4f4c">Bienvenue sur Handova. Confirmez votre adresse e-mail pour terminer la création de votre compte.</td></tr>
+<tr><td style="padding:26px 36px 8px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#0f6f63;color:#ffffff;text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:14px 26px;border-radius:999px">Confirmer mon adresse</a></td></tr>
+<tr><td style="padding:14px 36px 0;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :<br><a href="{{ .ConfirmationURL }}" style="color:#0f6f63;word-break:break-all">{{ .ConfirmationURL }}</a></td></tr>
+<tr><td style="padding:22px 36px 30px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">Si vous n’avez pas créé de compte Handova, vous pouvez ignorer cet e-mail.</td></tr>
+<tr><td style="padding:18px 36px;border-top:1px solid #ddd6c7;font:12px/1.5 Arial,Helvetica,sans-serif;color:#7a8784">Handova · Des compétences transmises. Des capacités qui restent. · handova.org</td></tr>
+{{ else }}
+<tr><td style="padding:8px 36px 0;font:400 28px/1.25 Georgia,'Times New Roman',serif;color:#10302c">Confirm your email</td></tr>
+<tr><td style="padding:14px 36px 0;font:16px/1.6 Arial,Helvetica,sans-serif;color:#3f4f4c">Welcome to Handova. Please confirm your email address to finish creating your account.</td></tr>
+<tr><td style="padding:26px 36px 8px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#0f6f63;color:#ffffff;text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:14px 26px;border-radius:999px">Confirm my email</a></td></tr>
+<tr><td style="padding:14px 36px 0;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">Button not working? Copy this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#0f6f63;word-break:break-all">{{ .ConfirmationURL }}</a></td></tr>
+<tr><td style="padding:22px 36px 30px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#55625f">If you did not create a Handova account, you can ignore this email.</td></tr>
+<tr><td style="padding:18px 36px;border-top:1px solid #ddd6c7;font:12px/1.5 Arial,Helvetica,sans-serif;color:#7a8784">Handova · Skills handed over. Capability that stays. · handova.org</td></tr>
+{{ end }}
+</table>
+</td></tr></table>
+</body></html>

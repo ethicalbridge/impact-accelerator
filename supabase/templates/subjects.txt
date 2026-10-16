@@ -1,0 +1,6 @@
+confirmation: Confirm your email · Handova
+recovery: Reset your password · Handova
+email_change: Confirm your new email · Handova
+magic_link: Your sign-in link · Handova
+invite: You are invited to Handova
+reauthentication: Your verification code · Handova

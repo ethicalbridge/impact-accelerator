@@ -60,18 +60,24 @@ In the QA copy, sign in as `admin@example.test`, `org@example.test` or `talent@e
 
 Every in-app notification also triggers the `notify-email` Edge Function (`supabase/functions/notify-email`) through a database trigger. It sends a short title and a link, never message content; at most one message email per person every 30 minutes; nothing to people who turned emails off in Account and privacy. A daily job (`ia-followup-reminders`) creates the six-month "is the work still in use?" reminder for organisations.
 
+## Account emails (sign-up, password reset)
+
+Supabase Auth sends these. The branded templates are in `supabase/templates/`, one HTML file per email, with subjects in `subjects.txt`. Each one is written in English, Spanish, Portuguese and French and picks the language the person used when they signed up (`lang` in the sign-up data), falling back to English. To change one, edit the file and paste it again into Supabase → Authentication → Emails → Templates.
+
+The sender name and address come from the SMTP settings (Authentication → Emails → SMTP Settings): sender name `Handova`, sender email on `handova.org`. Supabase's built-in sender cannot be renamed and only delivers to project team members, so custom SMTP is required before launch.
+
 ## Database changes
 
 Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQL editor). Then run `supabase/tests/permissions.sql`; it must print `PASS: …` and leaves no data behind. Do the same with `supabase/tests/email-notifications.sql` and `supabase/tests/admin-introductions.sql`.
 
 ## Before launch: actions only the owner can do
 
-1. **Email sender.** Create a Resend (or similar) account, verify a sending domain, and add its SMTP details in Supabase → Authentication → Emails → SMTP. Without this, confirmation and reset emails are rate-limited to a few per hour.
+1. **Email sender.** Add SMTP details in Supabase → Authentication → Emails → SMTP Settings (Resend with a verified `handova.org` domain, or the Hostinger mailbox: `smtp.hostinger.com`, port 465), sender name `Handova`. Then paste the files from `supabase/templates/` into Authentication → Emails → Templates. Without this, confirmation and reset emails come from Supabase and only reach project team members.
    Then, for notification emails, add two secrets in Supabase → Edge Functions → Secrets: `RESEND_API_KEY` (the same key) and `NOTIFY_FROM` (for example `Handova <no-reply@your-domain>`). Until both exist, the `notify-email` function skips sending and in-app notifications still work.
 2. **Auth URLs.** In Supabase → Authentication → URL configuration set the Site URL to the live address and add it to Redirect URLs (plus the custom domain if you move to one).
 3. **Leaked-password protection.** Supabase → Authentication → Passwords: turn it on.
 4. **First admin.** Sign up with the admin email, confirm it, then run `insert into public.admins (user_id) select id from auth.users where email = 'YOUR-EMAIL';`
-5. **Contact addresses.** `src/config.js` uses `info@ethicalbridge.org` for contact and safeguarding. Change them if a dedicated inbox is created, then rebuild.
+5. **Contact addresses.** `src/config.js` uses `hello@handova.org` for contact and safeguarding. Change them if a dedicated inbox is created, then rebuild.
 6. **Analytics (optional).** Put a GA4 measurement ID in `src/config.js`; the consent banner appears automatically. Leave it empty to run with no analytics.
 7. **Plan.** Upgrade the Supabase project to Pro before launch so it is never paused and has daily backups.
 8. **Legal review.** Privacy notice and terms name Ethical Bridge as responsible. Have them checked, and confirm the governing law.
