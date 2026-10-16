@@ -57,8 +57,8 @@ export function avatar(name, size = 56) {
 }
 
 // A real photo when the profile has one (only the founder's, a static asset), otherwise initials.
-export const avatarFor = (p, size = 56) => (p.photo || p.photo_url)
-  ? `<img class="avatar photo" src="${e(p.photo || p.photo_url)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`
+export const avatarFor = (p, size = 56, alt = "") => (p.photo || p.photo_url)
+  ? `<img class="avatar photo" src="${e(p.photo || p.photo_url)}" width="${size}" height="${size}" alt="${e(alt)}" loading="lazy" decoding="async">`
   : avatar(p.name, size);
 
 // Illustrations: drawn, not photographed, so no real person or place is implied.
@@ -548,7 +548,7 @@ export function footer(cfg) {
     <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="160" height="44" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
     <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
-    <span class="ft-legal"><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
+    <span class="ft-legal"><a href="#report">Report a concern</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
     <span class="ft-social">${social.map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank" aria-label="Ethical Bridge on ${n} (opens in a new tab)">${icon(n.toLowerCase(), 17)}</a>`).join("")}</span>
   </div></div>`;
 }
