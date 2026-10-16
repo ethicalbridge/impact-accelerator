@@ -1,6 +1,6 @@
 import { locale, t } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS, LANGUAGES } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -269,15 +269,16 @@ function pathSection(kind) {
 // ---------- Needs directory ----------
 function filtersForm(kind, rows = []) {
     const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  // Main working languages always listed first, then any other language that appears.
-  const MAIN = ["English", "Spanish", "Portuguese", "French"];
-  const langs = [...MAIN, ...uniq(rows.flatMap((r) => r.languages || [])).filter((l) => !MAIN.includes(l))];
+  // The same standard list people pick from in their profile and needs, so both directories offer identical options.
+  // Any language someone added themselves (not on the list) is appended so it can still be filtered.
+  const known = new Set(LANGUAGES.map((l) => l.toLowerCase()));
+  const langs = [...LANGUAGES, ...uniq(rows.flatMap((r) => r.languages || [])).filter((l) => !known.has(l.toLowerCase()))];
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
     <label>Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
     <label>Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
-    <label>Hours<select name="hours"><option value="">${kind === "needs" ? "Any length" : "Any hours"}</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
+    <label>Hours<select name="hours"><option value="">Any hours</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
     <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><button class="link-btn" type="reset">Clear filters</button></div>
   </form>`;
 }
