@@ -85,22 +85,7 @@ export function home() {
       ${demoVideo()}
     </section>
   </div>
-  <section class="band-dark block hv-band"><div class="wrap grid-2" style="gap:72px;align-items:center">
-    <div class="stack" style="--gap:26px" data-reveal>${eyebrow("For professionals")}<h2>Let your work speak for you.</h2><p class="lead">Every completed contribution becomes a record on your impact CV: the need, what you did, the outcome and the organisation’s own words. You choose what is public.</p>
-      <ul class="checks">${["Real experience for students and people changing careers", "Endorsements written by the organisations you helped", "A shareable CV link and a printable PDF"].map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul>
-      <div class="row">${btn(`See a sample impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "light")}${btn("Create your profile", "#join", "ghost-light")}</div></div>
-    <a class="card stack hv-cv" href="#profile/${exampleProfile.user_id}" style="--gap:20px;color:var(--ink);text-decoration:none" data-reveal>
-      <div class="row between">${eyebrow("Impact CV")}${pill("Founder")}</div>
-      <div class="row" style="--gap:18px;flex-wrap:nowrap">${avatarFor(exampleProfile, 72)}<div><span class="serif" style="font-size:1.8rem;line-height:1.15">${e(exampleProfile.name)}</span><p class="muted small">${e(exampleProfile.headline)}</p></div></div>
-      <div class="metric-row">${(() => { const h = exampleContributions.reduce((a, c) => a + Number(c.hours || 0), 0); return `<div class="metric"><strong data-counter="${h}">${h}</strong><span>hours handed over</span></div>`; })()}<div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>contributions</span></div><div class="metric"><strong data-counter="${exampleContributions.length}">${exampleContributions.length}</strong><span>organisations helped</span></div></div>
-      <div class="card stack" style="--gap:8px;padding:18px 20px"><div class="row between"><strong>${e(exampleContributions[0].need_title)}</strong>${pill("Endorsement pending", "ochre")}</div><span class="small muted">${e(exampleContributions[0].organisation)} · ${exampleContributions[0].hours} hours</span><p class="small muted">Endorsements appear here in the organisation’s own words, once it has reviewed the work.</p></div>
-    </a></div></section>
   <div class="wrap">
-    <section class="block grid-2">
-      ${audience("For organisations", "Skills you could not otherwise reach, on your terms.", ["You define the need, the output and what success looks like", "Browse approved professionals or wait for applications", "Up to three open needs at a time, free", "Keep everything you receive, and the evidence of it"], "Post your first need", "#organisations",
-        `<p class="eb-note"><span><span class="eb-dot" aria-hidden="true"></span>Part of Ethical Bridge, the global hub of 3,000+ ethical, locally led organisations. Listed there? You can join straight away.</span> ${ext(EB.forOrgs, "Visit Ethical Bridge")}</p>`)}
-      ${audience("For professionals", "Meaningful work that fits around your life.", ["Short, scoped contributions of up to 16 hours", "Remote only, in the languages you work in", "A signed agreement protects you and the organisation", "Open to students and early-career people aged 18 and over"], "Find a need", "#needs")}
-    </section>
     <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
       <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" style="font-weight:700">Read how we work responsibly</a></div>
       <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No work with children or adults at risk", "Needs never involve direct contact with children or adults at risk."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time. Either side can end a conversation."]].map(([ic, t, d]) => `<div class="card row hv-lift" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
@@ -117,10 +102,6 @@ export function home() {
     </div>
   </section>`;
   return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html: homeHero() + rest, rest };
-}
-
-function audience(eb, title, items, cta, href, note = "") {
-  return `<div class="card stack hv-lift" style="--gap:20px;padding:clamp(26px,4vw,44px)">${eyebrow(eb)}<h3 class="serif" style="font:500 2rem/1.15 var(--serif)">${title}</h3><ul class="checks">${items.map((t) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${t}</li>`).join("")}</ul>${note}<div>${btn(`${cta} ${icon("arrow", 18)}`, href)}</div></div>`;
 }
 
 // The hero "handover": the mark draws itself, the dot passes between the curves, and the story floats around it.
