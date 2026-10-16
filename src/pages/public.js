@@ -21,7 +21,7 @@ export function homeHero() {
     <span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span><span class="hv-orb o3" aria-hidden="true"></span>
     <div class="wrap hv-hero-grid">
       <div class="stack hv-copy" style="--gap:24px">
-        <a class="eb-badge" href="#about"><span class="eb-dot" aria-hidden="true"></span><span>An initiative of</span> <strong>Ethical Bridge</strong>${icon("arrow", 15)}</a>
+        <a class="eb-badge" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span class="eb-dot" aria-hidden="true"></span><span>An initiative of</span> <strong>Ethical Bridge</strong>${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>
         ${eyebrow("Skills for locally led change")}
         <h1>Skills handed over.<br><span>Capability that stays.</span></h1>
         <p class="lead">Local organisations publish the specific help they need. Skilled professionals give a few focused hours. Then the work is handed over: the team keeps the capability, and the professional keeps a reviewed footprint on their impact CV.</p>
