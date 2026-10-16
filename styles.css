@@ -253,7 +253,7 @@ legend { font-weight: 700; margin-bottom: 12px; }
 .sticky { position: sticky; top: 100px; }
 .side-card { display: flex; flex-direction: column; gap: 16px; padding: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
 .prose { white-space: pre-line; font-size: 1.05rem; line-height: 1.7; }
-.reading { max-width: 780px; }
+.reading { max-width: none; }
 /* Working responsibly: the longer sections side by side, using the full width */
 .wr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 24px 40px; }
 .wr-col h2 { font-size: 1.55rem; line-height: 1.2; margin-bottom: 10px; }

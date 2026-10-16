@@ -109,6 +109,6 @@ export function report() {
   const inner = state.user
     ? `<button class="btn dark lg" type="button" data-action="report" data-type="other" data-id="">Report a concern</button><p class="muted">You can also report directly from a profile, need or conversation.</p>`
     : `<p>Write to ${mail(config.safeguardingEmail)} describing what happened, or <a href="#signin?next=%23report">sign in</a> to report from the platform.</p>`;
-  const html = `<div class="wrap" style="max-width:820px;padding-bottom:80px"><div class="page-head">${eyebrow("Safety")}<h1>Report a concern</h1><p class="lead">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p></div><div class="card stack">${inner}</div></div>`;
+  const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Safety")}<h1>Report a concern</h1><p class="lead">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p></div><div class="card stack">${inner}</div></div>`;
   return { title: "Report a concern", html };
 }
