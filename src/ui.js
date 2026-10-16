@@ -530,7 +530,7 @@ export function footer(cfg) {
   // One slim bar: brand and tagline, the Ethical Bridge link, and the same links as the main menu.
   return `<div class="wrap"><div class="ft-row">
     <a class="ft-brand" href="#home" aria-label="Handova home"><span class="ft-top">${mark(30, true)}<span class="ft-name">Handova</span></span><span class="ft-tag">Skills handed over. <b>Capability that stays.</b></span></a>
-    <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="120" height="33" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
+    <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="160" height="44" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
     <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
     <span class="ft-legal"><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
