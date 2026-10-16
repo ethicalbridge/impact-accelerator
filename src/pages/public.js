@@ -84,8 +84,8 @@ export function home() {
   const rest = `
   <div class="wrap">
     <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
-    <section class="block stack" style="--gap:40px">
-      <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Help that leaves, or capability that stays.</h2></div><p class="lead">Well-meant volunteering often starts from what the helper wants to give. Handova starts from what the organisation needs, and ends with something that stays on both sides: capability for the team, a footprint for the professional.</p></div>
+    <section class="block stack" style="--gap:40px;padding-bottom:0">
+      <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Many people want to help. Few find the way in.</h2></div><p class="lead">Many people want to contribute their skills and knowledge, but cannot find the right organisation, or cannot commit to a long volunteering role or an internship. Some people give money. Others would rather give a few hours a month, using what they know to support local work. As an initiative of Ethical Bridge, Handova builds that bridge.</p></div>
       <div class="hv-compare">
         <div class="hv-col without"><span class="hv-tag">Without a clear handover</span><ul>${gaps.map(([a]) => `<li>${icon("x", 20, "#7c3419", 2.2)}<span>${a}</span></li>`).join("")}</ul></div>
         <div class="hv-col with"><span class="hv-tag">With Handova</span><ul>${gaps.map(([, b]) => `<li>${icon("check", 20, "#0f6f63", 2.4)}<span>${b}</span></li>`).join("")}</ul></div>
