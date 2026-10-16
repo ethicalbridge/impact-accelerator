@@ -51,6 +51,7 @@ async function page(r) {
     case "cookies": return legal.cookies();
     case "safety": return legal.safety();
     case "report": return legal.report();
+    case "agreements": return legal.agreements(r.a);
     default: return pub.notFound();
   }
 }
@@ -109,7 +110,7 @@ const actions = {
   "set-lang": (el) => setLang(el.dataset.id),
   "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
   close: () => closeDialog(),
-  menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); },
+  menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); el.setAttribute("aria-label", open ? "Close menu" : "Open menu"); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
   "verify-id": (el) => acc.startIdCheck(el),
@@ -183,7 +184,7 @@ const confirmRpc = {
 
 // Keyboard: Escape closes an open menu and returns focus to its button; tabbing out of a menu closes it.
 const OPEN_MENUS = ".account-menu[open], .lang-menu[open], .nav-drop[open]";
-document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
+document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const nav = document.querySelector("#main-nav.open"); if (nav) { nav.classList.remove("open"); const b = document.querySelector("[data-action=\"menu\"]"); if (b) { b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-label", "Open menu"); b.focus(); } return; } const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
 document.addEventListener("focusout", (ev) => { const d = ev.target.closest?.(OPEN_MENUS); if (d && ev.relatedTarget && !d.contains(ev.relatedTarget)) d.removeAttribute("open"); });
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");

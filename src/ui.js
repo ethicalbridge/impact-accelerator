@@ -49,7 +49,7 @@ export const icon = (name, size = 20, color = "currentColor", sw = 1.7) =>
 export const mark = (size = 34, light = false, cls = "") =>
   `<svg class="hv-mark ${cls}" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="${light ? "#fffdf8" : "#123e3a"}" stroke-width="11" stroke-linecap="round"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="${light ? "#7fa99b" : "#0f6f63"}" stroke-width="11" stroke-linecap="round"/><circle class="hv-dot" cx="50" cy="50" r="11" fill="${light ? "#e0a07f" : "#b85c38"}"/></svg>`;
 
-const PALETTE = ["#0f6f63", "#c68a2e", "#123e3a", "#b85c38", "#7fa99b"];
+const PALETTE = ["#0f6f63", "#123e3a", "#3f7f72", "#b85c38", "#5e8f84"];
 export function avatar(name, size = 56) {
   const c = PALETTE[hashOf(name) % PALETTE.length];
   const fs = Math.round(size * 0.38), r = size / 2;
@@ -470,7 +470,7 @@ export function needCard(n) {
   return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
   ${n.handed ? handoverStrip(n) : cover(kind)}
   <div class="card-body">
-    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? handedPill() : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
+    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? "" : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
     <h3 class="card-title">${e(n.title)}</h3>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
@@ -482,7 +482,7 @@ export function needCard(n) {
 export function talentCard(p) {
   return `<a class="card card-link" href="#profile/${e(p.slug || p.user_id)}">
   <div class="stack" style="--gap:14px">
-    <div class="row between">${avatarFor(p, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : p.inactive_since ? pill("Inactive", "ochre") : ""}</div>
+    <div class="row between">${avatarFor(p, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : p.inactive_since ? pill("Inactive", "grey") : ""}</div>
     <div><h3 class="card-title">${e(p.name)}</h3><p class="muted">${e(p.headline || "Professional")}</p>${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}</div>
     <div class="meta" style="flex-direction:column;gap:6px">
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>
@@ -548,7 +548,7 @@ export function footer(cfg) {
   // One slim bar: brand and tagline, the Ethical Bridge link, and the same links as the main menu.
   return `<div class="wrap"><div class="ft-row">
     <a class="ft-brand" href="#home" aria-label="Handova home"><span class="ft-top">${mark(30, true)}<span class="ft-name">Handova</span></span><span class="ft-tag">Skills handed over. <b>Capability that stays.</b></span></a>
-    <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="160" height="44" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
+    <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="190" height="52" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
     <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
     <span class="ft-legal"><a href="#report">Report a concern</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
