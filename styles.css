@@ -116,7 +116,7 @@ section.block { padding-block: clamp(56px, 8vw, 110px); }
 .site-footer a.ft-brand:hover { text-decoration: none; }
 .ft-name { font: 500 1.45rem/1 var(--serif); }
 .ft-tag { font: 400 0.95rem/1.25 var(--serif); color: var(--on-deep); } .ft-tag b { font-weight: 400; color: #e0a07f; }
-.ft-eb { display: inline-flex; align-items: center; gap: 10px; padding-left: 28px; border-left: 1px solid rgba(255, 253, 248, 0.18); color: var(--on-deep-quiet); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.ft-eb { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding-left: 28px; border-left: 1px solid rgba(255, 253, 248, 0.18); color: var(--on-deep-quiet); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .ft-eb img { display: block; width: 120px; height: auto; opacity: 0.92; } .site-footer a.ft-eb:hover { text-decoration: none; } .ft-eb:hover img { opacity: 1; }
 .ft-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; margin-left: auto; font-weight: 500; }
 .ft-nav a { display: inline-flex; align-items: center; min-height: 44px; }
@@ -255,11 +255,26 @@ legend { font-weight: 700; margin-bottom: 12px; }
 .prose { white-space: pre-line; font-size: 1.05rem; line-height: 1.7; }
 .reading { max-width: none; }
 /* Our founder: her story and closing statement */
-.founder-quote { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; padding: clamp(28px, 5vw, 56px); background: var(--deep); color: var(--paper); border-radius: 24px; }
-.founder-quote blockquote { margin: 0; }
-.founder-quote blockquote p { font: 500 clamp(1.4rem, 2.4vw, 2rem)/1.35 var(--serif); }
-.founder-quote footer { margin-top: 18px; color: var(--on-deep); font-size: 0.95rem; }
-@media (max-width: 760px) { .founder-quote { grid-template-columns: minmax(0, 1fr); } }
+.founder-story h2 { max-width: 900px; }
+.fs-route { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; align-self: flex-start; padding: 8px 16px; border-radius: 999px; background: var(--mint); color: var(--deep); font-weight: 700; font-size: 0.9rem; }
+.fs-route i { width: 22px; height: 2px; border-radius: 1px; background: var(--sage); }
+.fs-beats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; counter-reset: none; }
+.fs-beat { position: relative; display: flex; flex-direction: column; gap: 10px; padding: clamp(24px, 3vw, 32px); background: var(--paper); border: 1px solid var(--line); border-radius: 22px; }
+.fs-beat strong { font: 500 1.6rem/1.15 var(--serif); }
+.fs-beat p { color: var(--muted); font-size: 1.05rem; line-height: 1.6; }
+.fs-n { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--mint); color: var(--deep); font-weight: 700; }
+.fs-beat.final { background: var(--deep); border-color: var(--deep); color: var(--paper); }
+.fs-beat.final p { color: var(--on-deep); } .fs-beat.final strong { color: #e0a07f; } .fs-beat.final .fs-n { background: #e0a07f; color: var(--deep); }
+.founder-quote { position: relative; overflow: hidden; padding: clamp(72px, 9vw, 112px) clamp(32px, 6vw, 72px) clamp(32px, 6vw, 72px); background: var(--deep); color: var(--paper); border-radius: 28px; }
+.fq-glyph { position: absolute; top: clamp(14px, 2vw, 26px); left: clamp(16px, 3vw, 40px); font: 500 clamp(6rem, 11vw, 9rem)/0.8 var(--serif); color: #e0a07f; opacity: 0.6; pointer-events: none; }
+.founder-quote blockquote { position: relative; z-index: 1; margin: 0; max-width: 980px; display: flex; flex-direction: column; gap: 18px; }
+.fq-big { font: 500 clamp(1.8rem, 3.6vw, 3rem)/1.18 var(--serif); letter-spacing: -0.01em; }
+.fq-hl { color: #e0a07f; }
+.fq-small { font-size: clamp(1.05rem, 1.6vw, 1.3rem); line-height: 1.55; color: var(--on-deep); max-width: 760px; }
+.founder-quote footer { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.founder-quote footer > span { display: flex; flex-direction: column; } .founder-quote footer strong { font-weight: 700; } .founder-quote footer > span > span { color: var(--on-deep); font-size: 0.92rem; }
+.founder-quote footer .avatar { border: 2px solid rgba(255, 253, 248, 0.6); border-radius: 50%; object-fit: cover; }
+.fq-arch { position: absolute; right: clamp(-40px, -2vw, 0px); bottom: 24px; width: clamp(180px, 26vw, 340px); height: auto; color: rgba(127, 169, 155, 0.25); pointer-events: none; }
 /* Working responsibly: the longer sections side by side, using the full width */
 .wr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 24px 40px; }
 .wr-col h2 { font-size: 1.55rem; line-height: 1.2; margin-bottom: 10px; }
