@@ -902,6 +902,22 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
 .eb-badge:hover { background: var(--mint); }
 .eb-badge strong { font-weight: 700; }
 .eb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--clay); }
+/* the same badge on the dark home hero */
+.hv-hero .eb-badge { background: rgba(255, 253, 248, 0.08); border-color: rgba(255, 253, 248, 0.22); color: var(--paper); }
+.hv-hero .eb-badge:hover { background: rgba(255, 253, 248, 0.16); color: var(--paper); }
+.hv-hero .eb-badge .eb-dot { background: #e0a07f; }
+/* one line under the "For organisations" card list */
+.eb-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--mint-2); color: var(--muted); font-size: 0.92rem; }
+.eb-note .eb-dot { align-self: center; flex: none; }
+.eb-note > span:not(.eb-dot) { flex: 1 1 260px; min-width: 0; }
+.eb-note a { font-weight: 700; }
+/* footer and About: Ethical Bridge logo (light version, for the dark backgrounds) */
+.footer-eb { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 4px; color: var(--on-deep-quiet); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; }
+.footer-eb img, .about-eb-logo img { display: block; width: 200px; max-width: 100%; height: auto; opacity: 0.92; transition: opacity 0.2s; }
+.footer-eb:hover, .site-footer a.footer-eb:hover { text-decoration: none; color: var(--on-deep); } .footer-eb:hover img, .about-eb-logo:hover img { opacity: 1; }
+.about-eb-logo { align-self: flex-start; margin-bottom: 6px; }
+.about-eb-logo img { width: 220px; }
+.footer-eb:focus-visible, .about-eb-logo:focus-visible { outline: 2px solid var(--paper); outline-offset: 4px; border-radius: 6px; }
 
 /* Audit fixes, 2 October 2026 */
 /* Focus ring with enough contrast on light backgrounds; ochre stays on dark teal areas. */
