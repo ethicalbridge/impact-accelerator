@@ -143,11 +143,11 @@ const actions = {
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Request changes", "Explain what needs to change. The professional can submit a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
   complete: (el) => ws.completeDialog(el.dataset.id),
-  "end-engagement": (el) => ws.decisionDialog("End this engagement?", "Use this if the work can’t go ahead. Both of you will be notified and the conversation will close.", "end-engagement", el.dataset.id, "", "End engagement", true),
-  "close-need": (el) => ws.decisionDialog("Close this need?", "It will stop accepting applications. Existing applications and engagements are kept.", "close-need", el.dataset.id, "", "Close need"),
+  "end-engagement": (el) => ws.decisionDialog("End this contribution?", "Use this if the work can’t go ahead. Both of you will be notified and the conversation will close.", "end-engagement", el.dataset.id, "", "End contribution", true),
+  "close-need": (el) => ws.decisionDialog("Close this need?", "It will stop accepting applications. Existing applications and contributions are kept.", "close-need", el.dataset.id, "", "Close need"),
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
-  followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this engagement was completed. Your answer helps show what lasts. It is not shown publicly.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
-  "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your public CV." : "Removed from your public CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
+  followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this contribution was completed. Your answer helps show what lasts. It is not shown publicly.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
+  "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your impact CV." : "Removed from your impact CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
   "switch-org": (el) => { sessionStorage.setItem("ia-org", el.value); render(); },
   "switch-role": async (el) => { await db.auth.updateUser({ data: { role: el.dataset.id } }); await loadSession(); render(); },
   "read-one": async (el) => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", el.dataset.id); state.unread = Math.max(0, state.unread - 1); },
@@ -175,12 +175,16 @@ const confirmRpc = {
   "app-accept": ["decide_application", (id) => ({ p_id: id, p_accept: true }), "Application accepted. Please sign the agreement."],
   "app-decline": ["decide_application", (id) => ({ p_id: id, p_accept: false }), "Application declined."],
   "hours-changes": ["review_hours", (id, fd) => ({ p_id: id, p_approve: false, p_note: String(fd.get("note") || "") }), "Changes requested."],
-  "end-engagement": ["end_engagement", (id) => ({ p_id: id, p_reason: "" }), "Engagement ended."],
+  "end-engagement": ["end_engagement", (id) => ({ p_id: id, p_reason: "" }), "Contribution ended."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
-  complete: ["complete_engagement", (id, fd) => ({ p_id: id, p_deliverables: String(fd.get("deliverables") || ""), p_endorsement: String(fd.get("endorsement") || ""), p_role: String(fd.get("role") || ""), p_rating: Number(fd.get("rating")) }), "Engagement completed and endorsed. Thank you."],
+  complete: ["complete_engagement", (id, fd) => ({ p_id: id, p_deliverables: String(fd.get("deliverables") || ""), p_endorsement: String(fd.get("endorsement") || ""), p_role: String(fd.get("role") || ""), p_rating: Number(fd.get("rating")) }), "Contribution completed and endorsed. Thank you."],
   followup: ["answer_followup", (id, fd) => ({ p_id: id, p_in_use: fd.get("in_use") === "yes", p_note: String(fd.get("note") || "") }), "Thank you. Your answer is saved."],
 };
 
+// Keyboard: Escape closes an open menu and returns focus to its button; tabbing out of a menu closes it.
+const OPEN_MENUS = ".account-menu[open], .lang-menu[open], .nav-drop[open]";
+document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
+document.addEventListener("focusout", (ev) => { const d = ev.target.closest?.(OPEN_MENUS); if (d && ev.relatedTarget && !d.contains(ev.relatedTarget)) d.removeAttribute("open"); });
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {

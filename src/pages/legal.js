@@ -3,7 +3,14 @@ import { state, e } from "../core.js";
 import { icon, eyebrow, btn } from "../ui.js";
 import { config } from "../config.js";
 
-const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}</div><article class="reading">${body}</article></div>`;
+const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}</div>${legalBody(body)}</div>`;
+// A readable text column with a sticky list of its sections beside it.
+const legalBody = (body) => {
+  const heads = [];
+  const html = body.replace(/<h2>(.*?)<\/h2>/g, (_, t) => { const id = "sec-" + (heads.length + 1); heads.push([id, t]); return `<h2 id="${id}">${t}</h2>`; });
+  if (heads.length < 3) return `<article class="reading">${html}</article>`;
+  return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span><ol>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol></nav><article class="reading">${html}</article></div>`;
+};
 const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
 export function privacy() {

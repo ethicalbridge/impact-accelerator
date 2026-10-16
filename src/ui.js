@@ -57,8 +57,8 @@ export function avatar(name, size = 56) {
 }
 
 // A real photo when the profile has one (only the founder's, a static asset), otherwise initials.
-export const avatarFor = (p, size = 56) => (p.photo || p.photo_url)
-  ? `<img class="avatar photo" src="${e(p.photo || p.photo_url)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async">`
+export const avatarFor = (p, size = 56, alt = "") => (p.photo || p.photo_url)
+  ? `<img class="avatar photo" src="${e(p.photo || p.photo_url)}" width="${size}" height="${size}" alt="${e(alt)}" loading="lazy" decoding="async">`
   : avatar(p.name, size);
 
 // Illustrations: drawn, not photographed, so no real person or place is implied.
@@ -113,6 +113,9 @@ export function cover(kind, { w = 384, h = 176, fit = "slice", cls = "cover" } =
 }
 
 export const exampleBadge = (label = "Example") => `<span class="example-badge">${label}</span>`;
+// Who a sample card shows (Organisation, Talent). Mint, so ochre keeps meaning "illustrative example".
+export const roleTag = (label) => `<span class="role-tag">${label}</span>`;
+export const handedPill = () => `<span class="pill">${icon("check", 14, "currentColor", 2.6)}Handed over</span>`;
 export const exampleNotice = (text = "Design preview. People, organisations and contributions shown here are illustrative, not real records.") =>
   `<div class="notice" role="note">${exampleBadge()}<span>${text}</span></div>`;
 export const tags = (arr = []) => (arr.length ? `<div class="tags">${arr.map((t) => `<span class="tag">${e(t)}</span>`).join("")}</div>` : "");
@@ -467,9 +470,9 @@ export function needCard(n) {
   return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
   ${n.handed ? handoverStrip(n) : cover(kind)}
   <div class="card-body">
-    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? pill("Handed over", "ochre") : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
+    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? handedPill() : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
-    <span class="card-title">${e(n.title)}</span>
+    <h3 class="card-title">${e(n.title)}</h3>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
     <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).map(t).join(" · "))}</span></div>
     ${tags((n.skills || []).slice(0, 4))}
@@ -480,7 +483,7 @@ export function talentCard(p) {
   return `<a class="card card-link" href="#profile/${e(p.slug || p.user_id)}">
   <div class="stack" style="--gap:14px">
     <div class="row between">${avatarFor(p, 64)}${p.founder ? pill("Founder") : p.example ? exampleBadge() : p.inactive_since ? pill("Inactive", "ochre") : ""}</div>
-    <div><span class="card-title">${e(p.name)}</span><p class="muted">${e(p.headline || "Professional")}</p>${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}</div>
+    <div><h3 class="card-title">${e(p.name)}</h3><p class="muted">${e(p.headline || "Professional")}</p>${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}</div>
     <div class="meta" style="flex-direction:column;gap:6px">
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>
       <span>${icon("language", 17)}${e((p.languages || []).map(t).join(" · ") || "Languages not given")}</span>
@@ -506,7 +509,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review", "ochre") : pill("Reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use at 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
     ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour" : "hours"}</span></span>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>
@@ -548,7 +551,7 @@ export function footer(cfg) {
     <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="160" height="44" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
     <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
-    <span class="ft-legal"><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
+    <span class="ft-legal"><a href="#report">Report a concern</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
     <span class="ft-social">${social.map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank" aria-label="Ethical Bridge on ${n} (opens in a new tab)">${icon(n.toLowerCase(), 17)}</a>`).join("")}</span>
   </div></div>`;
 }
