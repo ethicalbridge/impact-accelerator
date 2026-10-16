@@ -22,8 +22,9 @@ export function privacy() {
     <li><strong>To provide the service you asked for</strong> (contract): your account, profile, matching, agreements, hours, notifications and your impact CV.</li>
     <li><strong>To keep people safe and prevent misuse</strong> (legitimate interests): reviewing organisations and profiles before they are public, marking inactive profiles, keeping records of signed agreements, and handling reports of concern.</li>
     <li><strong>To verify your identity</strong> (your explicit consent): you give it when you start the identity check, and you can withdraw it by writing to us. Without a verified identity you cannot sign a contribution agreement.</li>
+    <li><strong>To understand use of the website</strong> (your consent): if you choose Accept analytics, Google Analytics records page views and site interactions so we can improve Handova. You can decline or withdraw this choice without losing access to the service.</li>
     <li><strong>To meet legal obligations</strong> (legal obligation): for example, responding to authorities where the law requires it.</li></ul>
-  <p>We do not sell your information, use it for advertising, or use analytics.</p>
+  <p>We do not sell your information or use it for advertising. Google Analytics is optional and starts only after you accept analytics cookies. It receives information about your visit, including pages viewed, interactions, approximate location, and browser and device information. Do not enter personal or confidential information in page links. See our <a href="#cookies">cookie notice</a> for details and to change your choice.</p>
   <h2>Who can see what</h2><ul>
     <li><strong>Public:</strong> your professional profile once you publish it and we approve it, including to search engines; approved organisations and their open needs; contributions you choose to publish on your impact CV.</li>
     <li><strong>Only the people involved:</strong> applications, invitations, messages, agreements and logged hours are visible to you and the members of the organisation concerned.</li>
@@ -33,6 +34,7 @@ export function privacy() {
     <li><strong>Supabase</strong> stores data and manages sign-in, hosted in the European Union (Frankfurt).</li>
     <li><strong>GitHub Pages</strong> (United States) publishes the website.</li>
     <li><strong>Didit</strong> carries out identity checks under a data processing agreement.</li>
+    <li><strong>Google Analytics</strong> processes website usage information when you accept analytics. Google may process this information outside your country.</li>
     <li><strong>An email provider</strong> sends account emails and notifications; we will name it here when email notifications are switched on.</li></ul>
   <p>Where a provider processes information outside your country, including in the United States, we rely on safeguards such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
   <h2>How long we keep it</h2><ul>
@@ -40,6 +42,7 @@ export function privacy() {
     <li><strong>When you delete your account:</strong> we remove your profile, applications and messages. Organisations keep an anonymised record of completed work, shown as “Former member”.</li>
     <li><strong>Signed agreements, contribution agreements and identity-check results:</strong> six years after your account closes, even if you delete it, so both sides can rely on them if a question or legal claim arises.</li>
     <li><strong>Reports of concern:</strong> as long as needed to handle them, and up to two years afterwards, for safety.</li>
+    <li><strong>Analytics:</strong> Google Analytics cookies may remain for up to two years unless you withdraw consent or clear them sooner. You can withdraw consent at any time in the cookie settings.</li>
     <li><strong>Technical logs:</strong> for the short period our providers set, usually days to weeks.</li></ul>
   <h2>If something goes wrong</h2><p>If a data breach is likely to affect you, we will tell you and the relevant authority without undue delay.</p>
   <h2>Your rights</h2><p>You can view and correct your profile at any time, unpublish it, and delete your account from <a href="#account">Account and privacy</a>. You can also ask us for a copy of your information, ask us to correct or erase it, object to how we use it, ask us to restrict it, or withdraw consent, by writing to ${mail(config.contactEmail)}. If you are unhappy with how we handle your information, please tell us first; you also have the right to complain to the data protection authority where you live or work.</p>
@@ -77,9 +80,9 @@ export function terms() {
 export function cookies() {
   const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
   <h2>Necessary storage</h2><p>When you sign in, your browser stores a secure session so you stay signed in. We also remember your cookie choice. These are needed for the service to work and are not used to track you.</p>
-  <h2>Analytics (optional)</h2><p>${config.gaMeasurementId ? "If you accept, we use Google Analytics to understand which pages are useful. It sets cookies such as <code>_ga</code> and sends information about your visit to Google. We don’t use it for advertising." : "We do not use analytics at the moment. If we add analytics, we will ask for your consent first."}</p>
+  <h2>Analytics (optional)</h2><p>${config.gaMeasurementId ? "Only if you select Accept analytics, we load Google Analytics to understand page views and site interactions. It uses <code>_ga</code> to distinguish visitors and <code>_ga_*</code> to maintain session state; Google's default lifetime for both is up to two years. Information about your visit is sent to Google. We do not use Analytics for advertising. If you decline, the Analytics tag is not loaded." : "We do not use analytics at the moment. If we add analytics, we will ask for your consent first."}</p>
   <h2>No advertising</h2><p>We don’t use advertising or social-media tracking cookies.</p>
-  <h2>Your choice</h2><p>${config.gaMeasurementId ? "You can change your choice at any time." : "We only use essential storage, so there is nothing to accept or decline; the cookie box simply tells you this."} <button class="link-btn" type="button" data-action="cookie-settings">Show the cookie box again</button>. You can also clear your browser storage.</p>`;
+  <h2>Your choice</h2><p>${config.gaMeasurementId ? "You can accept or decline, and change your choice at any time. If you withdraw consent, we remove the Analytics cookies we can access on this site and reload the page without the Analytics tag. This does not erase information already received by Google." : "We only use essential storage, so there is nothing to accept or decline; the cookie box simply tells you this."} <button class="link-btn" type="button" data-action="cookie-settings">Change cookie choice</button>. You can also clear your browser storage.</p>`;
   return { title: "Cookies", html: page("Cookies", "Cookie notice", "What we store on your device, and your choices.", body) };
 }
 
