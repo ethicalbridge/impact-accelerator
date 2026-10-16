@@ -3,6 +3,7 @@ import { state } from "./core.js";
 import { langMenu, locale, t, tf } from "./i18n.js";
 
 const IC = {
+  chevron: '<path d="M6 9l6 6 6-6"/>',
   check: '<path d="M5 12.5l4.2 4.2L19 7"/>',
   shield: '<path d="M12 3l8 3v6c0 4.6-3.4 8.2-8 9-4.6-.8-8-4.4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
   doc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
@@ -111,7 +112,7 @@ export function cover(kind, { w = 384, h = 176, fit = "slice", cls = "cover" } =
   return `<svg class="${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid ${fit}" aria-hidden="true" focusable="false"><rect width="${w}" height="${h}" fill="${COVER_BG[kind] || COVER_BG.design}"/>${s.join("")}</svg>`;
 }
 
-export const exampleBadge = () => `<span class="example-badge">Example</span>`;
+export const exampleBadge = (label = "Example") => `<span class="example-badge">${label}</span>`;
 export const exampleNotice = (text = "Design preview. People, organisations and contributions shown here are illustrative, not real records.") =>
   `<div class="notice" role="note">${exampleBadge()}<span>${text}</span></div>`;
 export const tags = (arr = []) => (arr.length ? `<div class="tags">${arr.map((t) => `<span class="tag">${e(t)}</span>`).join("")}</div>` : "");
@@ -505,8 +506,12 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
 }
 
 export function header(active) {
-  const links = [["About", "#about"], ["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"]];
-  const nav = links.map(([l, h]) => `<a href="${h}" ${active === h ? 'aria-current="page"' : ""}>${l}</a>`).join("");
+  const links = [["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"]];
+  // About opens a short menu of separate pages.
+  const aboutPages = [["Our mission", "#about/mission", "What Handova is and why it exists"], ["Ethical Bridge", "#about/ethical-bridge", "How the two fit together"], ["Our founder", "#about/founder", "Who is behind Handova"]];
+  const here = typeof location === "undefined" ? "" : location.hash.split("?")[0];
+  const aboutMenu = `<details class="nav-drop"><summary${active === "#about" ? ' class="current"' : ""}>About${icon("chevron", 16, "currentColor", 2.2)}</summary><div class="menu">${aboutPages.map(([l, h, d]) => `<a href="${h}" ${here === h || (h === "#about/mission" && here === "#about") ? 'aria-current="page"' : ""}><strong>${l}</strong><span>${d}</span></a>`).join("")}</div></details>`;
+  const nav = aboutMenu + links.map(([l, h]) => `<a href="${h}" ${active === h ? 'aria-current="page"' : ""}>${l}</a>`).join("");
   let right;
   if (state.user) {
     const name = state.profile?.name || state.memberships[0]?.full_name || state.user.email;

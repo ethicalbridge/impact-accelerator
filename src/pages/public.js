@@ -84,8 +84,8 @@ export function home() {
   const rest = `
   <div class="wrap">
     <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
-    <section class="block stack" style="--gap:40px">
-      <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Help that leaves, or capability that stays.</h2></div><p class="lead">Well-meant volunteering often starts from what the helper wants to give. Handova starts from what the organisation needs, and ends with something that stays on both sides: capability for the team, a footprint for the professional.</p></div>
+    <section class="block stack" style="--gap:40px;padding-bottom:0">
+      <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Many people want to help. Few find the way in.</h2></div><p class="lead">Many people want to contribute their skills and knowledge, but cannot find the right organisation, or cannot commit to a long volunteering role or an internship. Some people give money. Others would rather give a few hours a month, using what they know to support local work. As an initiative of Ethical Bridge, Handova builds that bridge.</p></div>
       <div class="hv-compare">
         <div class="hv-col without"><span class="hv-tag">Without a clear handover</span><ul>${gaps.map(([a]) => `<li>${icon("x", 20, "#7c3419", 2.2)}<span>${a}</span></li>`).join("")}</ul></div>
         <div class="hv-col with"><span class="hv-tag">With Handova</span><ul>${gaps.map(([, b]) => `<li>${icon("check", 20, "#0f6f63", 2.4)}<span>${b}</span></li>`).join("")}</ul></div>
@@ -164,8 +164,8 @@ function stage() {
   return `<div class="hv-stage" aria-hidden="true">
     <div class="hv-ring"></div>
     <svg class="hv-big" viewBox="0 0 100 100"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="#fffdf8" stroke-width="9" stroke-linecap="round" pathLength="1"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="#7fa99b" stroke-width="9" stroke-linecap="round" pathLength="1"/><circle class="hv-dot" cx="50" cy="50" r="9" fill="#e0a07f"/></svg>
-    <div class="hv-float f1">${cover("data", { w: 300, h: 110 })}<div style="padding:12px 14px"><div class="row between" style="flex-wrap:nowrap"><span class="small muted">Water for Tomorrow · Kenya</span>${exampleBadge()}</div><div class="serif" style="font-size:1.12rem">Improve community data tools</div><div class="meta small"><span>${icon("clock", 15)}12 hours</span><span>${icon("globe", 15)}Remote</span></div></div></div>
-    <div class="hv-float f2 row" style="flex-wrap:nowrap">${avatar("Amara Mensah", 44)}<div><strong>Amara Mensah</strong> ${exampleBadge()}<br><span class="small muted">MEL specialist · Accra</span></div></div>
+    <div class="hv-float f1">${cover("data", { w: 300, h: 110 })}<div style="padding:12px 14px"><div class="row between" style="flex-wrap:nowrap"><span class="small muted">Water for Tomorrow · Kenya</span>${exampleBadge("Organisation")}</div><div class="serif" style="font-size:1.12rem">Improve community data tools</div><div class="meta small"><span>${icon("clock", 15)}12 hours</span><span>${icon("globe", 15)}Remote</span></div></div></div>
+    <div class="hv-float f2 row" style="flex-wrap:nowrap">${avatarFor(exampleProfile, 44)}<div><strong>${e(exampleProfile.name)}</strong> ${exampleBadge("Talent")}<br><span class="small muted">${e(exampleProfile.headline)}</span></div></div>
     <div class="hv-float f3 hv-pill">${icon("pen", 17, "#fffdf8")}Agreement signed by both</div>
     <div class="hv-float f4"><div class="row between"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}Handed over · still in use</span>${exampleBadge()}</div><p class="serif" style="font-size:1.02rem;margin-top:6px">“Our field team now collects data the same way in every village.”</p></div>
   </div>`;
@@ -193,8 +193,10 @@ const EB = {
 export const ethicalBridgeLinks = EB;
 const ext = (href, label, cls = "") => `<a class="${cls}" href="${href}" target="_blank" rel="noopener">${label} <span class="visually-hidden">(opens in a new tab)</span></a>`;
 
-export async function about() {
-  const html = `<div class="wrap stack about" style="--gap:clamp(40px,5vw,64px);padding-bottom:64px">
+// About is a short menu of separate pages: Our mission (the home page content), Ethical Bridge and Our founder.
+export async function about(sub = "mission") {
+  if (sub === "ethical-bridge") {
+    const html = `<div class="wrap stack about" style="--gap:clamp(40px,5vw,64px);padding-bottom:64px">
     <div class="how-hero">
       <div class="stack" style="--gap:16px"><a class="eb-badge" href="${EB.site}" target="_blank" rel="noopener"><span class="eb-dot" aria-hidden="true"></span>An initiative of <strong>Ethical Bridge</strong>${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>${eyebrow("About Handova")}<h1>Extra support for the organisations of Ethical Bridge.</h1><p class="lead">Handova is an initiative of Ethical Bridge. Locally led organisations in the Ethical Bridge directory can ask for skilled help with one specific need, and professionals give a few focused hours, free. The work is handed over, so the capability stays with the team.</p><div class="row" style="--gap:12px">${btn(`How it works ${icon("arrow", 18)}`, "#how")}${ext(EB.site, "Visit Ethical Bridge", "btn secondary")}</div></div>
       <div class="about-mark" aria-hidden="true">${mark(200, false, "draw")}<span>Skills handed over.<br><b>Capability that stays.</b></span></div>
@@ -211,10 +213,6 @@ export async function about() {
       <div class="card stack" style="--gap:16px;padding:clamp(26px,4vw,40px)">${eyebrow("For organisations")}<h3 class="serif" style="font:500 1.9rem/1.15 var(--serif)">Already in the Ethical Bridge directory?</h3><p class="muted">You can create a Handova account straight away. Add your directory page when you sign up, and we review your organisation before your needs go public.</p><div class="row">${btn("Create an organisation account", "#join?role=organisation")}</div></div>
       <div class="card stack" style="--gap:16px;padding:clamp(26px,4vw,40px);background:var(--mint);border-color:#bcd6cd">${eyebrow("Not listed yet")}<h3 class="serif" style="font:500 1.9rem/1.15 var(--serif)">Join the directory first. It is free.</h3><p class="muted">Apply to the Ethical Bridge directory. Once your organisation is listed, come back to Handova to ask for skilled support.</p><div class="row">${ext(EB.join, `Join the Ethical Bridge directory ${icon("arrow", 18)}`, "btn")}</div></div>
     </section>
-    <section class="about-founder">
-      <a href="#profile/${exampleProfile.user_id}">${avatarFor(exampleProfile, 120)}</a>
-      <div class="stack" style="--gap:10px">${eyebrow("Who is behind Handova")}<p class="serif" style="font-size:clamp(1.3rem,2.2vw,1.7rem);line-height:1.35">Julieta is a lawyer, strategist and organisation builder. She founded Ethical Bridge and built Handova so the organisations in its directory can reach skilled help for free.</p><span><strong>${e(exampleProfile.name)}</strong> <span class="muted">· Founder of Ethical Bridge and Handova</span></span><a href="#profile/${exampleProfile.user_id}" style="font-weight:700">See Julieta’s impact CV</a></div>
-    </section>
     <section class="about-eb">
       <div class="stack" style="--gap:12px"><a class="about-eb-logo" href="${EB.site}" target="_blank" rel="noopener"><img src="assets/ethical-bridge-logo-light.webp" width="220" height="60" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a><h2>Follow Ethical Bridge.</h2><p class="lead">News, organisations and opportunities from across the Ethical Bridge community.</p></div>
       <div class="about-links">
@@ -226,7 +224,19 @@ export async function about() {
     </section>
     <section class="how-concern"><span class="icon-tile lg">${icon("shield", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><strong class="serif" style="font-size:1.6rem;font-weight:500">Who runs Handova</strong><p class="muted">Handova is operated by Ethical Bridge, which is responsible for the personal information collected through it. Write to ${e(config.contactEmail)} with any question.</p></div>${btn("Privacy notice", "#privacy", "dark")}</section>
   </div>`;
-  return { title: "About", description: "Handova is an initiative of Ethical Bridge: extra, skilled support for the organisations in its directory.", html };
+    return { title: "Ethical Bridge", description: "Handova is an initiative of Ethical Bridge: extra, skilled support for the organisations in its directory.", html };
+  }
+  if (sub === "founder") {
+    const html = `<div class="wrap stack about" style="--gap:clamp(40px,5vw,64px);padding-top:clamp(40px,5vw,64px);padding-bottom:64px">    <section class="about-founder">
+      <a href="#profile/${exampleProfile.user_id}">${avatarFor(exampleProfile, 120)}</a>
+      <div class="stack" style="--gap:10px">${eyebrow("Who is behind Handova")}<p class="serif" style="font-size:clamp(1.3rem,2.2vw,1.7rem);line-height:1.35">Julieta is a lawyer, strategist and organisation builder. She founded Ethical Bridge and built Handova so the organisations in its directory can reach skilled help for free.</p><span><strong>${e(exampleProfile.name)}</strong> <span class="muted">· Founder of Ethical Bridge and Handova</span></span><a href="#profile/${exampleProfile.user_id}" style="font-weight:700">See Julieta’s impact CV</a></div>
+    </section>
+
+  </div>`;
+    return { title: "Our founder", description: "Julieta Castiñeira de Dios founded Ethical Bridge and built Handova.", html };
+  }
+  // Our mission: for now the same content as the home page.
+  return { ...home(), title: "Our mission" };
 }
 
 // ---------- For organisations ----------

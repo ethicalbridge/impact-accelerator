@@ -25,7 +25,7 @@ function parse() {
 async function page(r) {
   switch (r.name) {
     case "home": return pub.home();
-    case "about": return pub.about();
+    case "about": return ["ethical-bridge", "founder"].includes(r.a) ? pub.about(r.a) : pub.about("mission");
     case "organisations": return r.a ? pub.orgPage(r.a) : pub.organisations();
     case "professionals": return pub.professionals();
     case "needs": return pub.needs();
@@ -184,7 +184,7 @@ const confirmRpc = {
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {
-    document.querySelectorAll(".account-menu[open], .lang-menu[open]").forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
+    document.querySelectorAll(".account-menu[open], .lang-menu[open], .nav-drop[open]").forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
     return;
   }
   const fn = actions[el.dataset.action];
