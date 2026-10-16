@@ -626,7 +626,9 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
 .path-switch button:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
 .path-switch button svg:last-child { color: var(--teal); transition: transform 0.2s; transform: rotate(90deg); }
 .path-switch button:hover svg:last-child { transform: rotate(90deg) translateX(3px); }
-.path-section { scroll-margin-top: 96px; padding-top: 8px; }
+.path-section { scroll-margin-top: 96px; padding-top: clamp(24px, 3vw, 40px); }
+/* "For organisations" / "For professionals": a real section label, not a small kicker */
+.path-eyebrow { font-size: clamp(1.3rem, 2.4vw, 1.75rem); letter-spacing: 0.1em; }
 .path-section + .path-section { border-top: 1px solid var(--line); padding-top: clamp(40px, 5vw, 64px); }
 
 /* Join / sign in split by role */
@@ -680,8 +682,14 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
 @media (max-width: 760px) { .hv-exchange { grid-template-columns: minmax(0, 1fr); } .hv-ex-mid { flex-direction: row; border-inline: 0; border-block: 1px solid rgba(255, 253, 248, 0.14); } .hv-ex-mid svg { width: 44px; height: 44px; } }
 /* demo video: 16:9 box reserved before anything loads, so the page never jumps */
 .hv-video { padding-top: clamp(28px, 4vw, 48px); }
-.hv-video-frame { margin: 0; border-radius: 22px; overflow: hidden; background: var(--deep); box-shadow: var(--shadow); aspect-ratio: 16 / 9; width: 100%; max-width: 100%; }
-.hv-video-frame video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hv-video-frame { margin: 0; border-radius: 22px; overflow: hidden; background: var(--deep); box-shadow: var(--shadow); width: 100%; max-width: 100%; }
+.hv-video-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.hv-subs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; background: var(--deep); color: var(--paper); border-top: 1px solid rgba(255, 253, 248, 0.14); }
+.hv-subs-label { display: inline-flex; align-items: center; gap: 8px; margin-right: 6px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--on-deep, #cfe1db); }
+.hv-subs button { font: inherit; font-weight: 600; font-size: 0.95rem; padding: 7px 16px; border-radius: 999px; border: 1px solid rgba(255, 253, 248, 0.35); background: transparent; color: var(--paper); cursor: pointer; }
+.hv-subs button:hover { border-color: var(--paper); }
+.hv-subs button[aria-pressed="true"] { background: var(--paper); color: var(--deep); border-color: var(--paper); }
+.hv-subs button:focus-visible { outline: 2px solid #e0a07f; outline-offset: 2px; }
 .hv-video-frame video::cue { background: rgba(11, 39, 36, 0.8); color: #fffdf8; line-height: 1.35; }
 .j-stage:last-child .j-cell { background: var(--ochre-bg); border-color: var(--ochre-line); color: var(--ink); }
 .j-stage:last-child .j-cell p { color: #5c4a26; }

@@ -118,11 +118,22 @@ function bindHeroTilt(root) {
 // Header gains a shadow once the page scrolls.
 let headerBound = false;
 // Demo video: subtitles start on in the site language (Spanish for Spanish, English otherwise).
-// Visitors can switch them off or change language from the player's CC menu.
+// The Español / English / Off buttons under the video switch them; the player's own CC menu still works too.
 function bindDemoVideo(root) {
   root.querySelectorAll("video[data-demo-video]").forEach((video) => {
-    const want = getLang() === "es" ? "es" : "en";
-    const apply = () => [...video.textTracks].forEach((tr) => { tr.mode = tr.language === want ? "showing" : "disabled"; });
+    const buttons = [...(video.closest("figure")?.querySelectorAll("[data-subs]") || [])];
+    let want = getLang() === "es" ? "es" : "en";
+    const apply = () => {
+      [...video.textTracks].forEach((tr) => { tr.mode = tr.language === want ? "showing" : "disabled"; });
+      buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.subs === want)));
+    };
+    buttons.forEach((b) => b.addEventListener("click", () => { want = b.dataset.subs; apply(); }));
+    // Keep the buttons in step if the visitor uses the player's own menu instead.
+    video.textTracks.addEventListener?.("change", () => {
+      const on = [...video.textTracks].find((tr) => tr.mode === "showing");
+      want = on ? on.language : "off";
+      buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.subs === want)));
+    });
     apply();
     video.textTracks.addEventListener?.("addtrack", apply, { once: true });
   });

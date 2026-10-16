@@ -21,9 +21,9 @@
     <link rel="preload" href="fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin />
     <script>if(location.hash&&location.hash!=='#home')document.documentElement.classList.add('non-home')</script>
-    <link rel="stylesheet" href="styles.css?v=handova154" />
+    <link rel="stylesheet" href="styles.css?v=handova155" />
     <script src="consent-boot.js?v=handova153" defer></script>
-    <script type="module" src="app.js?v=handova159"></script>
+    <script type="module" src="app.js?v=handova160"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -83,6 +83,12 @@
         <track kind="subtitles" src="assets/handova-demo.es.vtt" srclang="es" label="Español">
         <a href="assets/handova-demo.mp4">Download the demo video (MP4, 25 MB)</a>
       </video>
+      <figcaption class="hv-subs" role="group" aria-label="Subtitles">
+        <span class="hv-subs-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>Subtitles</span></span>
+        <button type="button" data-subs="es" lang="es" aria-pressed="false">Español</button>
+        <button type="button" data-subs="en" lang="en" aria-pressed="false">English</button>
+        <button type="button" data-subs="off" aria-pressed="false">Off</button>
+      </figcaption>
     </figure>
     </section>
     <section class="stack" id="hv-how" style="--gap:32px;padding-bottom:clamp(56px,8vw,110px)">
