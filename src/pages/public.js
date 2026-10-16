@@ -95,7 +95,7 @@ export function home() {
       </div>
     </section>
     <section class="stack hv-video" id="hv-demo" style="--gap:28px;padding-bottom:clamp(56px,8vw,110px)">
-      <div class="hv-head" data-reveal><div class="stack">${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div><p class="lead">How an organisation and a professional work together on Handova, and what each of them keeps.</p></div>
+      <div class="stack" data-reveal>${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div>
       ${demoVideo()}
     </section>
   </div>
