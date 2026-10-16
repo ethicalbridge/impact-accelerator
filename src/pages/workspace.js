@@ -2,6 +2,8 @@ import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, inv
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard } from "./account.js";
 import { list, languages, date, plural, today } from "../utils.js";
+// Needs: at least 4 hours, matching the minimum professionals commit to; at most 16 (a need stays short).
+const NEED_HOURS = Array.from({ length: 13 }, (_, i) => i + 4).map((h) => [String(h), `${h} hours`]);
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</a>`).join("")}</nav>`;
 const card = (title, inner, extra = "") => `<section class="card stack" style="--gap:6px"><div class="row between" style="margin-bottom:8px"><h2 style="font-size:1.7rem">${title}</h2>${extra}</div>${inner}</section>`;
@@ -124,7 +126,7 @@ function needForm(n, o, approved) {
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
-    ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
+    ${dropdown("hours", "Estimated hours", NEED_HOURS, String(Math.min(16, Math.max(4, Number(n.hours) || 8))), { required: true, hint: "Between 4 and 16 hours, the same range professionals commit to." })}
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
     ${countrySelect("country", "Country", n.country || o.country || "")}
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
@@ -138,6 +140,7 @@ export async function submitNeed(form) {
   await withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and the safeguarding confirmation.")); }
     const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
+    if (!(row.hours >= 4 && row.hours <= 16)) throw Error("Choose between 4 and 16 hours.");
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
     else await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }));
     toast(row.status === "open" ? "Your need is live." : "Need saved.");

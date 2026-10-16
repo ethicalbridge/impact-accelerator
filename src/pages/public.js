@@ -1,6 +1,6 @@
 import { locale, t } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS, LANGUAGES } from "../ui.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -267,12 +267,20 @@ function pathSection(kind) {
 }
 
 // ---------- Needs directory ----------
-function filtersForm(kind, rows = []) {
-    const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  // The same standard list people pick from in their profile and needs, so both directories offer identical options.
-  // Any language someone added themselves (not on the list) is appended so it can still be filtered.
-  const known = new Set(LANGUAGES.map((l) => l.toLowerCase()));
-  const langs = [...LANGUAGES, ...uniq(rows.flatMap((r) => r.languages || [])).filter((l) => !known.has(l.toLowerCase()))];
+// Languages offered in both directories: the four main working languages, then any language an approved professional offers.
+// Needs and Talent use the same list, built from talent profiles.
+function talentLanguages(profiles = []) {
+  const MAIN = ["English", "Spanish", "French", "Portuguese"];
+  const main = new Set(MAIN.map((l) => l.toLowerCase()));
+  const seen = new Map();
+  for (const l of profiles.flatMap((p) => p.languages || [])) if (l && !main.has(l.toLowerCase()) && !seen.has(l.toLowerCase())) seen.set(l.toLowerCase(), l);
+  return [...MAIN, ...[...seen.values()].sort((a, b) => a.localeCompare(b))];
+}
+async function approvedTalent(cols) {
+  return result(db.from("profiles").select(cols).eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
+}
+
+function filtersForm(kind, langs) {
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
@@ -284,11 +292,11 @@ function filtersForm(kind, rows = []) {
 }
 
 export async function needs() {
-  const real = await openNeeds();
+  const [real, pros] = await Promise.all([openNeeds(), approvedTalent("languages")]);
   const rows = real.length ? real : exampleNeeds;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Open needs")}<h1>Where your expertise can help.</h1><p class="lead">Every need is written by an approved, locally led organisation: the output they need, the skills involved and a realistic number of hours.</p></div>
-    ${filtersForm("needs", rows)}
+    ${filtersForm("needs", talentLanguages([exampleProfile, ...pros]))}
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <div class="grid" id="results"></div>
     <section class="stack" style="--gap:18px;padding-top:24px">
@@ -377,7 +385,7 @@ export async function need(id) {
 
 // ---------- Talent ----------
 export async function talent() {
-  const real = await result(db.from("profiles").select("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status").eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
+  const real = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
   const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length } : exampleProfile;
@@ -385,7 +393,7 @@ export async function talent() {
   const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
-    ${filtersForm("talent", rows)}
+    ${filtersForm("talent", talentLanguages(rows))}
     <div class="grid" id="results"></div>
     <div class="card row between band-dark" style="border-color:var(--deep)"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Are you an organisation?</span><p class="muted">Post a need and invite the people whose work fits. It is free.</p></div>${btn(`Post a need ${icon("arrow", 18)}`, "#organisations", "light")}</div>
   </div>`;
