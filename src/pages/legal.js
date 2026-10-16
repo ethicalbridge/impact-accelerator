@@ -88,14 +88,19 @@ export function cookies() {
   return { title: "Cookies", html: page("Cookies", "Cookie notice", "What we store on your device, and your choices.", body) };
 }
 
-export function safety() {
+// The rules for working responsibly. Shown on its own page and on About › FAQ & safety.
+export function workingResponsibly({ withConcern = true } = {}) {
   const rules = [["pen", "Agree before you start", "Output, hours, deadlines, contact person, review process, what is out of scope and who owns the work."], ["lock", "Share the minimum", "Only after signing, only what the work needs, only through a secure channel. Never passwords, card details, PINs or access codes."], ["eye", "Keep people anonymous", "No beneficiary names, case files, identity documents or confidential research in profiles, needs or messages."], ["people", "Remote, and no contact with people at risk", "Contributions are remote. No direct contact with children or adults at risk, and no access to their personal information. A profile is not a background check or a licence."], ["gift", "Unpaid, clearly", "Contributions are voluntary. Expenses or payment need separate written terms."], ["flag", "Pause if it feels wrong", "Either side can end a conversation or an engagement, and report a concern."]];
-  const html = `<div class="wrap stack" style="--gap:40px;padding-bottom:80px"><div class="page-head">${eyebrow("Working responsibly")}<h1>Good intentions need good boundaries.</h1><p class="lead">Every professional and every organisation signs an agreement with these standards before they start. Six rules apply to every engagement, whoever you are.</p></div>
-    <div class="grid">${rules.map(([ic, t, d]) => `<div class="card stack" style="--gap:12px"><span class="icon-tile lg">${icon(ic, 26, "#0f6f63")}</span><h2 class="h3">${t}</h2><p class="muted">${d}</p></div>`).join("")}</div>
+  return `    <div class="grid">${rules.map(([ic, t, d]) => `<div class="card stack" style="--gap:12px"><span class="icon-tile lg">${icon(ic, 26, "#0f6f63")}</span><h2 class="h3">${t}</h2><p class="muted">${d}</p></div>`).join("")}</div>
     <article class="reading"><h2>Regulated and higher-risk work</h2><p>Legal, medical, financial or other regulated advice needs appropriate qualifications and separate written terms. If a need turns out to involve direct contact with children or adults at risk, stop and report it.</p>
     <h2>Protection from sexual exploitation and abuse</h2><p>We follow the six core principles used across the aid sector. Sexual exploitation and abuse are gross misconduct and lead to immediate removal. No sexual activity with anyone under 18. Never exchange money, work, help or favours for sex. Relationships with the people an organisation serves are strongly discouraged. Everyone connected to Handova must report concerns, and everyone shares the duty to prevent harm.</p>
     <h2>Data and AI tools</h2><p>Share only what the work needs, anonymised where possible. Never put an organisation’s confidential or personal information into AI tools or personal accounts without its written permission. Report a data breach to the other party and to Handova within 24 hours.</p>
-    <h2>Raise a concern</h2><p>Use <strong>Report a concern</strong> on any profile, need or conversation, or write to ${mail(config.safeguardingEmail)}. Report within 24 hours. Our safeguarding lead reviews every report, keeps it confidential and never penalises anyone for raising a genuine concern. If someone is in immediate danger, contact local emergency services first.</p></article>
+${withConcern ? `<h2>Raise a concern</h2><p>Use <strong>Report a concern</strong> on any profile, need or conversation, or write to ${mail(config.safeguardingEmail)}. Report within 24 hours. Our safeguarding lead reviews every report, keeps it confidential and never penalises anyone for raising a genuine concern. If someone is in immediate danger, contact local emergency services first.</p>` : ""}</article>`;
+}
+
+export function safety() {
+  const html = `<div class="wrap stack" style="--gap:40px;padding-bottom:80px"><div class="page-head">${eyebrow("Working responsibly")}<h1>Good intentions need good boundaries.</h1><p class="lead">Every professional and every organisation signs an agreement with these standards before they start. Six rules apply to every engagement, whoever you are.</p></div>
+${workingResponsibly()}
     <div class="row">${btn("Report a concern", "#report", "dark")}${btn("How it works", "#how", "secondary")}</div></div>`;
   return { title: "Working responsibly", description: "The rules that keep every engagement safe.", html };
 }
