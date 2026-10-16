@@ -26,9 +26,16 @@ Deno.serve(async (req) => {
   if (authError || !auth.user) return json({ error: "Please sign in first." }, 401);
   const userId = auth.user.id;
 
-  const { data: sessions, error: sessionsError } = await admin.from("id_verifications")
-    .select("session_id").eq("user_id", userId);
-  if (sessionsError) return json({ error: "Could not check identity records. Please try again." }, 502);
+  const sessions: Array<{ session_id: string }> = [];
+  for (let offset = 0; offset <= 10000; offset += 500) {
+    const { data: page, error: sessionsError } = await admin.from("id_verifications")
+      .select("session_id").eq("user_id", userId).order("created_at")
+      .range(offset, offset + 499);
+    if (sessionsError || !page) return json({ error: "Could not check identity records. Please try again." }, 502);
+    sessions.push(...page);
+    if (page.length < 500) break;
+    if (offset === 10000) return json({ error: "Please contact support to remove your identity records." }, 502);
+  }
   if (sessions.length && !diditKey) return json({ error: "Identity records cannot be removed right now. Please contact support." }, 503);
   for (const row of sessions) {
     const response = await fetch(`https://verification.didit.me/v3/session/${encodeURIComponent(row.session_id)}/delete/`, {
