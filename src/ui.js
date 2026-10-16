@@ -506,9 +506,9 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
 }
 
 export function header(active) {
-  const links = [["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"]];
+  const links = [["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"], ["FAQ & safety", "#about/faq"]];
   // About opens a short menu of separate pages.
-  const aboutPages = [["Our mission", "#about/mission", "What Handova is and why it exists"], ["Ethical Bridge", "#about/ethical-bridge", "How the two fit together"], ["Our founder", "#about/founder", "Who is behind Handova"], ["FAQ & safety", "#about/faq", "Questions, safeguards and legal"]];
+  const aboutPages = [["Our mission", "#about/mission", "What Handova is and why it exists"], ["Ethical Bridge", "#about/ethical-bridge", "How the two fit together"], ["Our founder", "#about/founder", "Who is behind Handova"]];
   const here = typeof location === "undefined" ? "" : location.hash.split("?")[0];
   const aboutMenu = `<details class="nav-drop"><summary${active === "#about" ? ' class="current"' : ""}>About${icon("chevron", 16, "currentColor", 2.2)}</summary><div class="menu">${aboutPages.map(([l, h, d]) => `<a href="${h}" ${here === h || (h === "#about/mission" && here === "#about") ? 'aria-current="page"' : ""}><strong>${l}</strong><span>${d}</span></a>`).join("")}</div></details>`;
   const nav = aboutMenu + links.map(([l, h]) => `<a href="${h}" ${active === h ? 'aria-current="page"' : ""}>${l}</a>`).join("");
