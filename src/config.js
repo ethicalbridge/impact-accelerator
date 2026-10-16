@@ -8,7 +8,7 @@ export const config = {
   safeguardingEmail: "hello@handova.org",
   // Google Analytics 4 measurement ID (G-XXXXXXX). Empty = no analytics and no consent banner.
   gaMeasurementId: "G-151TT1KXTL",
-  legalUpdated: "16 October 2026",
+  legalUpdated: "17 October 2026",
   // The founder's real account. Once set, handova.org/#profile/julieta-castineira-de-dios shows her live profile
   // (falling back to the built-in sample until it is approved), and the Talent page lists the live one.
   founderUserId: "0851ea34-73ab-48c0-9337-b4e2fe864fd9",

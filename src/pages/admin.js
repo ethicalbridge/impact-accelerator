@@ -49,7 +49,7 @@ export async function admin() {
     <section class="card"><h2 style="font-size:1.7rem;margin-bottom:12px">Pilot numbers</h2><div class="table-scroll"><table class="data"><tbody>
       <tr><td>Approved professionals</td><td><strong>${count(allProfiles, (p) => p.review_status === "approved" && p.published)}</strong></td></tr>
       <tr><td>Open needs</td><td><strong>${count(needs, (n) => n.status === "open")}</strong></td></tr>
-      <tr><td>Engagements started</td><td><strong>${engagements.length}</strong></td></tr>
+      <tr><td>Contributions started</td><td><strong>${engagements.length}</strong></td></tr>
       <tr><td>Contributions completed</td><td><strong>${count(engagements, (x) => x.status === "completed")}</strong></td></tr>
       <tr><td>Ended early</td><td><strong>${count(engagements, (x) => x.status === "ended")}</strong></td></tr>
       <tr><td>Six-month follow-ups answered “still in use”</td><td><strong>${count(engagements, (x) => x.followup_in_use === true)}</strong> of ${count(engagements, (x) => x.followup_in_use !== null && x.followup_in_use !== undefined)}</td></tr>
