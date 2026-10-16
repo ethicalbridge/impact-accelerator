@@ -181,6 +181,10 @@ const confirmRpc = {
   followup: ["answer_followup", (id, fd) => ({ p_id: id, p_in_use: fd.get("in_use") === "yes", p_note: String(fd.get("note") || "") }), "Thank you. Your answer is saved."],
 };
 
+// Keyboard: Escape closes an open menu and returns focus to its button; tabbing out of a menu closes it.
+const OPEN_MENUS = ".account-menu[open], .lang-menu[open], .nav-drop[open]";
+document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
+document.addEventListener("focusout", (ev) => { const d = ev.target.closest?.(OPEN_MENUS); if (d && ev.relatedTarget && !d.contains(ev.relatedTarget)) d.removeAttribute("open"); });
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {
