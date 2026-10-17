@@ -15,7 +15,8 @@ const LEGACY = { guide: "how", safeguarding: "safety", organisation: "org", hour
 const ACTIVE = { about: "#about", needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#how", professionals: "#how" };
 
 function parse() {
-  const raw = decodeURIComponent(location.hash.slice(1) || "home");
+  let raw = decodeURIComponent(location.hash.slice(1) || "home");
+  if (/^error=|^error_code=|[&]error_code=/.test(raw)) raw = "email-confirmed?" + raw;
   const [path, query = ""] = raw.split("?");
   const parts = path.split("/").filter(Boolean);
   const name = LEGACY[parts[0]] || parts[0] || "home";
@@ -46,6 +47,7 @@ async function page(r) {
     case "notifications": return adm.notifications();
     case "admin": return adm.admin();
     case "verify-done": return acc.verifyDone();
+    case "email-confirmed": return acc.emailConfirmed(r.params);
     case "privacy": return legal.privacy();
     case "terms": return legal.terms();
     case "cookies": return legal.cookies();
@@ -163,7 +165,7 @@ const actions = {
 const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
-  "org-create": (f) => acc.submitAccount("org-create", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
+  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
