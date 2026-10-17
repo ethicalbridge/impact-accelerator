@@ -119,7 +119,7 @@ export async function onboarding() {
 }
 
 // Logo: optional, fitted inside a 200px square PNG and stored in the person's own folder (see fittedPng).
-const logoField = (o = {}) => `<div class="full orglogo-field" data-orglogo><span class="orglogo-label">Logo <span class="muted">(optional)</span></span><div class="row" style="--gap:18px;align-items:center;flex-wrap:nowrap"><span class="orglogo-preview">${o.logo_url ? `<img src="${e(o.logo_url)}" width="80" height="80" alt="">` : avatar(o.name || "Organisation", 80)}</span><div class="stack" style="--gap:8px"><div class="row" style="--gap:10px"><label class="btn secondary sm orglogo-pick">${icon("plus", 16)}<span>${o.logo_url ? "Change logo" : "Upload a logo"}</span><input type="file" class="orglogo-file visually-hidden" accept="image/png,image/jpeg,image/webp"></label><button type="button" class="link-btn orglogo-remove" ${o.logo_url ? "" : "hidden"}>Remove</button></div><span class="small muted orglogo-status" aria-live="polite">PNG, JPG or WebP. A square logo works best. It appears on your public page and your needs.</span></div></div><input type="hidden" name="logo_url" value="${e(o.logo_url || "")}"></div>`;
+const logoField = (o = {}) => `<div class="full orglogo-field" data-orglogo><span class="orglogo-label">Logo <span class="muted">(optional)</span></span><div class="row" style="--gap:18px;align-items:center;flex-wrap:nowrap"><span class="orglogo-preview">${o.logo_url ? `<img src="${e(o.logo_url)}" width="80" height="80" alt="">` : avatar(o.name || "Organisation", 80)}</span><div class="stack" style="--gap:8px"><div class="row" style="--gap:10px"><label class="btn secondary sm orglogo-pick">${icon("plus", 16)}<span>${o.logo_url ? "Change logo" : "Upload a logo"}</span><input type="file" class="orglogo-file visually-hidden" accept="image/png,image/jpeg,image/webp"></label><button type="button" class="link-btn orglogo-edit" ${o.logo_url ? "" : "hidden"}>Adjust</button><button type="button" class="link-btn orglogo-remove" ${o.logo_url ? "" : "hidden"}>Remove</button></div><span class="small muted orglogo-status" aria-live="polite">PNG, JPG or WebP. A square logo works best. It appears on your public page and your needs.</span></div></div><input type="hidden" name="logo_url" value="${e(o.logo_url || "")}"></div>`;
 // "www.org.org" or "facebook.com/x" become https:// addresses.
 const withScheme = (v) => (v && !/^[a-z]+:\/\//i.test(v) ? "https://" + v : v);
 
@@ -310,6 +310,60 @@ setEntryLogoUpload(async (file) => {
   return db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 });
 // Organisation logo picker (sign-up step 2 and Organisation profile).
+// Every logo goes through a small editor: drag (or arrow keys) to move it, the slider to resize it.
+// The square that people see is saved as a 400px PNG; the original is kept beside it so it can be adjusted later.
+function cropLogo(src) {
+  return new Promise((resolve) => {
+    const S = 260;
+    openDialog("Adjust your logo", `<div class="crop-wrap"><div class="crop-frame" tabindex="0" role="img" aria-label="Logo preview. Drag the image or use the arrow keys to move it."><img class="crop-img" alt="" draggable="false"></div><label class="crop-zoom"><span>Size</span><input type="range" min="0.2" max="4" step="0.01" value="1" class="crop-range" aria-label="Logo size"></label><p class="small muted">Drag the image to move it and use the slider to make it bigger or smaller. The square shows exactly what people will see.</p><div class="row"><button type="button" class="btn crop-ok">Use this logo</button><button type="button" class="btn secondary crop-cancel">Cancel</button><button type="button" class="link-btn crop-reset">Reset</button></div></div>`);
+    const d = document.getElementById("dialog"), frame = d.querySelector(".crop-frame"), img = d.querySelector(".crop-img"), range = d.querySelector(".crop-range");
+    let done = false, base = 1, z = 1, x = 0, y = 0, iw = 0, ih = 0, drag = null;
+    const finish = (v) => { if (done) return; done = true; d.removeEventListener("close", onClose); if (d.open) closeDialog(); resolve(v); };
+    const onClose = () => finish(null);
+    d.addEventListener("close", onClose);
+    const draw = () => { const w = iw * base * z, h = ih * base * z; img.style.width = w + "px"; img.style.height = h + "px"; img.style.transform = `translate(${(S - w) / 2 + x}px, ${(S - h) / 2 + y}px)`; };
+    img.crossOrigin = "anonymous";
+    img.onload = () => { iw = img.naturalWidth; ih = img.naturalHeight; base = Math.min(S / iw, S / ih); draw(); };
+    img.onerror = () => { finish(null); toast("That image could not be opened. Try uploading it again."); };
+    img.src = src;
+    range.addEventListener("input", () => { z = Number(range.value); draw(); });
+    frame.addEventListener("pointerdown", (ev) => { drag = { sx: ev.clientX - x, sy: ev.clientY - y }; frame.setPointerCapture(ev.pointerId); frame.classList.add("dragging"); });
+    frame.addEventListener("pointermove", (ev) => { if (!drag) return; x = ev.clientX - drag.sx; y = ev.clientY - drag.sy; draw(); });
+    const stop = () => { drag = null; frame.classList.remove("dragging"); };
+    frame.addEventListener("pointerup", stop); frame.addEventListener("pointercancel", stop);
+    frame.addEventListener("keydown", (ev) => { const k = { ArrowLeft: [-6, 0], ArrowRight: [6, 0], ArrowUp: [0, -6], ArrowDown: [0, 6] }[ev.key]; if (!k) return; ev.preventDefault(); x += k[0]; y += k[1]; draw(); });
+    frame.addEventListener("wheel", (ev) => { ev.preventDefault(); z = Math.min(4, Math.max(0.2, z * (ev.deltaY < 0 ? 1.06 : 0.94))); range.value = z; draw(); }, { passive: false });
+    d.querySelector(".crop-reset").onclick = () => { z = 1; x = 0; y = 0; range.value = 1; draw(); };
+    d.querySelector(".crop-cancel").onclick = () => finish(null);
+    d.querySelector(".crop-ok").onclick = () => {
+      const out = 400, k = out / S, c = document.createElement("canvas"), w = iw * base * z, h = ih * base * z;
+      c.width = c.height = out;
+      try { c.getContext("2d").drawImage(img, ((S - w) / 2 + x) * k, ((S - h) / 2 + y) * k, w * k, h * k); c.toBlob((b) => finish(b), "image/png"); }
+      catch { finish(null); toast("This logo can't be adjusted. Upload the file again instead."); }
+    };
+  });
+}
+// A large copy of the original, so the logo can be re-adjusted without losing quality.
+async function originalPng(file) {
+  const bmp = await createImageBitmap(file).catch(() => { throw Error("That file could not be read as an image."); });
+  const k = Math.min(1200 / bmp.width, 1200 / bmp.height, 1), c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(Error("Could not prepare the logo."))), "image/png"));
+}
+const putLogo = async (path, blob) => {
+  const up = await db.storage.from("avatars").upload(path, blob, { contentType: "image/png", cacheControl: "31536000" });
+  if (up.error) throw up.error;
+  return db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+};
+function showLogo(box, url, msg) {
+  box.querySelector('input[name="logo_url"]').value = url;
+  box.querySelector(".orglogo-preview").innerHTML = url ? `<img src="${e(url)}" width="80" height="80" alt="">` : avatar(box.closest("form")?.querySelector('[name="name"]')?.value || "Organisation", 80);
+  box.querySelector(".orglogo-pick span").textContent = url ? "Change logo" : "Upload a logo";
+  box.querySelector(".orglogo-remove").hidden = !url;
+  box.querySelector(".orglogo-edit").hidden = !url;
+  box.querySelector(".orglogo-status").textContent = msg;
+}
 document.addEventListener("change", async (ev) => {
   if (!ev.target.matches?.(".orglogo-file")) return;
   const box = ev.target.closest("[data-orglogo]"), file = ev.target.files?.[0], status = box.querySelector(".orglogo-status");
@@ -317,28 +371,35 @@ document.addEventListener("change", async (ev) => {
   if (!file || !state.user) return;
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { status.textContent = "Use a PNG, JPG or WebP image."; return; }
   if (file.size > 10 * 1024 * 1024) { status.textContent = "That image is over 10 MB. Try a smaller one."; return; }
+  // A data: address, because the site's security rules don't allow blob: images.
+  const local = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(""); r.readAsDataURL(file); });
+  const blob = local ? await cropLogo(local) : null;
+  if (!blob) { status.textContent = "Logo not changed."; return; }
   status.textContent = "Uploading…";
   try {
-    const blob = await fittedPng(file), path = `${state.user.id}/logos/${Date.now()}.png`;
-    const up = await db.storage.from("avatars").upload(path, blob, { contentType: "image/png", cacheControl: "31536000" });
-    if (up.error) throw up.error;
-    const url = db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
-    box.querySelector('input[name="logo_url"]').value = url;
-    box.querySelector(".orglogo-preview").innerHTML = `<img src="${e(url)}" width="80" height="80" alt="">`;
-    box.querySelector(".orglogo-pick span").textContent = "Change logo";
-    box.querySelector(".orglogo-remove").hidden = false;
-    status.textContent = "Logo ready. Save to keep it.";
+    const stamp = `${state.user.id}/logos/${Date.now()}`;
+    putLogo(`${stamp}-original.png`, await originalPng(file)).catch(() => {});
+    showLogo(box, await putLogo(`${stamp}.png`, blob), "Logo ready. Save to keep it.");
   } catch (err) { status.textContent = err.message || "The logo could not be uploaded. Try again."; }
 });
-document.addEventListener("click", (ev) => {
+document.addEventListener("click", async (ev) => {
   const rm = ev.target.closest?.(".orglogo-remove");
-  if (!rm) return;
-  const box = rm.closest("[data-orglogo]");
-  box.querySelector('input[name="logo_url"]').value = "";
-  box.querySelector(".orglogo-preview").innerHTML = avatar(box.closest("form")?.querySelector('[name="name"]')?.value || "Organisation", 80);
-  box.querySelector(".orglogo-pick span").textContent = "Upload a logo";
-  rm.hidden = true;
-  box.querySelector(".orglogo-status").textContent = "Logo removed. Save to confirm.";
+  if (rm) { showLogo(rm.closest("[data-orglogo]"), "", "Logo removed. Save to confirm."); return; }
+  const ed = ev.target.closest?.(".orglogo-edit");
+  if (!ed || !state.user) return;
+  const box = ed.closest("[data-orglogo]"), status = box.querySelector(".orglogo-status"), current = box.querySelector('input[name="logo_url"]').value;
+  if (!current) return;
+  // Start from the original when we kept one, otherwise from the logo itself.
+  const original = /\/logos\/\d+\.png$/.test(current) ? current.replace(/\.png$/, "-original.png") : "";
+  const src = original && (await fetch(original, { method: "HEAD" }).then((r) => r.ok).catch(() => false)) ? original : current;
+  const blob = await cropLogo(src);
+  if (!blob) return;
+  status.textContent = "Uploading…";
+  try {
+    const stamp = `${state.user.id}/logos/${Date.now()}`;
+    if (src === original) { const b = await fetch(original).then((r) => r.blob()).catch(() => null); if (b) putLogo(`${stamp}-original.png`, b).catch(() => {}); }
+    showLogo(box, await putLogo(`${stamp}.png`, blob), "Logo updated. Save to keep it.");
+  } catch (err) { status.textContent = err.message || "The logo could not be uploaded. Try again."; }
 });
 
 let photoBound = false;
