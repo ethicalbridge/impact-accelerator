@@ -171,7 +171,8 @@ export function optionPicker(name, label, groups, selected = [], { required = tr
     ${hint ? `<span class="hint">${hint}</span>` : ""}
   </div>`;
 }
-export const languagePicker = (name, label, selected = [], opts = {}) => optionPicker(name, label, [["", LANGUAGES]], selected, { placeholder: "Choose languages", search: "Search languages", other: "Another language, e.g. a local or sign language", ...opts });
+// opts.options limits the list (needs only offer the languages approved professionals work in).
+export const languagePicker = (name, label, selected = [], opts = {}) => optionPicker(name, label, [["", opts.options || LANGUAGES]], selected, { placeholder: "Choose languages", search: "Search languages", other: opts.options ? "" : "Another language, e.g. a local or sign language", ...opts });
 export const skillPicker = (name, label, selected = [], opts = {}) => optionPicker(name, label, SKILL_GROUPS, selected, { placeholder: "Choose skills", search: "Search skills", ...opts });
 export function bindLanguagePickers(root = document) {
   const sync = (box) => {
