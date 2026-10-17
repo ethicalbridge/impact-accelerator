@@ -6,7 +6,7 @@ import { filterRecords, professionalAreas, date, plural, today, safeURL } from "
 import { config } from "../config.js";
 import { workingResponsibly } from "./legal.js";
 
-const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url)";
+const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url)";
 
 async function openNeeds(limit) {
   let q = db.from("needs").select(NEED_SELECT).eq("status", "open").order("created_at", { ascending: false });
@@ -198,11 +198,12 @@ export async function orgPage(id) {
   let o = handovaOrgs.find((x) => x.id === id), open = [], handed = [];
   if (o) handed = solvedNeeds.filter((n) => n.org_id === id);
   else {
-    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status").eq("id", id).maybeSingle()).catch(() => null);
+    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status,logo_url").eq("id", id).maybeSingle()).catch(() => null);
     if (o) open = await result(db.from("needs").select(NEED_SELECT).eq("organisation_id", id).eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
   }
   if (!o) return notFound("This organisation isn’t on Handova", "It may not be approved yet, or the link may be wrong.");
-  const logo = `<span class="hs-org org-logo">${avatar(o.name, 96)}${o.logo ? `<img src="${e(o.logo)}" alt="" referrerpolicy="no-referrer">` : ""}</span>`;
+  const logoSrc = o.logo || o.logo_url;
+  const logo = `<span class="hs-org org-logo">${avatar(o.name, 96)}${logoSrc ? `<img src="${e(logoSrc)}" alt="" referrerpolicy="no-referrer">` : ""}</span>`;
   const hours = handed.reduce((s, n) => s + Number(n.hours || 0), 0);
   const handedBlock = (n) => `<article class="card stack handed-need" id="${e(n.id)}" style="--gap:16px">
       ${handoverStrip(n, 64)}
@@ -340,14 +341,14 @@ export async function need(id) {
     <div class="split">
       <div class="stack" style="--gap:36px">
         <div class="stack">
-          <div class="row">${org.logo ? `<img class="avatar" src="${e(org.logo)}" width="44" height="44" alt="">` : avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed ? "" : pill("Approved organisation")}</div>
+          <div class="row">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="44" height="44" alt="">` : avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed ? "" : pill("Approved organisation")}</div>
           <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </div>
         <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose" data-no-i18n>${e(n.description)}</p></div>
         <div class="stack"><h2 style="font-size:2rem">${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
         <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:10px"><strong>Skills involved</strong>${tags(n.skills)}</div><div class="card stack" style="--gap:10px"><strong>Working languages</strong><p>${e((n.languages || []).join(", "))}. Support in any one of these is welcome.</p></div></div>
-        <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${org.logo ? `<img class="avatar" src="${e(org.logo)}" width="60" height="60" alt="">` : avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
+        <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="60" height="60" alt="">` : avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">

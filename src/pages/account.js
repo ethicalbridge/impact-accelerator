@@ -1,6 +1,6 @@
 import { locale, getLang } from "../i18n.js";
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
-import { icon, mark, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
+import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
 import { list, languages, safeURL } from "../utils.js";
@@ -118,14 +118,20 @@ export async function onboarding() {
   return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
 
+// Logo: optional, fitted inside a 200px square PNG and stored in the person's own folder (see fittedPng).
+const logoField = (o = {}) => `<div class="full orglogo-field" data-orglogo><span class="orglogo-label">Logo <span class="muted">(optional)</span></span><div class="row" style="--gap:18px;align-items:center;flex-wrap:nowrap"><span class="orglogo-preview">${o.logo_url ? `<img src="${e(o.logo_url)}" width="80" height="80" alt="">` : avatar(o.name || "Organisation", 80)}</span><div class="stack" style="--gap:8px"><div class="row" style="--gap:10px"><label class="btn secondary sm orglogo-pick">${icon("plus", 16)}<span>${o.logo_url ? "Change logo" : "Upload a logo"}</span><input type="file" class="orglogo-file visually-hidden" accept="image/png,image/jpeg,image/webp"></label><button type="button" class="link-btn orglogo-remove" ${o.logo_url ? "" : "hidden"}>Remove</button></div><span class="small muted orglogo-status" aria-live="polite">PNG, JPG or WebP. A square logo works best. It appears on your public page and your needs.</span></div></div><input type="hidden" name="logo_url" value="${e(o.logo_url || "")}"></div>`;
+// "www.org.org" or "facebook.com/x" become https:// addresses.
+const withScheme = (v) => (v && !/^[a-z]+:\/\//i.test(v) ? "https://" + v : v);
+
 export function orgForm(o = {}, fullName = "", role = "") {
   const edit = !!o.id;
   return `<form class="form card" data-form="${edit ? "org-edit" : "org-create"}" data-id="${e(o.id || "")}"><div class="form-grid">
+    ${logoField(o)}
     ${field("name", "Organisation name", { value: o.name, required: true, attrs: 'maxlength="160"', full: true })}
     ${countrySelect("country", "Country where your organisation is based", o.country || "", { required: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
     ${field("city", "City or region", { value: o.city, attrs: 'maxlength="120"' })}
     ${select("org_type", "Type of organisation", ORG_TYPES, o.org_type || ORG_TYPES[0])}
-    ${field("website", "Website or social page", { value: o.website, type: "url", attrs: 'maxlength="300" placeholder="https://"' })}
+    ${field("website", "Website or social page", { value: o.website, attrs: 'maxlength="300" inputmode="url" autocomplete="url" placeholder="e.g. www.yourorganisation.org"', hint: "Optional. A website, Facebook or Instagram page." })}
     ${field("ethical_bridge_url", "Ethical Bridge directory page", { value: o.ethical_bridge_url, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova supports organisations listed in the Ethical Bridge directory. Not listed yet? <a href="${"https://ethicalbridge.org/organisation-register.html"}" target="_blank" rel="noopener">Join the directory</a>, it is free.` })}
     ${field("summary", "What your organisation does", { value: o.summary, type: "textarea", required: true, full: true, attrs: 'maxlength="600" minlength="20"', hint: "Two or three sentences. This appears on your needs." })}
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
@@ -303,6 +309,38 @@ setEntryLogoUpload(async (file) => {
   if (up.error) throw up.error;
   return db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 });
+// Organisation logo picker (sign-up step 2 and Organisation profile).
+document.addEventListener("change", async (ev) => {
+  if (!ev.target.matches?.(".orglogo-file")) return;
+  const box = ev.target.closest("[data-orglogo]"), file = ev.target.files?.[0], status = box.querySelector(".orglogo-status");
+  ev.target.value = "";
+  if (!file || !state.user) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { status.textContent = "Use a PNG, JPG or WebP image."; return; }
+  if (file.size > 10 * 1024 * 1024) { status.textContent = "That image is over 10 MB. Try a smaller one."; return; }
+  status.textContent = "Uploading…";
+  try {
+    const blob = await fittedPng(file), path = `${state.user.id}/logos/${Date.now()}.png`;
+    const up = await db.storage.from("avatars").upload(path, blob, { contentType: "image/png", cacheControl: "31536000" });
+    if (up.error) throw up.error;
+    const url = db.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+    box.querySelector('input[name="logo_url"]').value = url;
+    box.querySelector(".orglogo-preview").innerHTML = `<img src="${e(url)}" width="80" height="80" alt="">`;
+    box.querySelector(".orglogo-pick span").textContent = "Change logo";
+    box.querySelector(".orglogo-remove").hidden = false;
+    status.textContent = "Logo ready. Save to keep it.";
+  } catch (err) { status.textContent = err.message || "The logo could not be uploaded. Try again."; }
+});
+document.addEventListener("click", (ev) => {
+  const rm = ev.target.closest?.(".orglogo-remove");
+  if (!rm) return;
+  const box = rm.closest("[data-orglogo]");
+  box.querySelector('input[name="logo_url"]').value = "";
+  box.querySelector(".orglogo-preview").innerHTML = avatar(box.closest("form")?.querySelector('[name="name"]')?.value || "Organisation", 80);
+  box.querySelector(".orglogo-pick span").textContent = "Upload a logo";
+  rm.hidden = true;
+  box.querySelector(".orglogo-status").textContent = "Logo removed. Save to confirm.";
+});
+
 let photoBound = false;
 export function bindPhotoFields() {
   if (photoBound) return; photoBound = true;
@@ -396,26 +434,26 @@ export async function submitAccount(kind, form) {
   });
   if (kind === "org-create") return withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and confirmations.")); }
-    const website = val(fd, "website");
-    if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
+    const website = withScheme(val(fd, "website"));
+    if (website && !safeURL(website)) throw Error("Check the website address, for example www.yourorganisation.org");
     if (!EB_URL.test(val(fd, "ethical_bridge_url"))) throw Error("Add your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
     if (!["locally_led", "authorised", "org_declare", "org_agree"].every((k) => fd.has(k))) throw Error("Read the organisation agreement and tick all four boxes to sign it.");
     await result(db.rpc("sign_org_agreement", { p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
     const newOrg = await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
-    if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url") }).eq("id", newOrg));
+    if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url"), logo_url: val(fd, "logo_url") || null }).eq("id", newOrg));
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
     await loadSession();
     toast("Submitted for review. You can prepare draft needs now.");
     go("#org");
   });
   if (kind === "org-edit") return withForm(form, async (fd) => {
-    const website = val(fd, "website");
-    if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
+    const website = withScheme(val(fd, "website"));
+    if (website && !safeURL(website)) throw Error("Check the website address, for example www.yourorganisation.org");
     const ebu = val(fd, "ethical_bridge_url");
     if (ebu && !EB_URL.test(ebu)) throw Error("Use your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
-    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu }).eq("id", form.dataset.id));
+    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu, logo_url: val(fd, "logo_url") || null }).eq("id", form.dataset.id));
     await loadSession();
-    toast("Organisation details saved.");
+    toast("Organisation profile saved.");
   });
   if (kind === "profile") return withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
