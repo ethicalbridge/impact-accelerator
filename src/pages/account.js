@@ -58,8 +58,7 @@ export async function join(params) {
       ${field("org_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director, Coordinator"' })}
       ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
       ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
-    </div>
-    <label class="check" style="margin-top:14px"><input type="checkbox" name="locally_led" required><span>We are a locally led organisation (led by people based where we work), registered or fiscally hosted.</span></label></fieldset>
+    </div></fieldset>
     <fieldset data-for="professional" class="only-professional"><legend class="visually-hidden">About you</legend><div class="form-grid">
       ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120" placeholder="First and last name"' })}
       ${field("headline", "Your professional title", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
