@@ -74,7 +74,7 @@ export async function org(sub, id) {
   if (sub === "details") return shell(`<div class="stack" style="--gap:20px">${back("Back to workspace", "#org")}${eyebrow(e(o.name))}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">Organisation profile</h1><p class="lead">How professionals see your organisation, on your public page and on every need you post.${approved ? ` <a href="#organisations/${e(o.id)}" style="font-weight:700">View your public page</a>` : ""}</p>${banner}${orgForm(o)}</div>`, "#org/details");
   if (sub === "need") {
     const n = id ? await result(db.from("needs").select("*").eq("id", id).maybeSingle()) : null;
-    return shell(`<div class="stack" style="--gap:20px">${back("Back to workspace", "#org")}${eyebrow(e(o.name))}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${n ? "Edit need" : "Post a need"}</h1>${approved ? "" : `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p>You can save drafts now. Needs can be opened once your organisation is approved.</p></div>`}${needForm(n, o, approved)}</div>`, "#org/need");
+    return shell(`<div class="stack" style="--gap:20px">${back("Back to workspace", "#org")}${eyebrow(e(o.name))}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${n ? "Edit need" : "Post a need"}</h1>${approved ? "" : `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p>You can save drafts now. Needs can be opened once your organisation is approved.</p></div>`}${needForm(n, o, approved, await talentLanguages())}</div>`, "#org/need");
   }
 
   const needs = await result(db.from("needs").select("*").eq("organisation_id", o.id).order("created_at", { ascending: false }));
@@ -116,26 +116,36 @@ function orgBanner(o) {
   return `<div class="banner alert">${icon("alert", 22)}<p>This organisation is ${o.status === "suspended" ? "suspended" : "not approved"}. Write to us if you think this is a mistake.</p></div>`;
 }
 
-function needForm(n, o, approved) {
+// The working languages of approved professionals: the four site languages first, then any others they list.
+const MAIN_LANGS = ["English", "Spanish", "French", "Portuguese"];
+async function talentLanguages() {
+  const rows = await result(db.from("profiles").select("languages").eq("published", true).eq("review_status", "approved")).catch(() => []);
+  const main = new Set(MAIN_LANGS.map((l) => l.toLowerCase())), seen = new Map();
+  for (const l of rows.flatMap((p) => p.languages || [])) if (l && !main.has(l.toLowerCase()) && !seen.has(l.toLowerCase())) seen.set(l.toLowerCase(), l);
+  return [...MAIN_LANGS, ...[...seen.values()].sort((a, b) => a.localeCompare(b))];
+}
+
+function needForm(n, o, approved, langs) {
   n = n || {};
-  return `<form class="form card" data-form="need" data-id="${e(n.id || "")}" data-org="${e(o.id)}"><div class="form-grid">
+  return `<form class="form card" data-form="need" data-id="${e(n.id || "")}" data-org="${e(o.id)}" novalidate><div class="form-grid">
     ${field("title", "Title", { value: n.title, required: true, full: true, attrs: 'maxlength="160" minlength="5" placeholder="e.g. Improve our community data tools"' })}
     ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? Don’t include names of the people you support." })}
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
-    ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome." })}
+    ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome. These are the languages our professionals work in.", options: langs })}
     ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
-    ${countrySelect("country", "Country", n.country || o.country || "")}
+    <input type="hidden" name="country" value="${e(o.country || n.country || "")}">
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     ${select("status", "Status", [["draft", "Draft: only your organisation can see it"], ...(approved ? [["open", "Open: accepting applications"]] : []), ...(n.id && n.status !== "draft" ? [["closed", "Closed: no new applications"]] : [])], n.status || (approved ? "open" : "draft"), { full: true })}
-    <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or adults at risk, and no access to their personal information.", n.no_vulnerable_contact, true)}</div>
+    <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or adults at risk, and no access to their personal information. *", n.no_vulnerable_contact, true)}</div>
   </div>${formEnd(n.id ? "Save need" : "Save need")}</form>`;
 }
 
 export async function submitNeed(form) {
   await withForm(form, async (fd) => {
+    if (!fd.has("no_vulnerable_contact")) { form.querySelector('[name="no_vulnerable_contact"]')?.focus(); throw Error("Tick the safeguarding confirmation to continue. Needs on Handova never involve direct contact with children or adults at risk."); }
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and the safeguarding confirmation.")); }
     const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
