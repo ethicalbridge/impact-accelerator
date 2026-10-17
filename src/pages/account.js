@@ -54,8 +54,8 @@ export async function join(params) {
     <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
     <fieldset data-for="organisation" class="only-organisation"><legend class="visually-hidden">Your organisation</legend><div class="form-grid">
       ${field("org_name", "Organisation name", { required: true, full: true, attrs: 'maxlength="160" autocomplete="organization"' })}
-      ${countrySelect("org_country", "Country where you work", "", { required: true })}
-      ${field("org_role", "Your role in the organisation", { attrs: 'maxlength="120" placeholder="e.g. Director, Programme lead"' })}
+      ${countrySelect("org_country", "Country where your organisation is based", "", { required: true, full: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
+      ${field("org_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director, Coordinator"' })}
       ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
       ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
     </div>
@@ -114,16 +114,16 @@ export async function onboarding() {
   const name = state.user.user_metadata?.full_name || "";
   const adminNote = state.isAdmin ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>You are an administrator.</strong> You don’t need a profile to run Handova. <a href="#admin">Go to Admin</a></p></div>` : "";
   if (r === "organisation") {
-    return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name)}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
+    return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name, state.user.user_metadata?.org_role || "")}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
   }
   return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
 
-export function orgForm(o = {}, fullName = "") {
+export function orgForm(o = {}, fullName = "", role = "") {
   const edit = !!o.id;
   return `<form class="form card" data-form="${edit ? "org-edit" : "org-create"}" data-id="${e(o.id || "")}"><div class="form-grid">
     ${field("name", "Organisation name", { value: o.name, required: true, attrs: 'maxlength="160"', full: true })}
-    ${countrySelect("country", "Country", o.country || "", { required: true })}
+    ${countrySelect("country", "Country where your organisation is based", o.country || "", { required: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
     ${field("city", "City or region", { value: o.city, attrs: 'maxlength="120"' })}
     ${select("org_type", "Type of organisation", ORG_TYPES, o.org_type || ORG_TYPES[0])}
     ${field("website", "Website or social page", { value: o.website, type: "url", attrs: 'maxlength="300" placeholder="https://"' })}
@@ -133,7 +133,7 @@ export function orgForm(o = {}, fullName = "") {
     ${edit ? "" : `<div class="full form-sec"><h2>Organisation agreement</h2><p class="muted small">Please read it in full. It covers safeguarding, data, how you work with professionals and what you can expect from us.</p></div>
     <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
       <div class="checkbox-box">${check("locally_led", "We are a locally led organisation: our leadership is based where we work, and we are registered, or fiscally hosted by a registered organisation that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not on any sanctions list and are not involved in the activities listed in section 1.", false, true)}${check("org_agree", "On behalf of the organisation, I have read and agree to the Handova organisation agreement, including its safeguarding and reporting duties.", false, true)}</div>
-      <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
+      <div class="form-grid">${field("sign_role", "Your role in the organisation", { value: role, required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>`}
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
 }
