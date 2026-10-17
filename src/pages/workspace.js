@@ -66,7 +66,7 @@ export async function org(sub, id) {
   const m = state.memberships.find((x) => x.organisation_id === sessionStorage.getItem("ia-org")) || state.memberships[0];
   const o = m.organisation;
   const approved = o.status === "approved";
-  const items = [["home", "Overview", "#org"], ["plus", "Post a need", "#org/need"], ["people", "Find talent", "#talent"], ["settings", "Organisation profile", "#org/details"], ["bell", "Notifications", "#notifications", state.unread || ""], ["user", "Account and privacy", "#account"]];
+  const items = [["settings", "Organisation profile", "#org/details"], ["home", "Overview", "#org"], ["plus", "Post a need", "#org/need"], ["people", "Find talent", "#talent"], ["bell", "Notifications", "#notifications", state.unread || ""], ["user", "Account and privacy", "#account"]];
   if (state.profile) items.push(["user", "My professional workspace", "#workspace"]);
   const shell = (main, active) => ({ title: `${o.name} · workspace`, html: `<div class="workspace">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` });
   const banner = orgBanner(o);
