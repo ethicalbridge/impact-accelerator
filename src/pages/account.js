@@ -106,7 +106,7 @@ export function newPasswordDialog() {
 
 // ---------- onboarding ----------
 export async function onboarding() {
-  if (!state.user) return { redirect: "#join" };
+  if (!state.user) return { redirect: /[?&]code=/.test(location.search) ? "#email-confirmed" : "#join" };
   const r = state.user.user_metadata?.role;
   if (state.memberships.length && (r === "organisation" || !r)) return { redirect: "#org" };
   if (state.profile && r !== "organisation") return { redirect: "#workspace" };
@@ -222,6 +222,25 @@ export async function startIdCheck(el) {
     if (data?.url) location.href = data.url; else throw Error(data?.error || "The identity check could not start.");
   } catch (err) { toast(err.message || "The identity check could not start. Please try again."); el?.removeAttribute("disabled"); }
 }
+// Where the confirmation email lands. The link confirms the address whatever happens next;
+// if it was opened in another browser or app there is no session here, so we ask them to sign in.
+export function emailConfirmed(params = new URLSearchParams()) {
+  const sp = new URLSearchParams(location.search);
+  const err = params.get("error_code") || params.get("error") || sp.get("error_code") || sp.get("error") || "";
+  if (/[?&]code=/.test(location.search) || location.search.includes("error")) try { history.replaceState(null, "", location.pathname + location.hash); } catch {}
+  const wrap = (inner) => `<div class="wrap" style="max-width:640px;padding-block:72px 96px"><div class="card stack" style="--gap:18px;padding:clamp(28px,5vw,48px)">${inner}</div></div>`;
+  if (err) {
+    return { title: "Link expired", html: wrap(`<span class="icon-tile lg">${icon("clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">This link has expired or was already used.</h1><p class="lead">If you already confirmed your email, just sign in. Otherwise, we can send you a new link.</p><div class="row">${btn("Sign in", "#signin?next=%23onboarding")}</div><form class="form" data-form="resend-confirm" novalidate><div class="form-grid">${field("email", "Your email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}</div>${formEnd("Send a new link")}</form>`) };
+  }
+  if (state.user) {
+    const r = state.user.user_metadata?.role;
+    const next = homeFor();
+    const label = next === "#onboarding" ? (r === "organisation" ? "Set up your organisation" : "Create your profile") : "Go to your workspace";
+    return { title: "Email confirmed", html: wrap(`<span class="icon-tile lg">${icon("check", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">Your email is confirmed.</h1><p class="lead">Welcome to Handova${state.user.user_metadata?.full_name ? `, ${e(String(state.user.user_metadata.full_name).split(" ")[0])}` : ""}. One more step and you are ready.</p><div class="row">${btn(`${label} ${icon("arrow", 18)}`, next)}</div>`) };
+  }
+  return { title: "Email confirmed", html: wrap(`<span class="icon-tile lg">${icon("check", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">Your email is confirmed.</h1><p class="lead">Thank you. Sign in with the email and password you chose to finish setting up.</p><div class="row">${btn(`Sign in ${icon("arrow", 18)}`, "#signin?next=%23onboarding")}</div>`) };
+}
+
 export async function verifyDone() {
   if (!state.user) return { redirect: "#signin?next=%23verify-done" };
   let st = "";
@@ -341,10 +360,16 @@ export async function submitAccount(kind, form) {
     const role = val(fd, "role");
     if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
     if (role === "organisation" && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
-    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#onboarding", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang() } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang() } } });
+    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang() } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang() } } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
-    form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it on this device to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
+    form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it to confirm your email, then sign in to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
+  });
+  if (kind === "resend-confirm") return withForm(form, async (fd) => {
+    if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Add your email address.")); }
+    const { error } = await db.auth.resend({ type: "signup", email: val(fd, "email"), options: { emailRedirectTo: config.siteUrl + "#email-confirmed" } });
+    if (error) throw error;
+    form.outerHTML = `<p role="status"><strong>Sent.</strong> If this address has an account waiting for confirmation, a new link is on its way. Check your spam folder too.</p>`;
   });
   if (kind === "signin") return withForm(form, async (fd) => {
     await result(db.auth.signInWithPassword({ email: val(fd, "email"), password: String(fd.get("password")) }));
