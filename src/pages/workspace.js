@@ -551,7 +551,10 @@ export async function completeDialog(id) {
     <fieldset class="field full skill-pick"><legend>Skills ${first} showed in this work</legend>
       <span class="hint">Choose 1 to 3. Only tick what you saw in the work itself.</span>
       <div class="chip-checks">${needSkills.map((k) => `<label class="chip-check"><input type="checkbox" name="skill" value="${e(k)}"><span>${e(k)}</span></label>`).join("")}</div>
-      <label class="field" style="margin-top:6px"><span>Add another skill</span><select name="skill_extra"><option value="">Choose a skill</option>${allSkills.map((k) => `<option value="${e(k)}">${e(k)}</option>`).join("")}</select></label>
+      <div class="field skill-add" style="margin-top:6px"><label for="f-skill-add" style="font-weight:700">Add another skill</label>
+        <div class="row" style="--gap:8px;flex-wrap:nowrap"><input id="f-skill-add" type="text" list="skill-options" autocomplete="off" maxlength="60" placeholder="Start typing, e.g. Grant writing"><button type="button" class="btn secondary" id="skill-add-btn" style="min-height:50px">Add</button></div>
+        <span class="hint">Choose from the suggestions or type your own, then press Enter or Add.</span>
+        <datalist id="skill-options">${allSkills.map((k) => `<option value="${e(k)}"></option>`).join("")}</datalist></div>
       ${who(`Public as “Skills confirmed by your organisation”, if ${first} publishes`)}</fieldset>
     <div class="field full"><label for="f-endorsement"><span>Your endorsement of ${first}</span></label>
       <div class="starters" role="group" aria-label="Sentence starters">${STARTERS.map((t) => `<button type="button" class="chip-btn" data-action="insert-starter" data-text="${e(t.replace("{name}", first))}">${e(t.replace("{name}", first))}</button>`).join("")}</div>
@@ -574,16 +577,29 @@ export async function completeDialog(id) {
     ${formEnd(`Complete and send to ${first}`, `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
   const ta = document.getElementById("f-endorsement"), ctr = document.querySelector('[data-counter-for="f-endorsement"]');
   ta?.addEventListener("input", () => { if (ctr) ctr.textContent = `${ta.value.length} / 1200`; });
+  // Type a skill: it becomes a ticked chip next to the others.
+  const add = document.getElementById("f-skill-add"), chips = document.querySelector(".skill-pick .chip-checks");
+  const addSkill = () => {
+    const v = add.value.trim().replace(/\s+/g, " ");
+    if (!v) return;
+    const same = [...chips.querySelectorAll("input[name=skill]")].find((i) => i.value.toLowerCase() === v.toLowerCase());
+    if (same) same.checked = true;
+    else chips.insertAdjacentHTML("beforeend", `<label class="chip-check"><input type="checkbox" name="skill" value="${e(v)}" checked><span data-no-i18n>${e(v)}</span></label>`);
+    add.value = ""; add.focus();
+  };
+  add?.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); addSkill(); } });
+  add?.addEventListener("change", () => { if (allSkills.some((k) => k.toLowerCase() === add.value.trim().toLowerCase())) addSkill(); });
+  document.getElementById("skill-add-btn")?.addEventListener("click", addSkill);
 }
 export async function submitComplete(form) {
   await withForm(form, async (fd) => {
     const delivered = fd.get("delivered") || "";
-    const skills = [...new Set([...fd.getAll("skill"), fd.get("skill_extra")].map((v) => String(v || "").trim()).filter(Boolean))];
+    const skills = [...new Set(fd.getAll("skill").map((v) => String(v || "").trim()).filter(Boolean))];
     const endorsement = val(fd, "endorsement");
     const deliverables = form.querySelector('[name="deliverables"]'), ta = form.querySelector('[name="endorsement"]');
     if (val(fd, "deliverables").length < 10) throw fieldError(deliverables, "Describe what was handed over, at least 10 characters.");
     if (skills.length > 3) throw fieldError(form.querySelector(".skill-pick input"), "Choose up to 3 skills.");
-    if (!skills.length) throw fieldError(form.querySelector(".skill-pick select"), "Choose at least one skill you saw in this work.");
+    if (!skills.length) throw fieldError(form.querySelector("#f-skill-add"), "Choose at least one skill you saw in this work.");
     if ((delivered === "all" || endorsement) && endorsement.length < 100) throw fieldError(ta, `Please write at least 100 characters (you have ${endorsement.length}).`);
     if (val(fd, "role").length < 2) throw fieldError(form.querySelector('[name="role"]'), "Add your role.");
     if (!fd.get("work_again")) throw fieldError(form.querySelector('[name="work_again"]'), "Please answer this question for Handova.");

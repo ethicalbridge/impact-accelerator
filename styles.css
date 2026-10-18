@@ -230,7 +230,7 @@ label.field { display: flex; flex-direction: column; gap: 8px; font-weight: 600;
 .field input:focus, .field select:focus, .field textarea:focus, .filters input:focus, .filters select:focus { outline: 3px solid var(--ink); border-color: var(--teal); }
 .hint { font-weight: 400; font-size: 0.85rem; color: var(--muted); }
 label.check { display: flex; align-items: flex-start; gap: 12px; font-size: 0.97rem; line-height: 1.5; font-weight: 400; }
-label.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--teal); flex-shrink: 0; }
+label.check input, .field label.check input { width: 20px; height: 20px; min-height: 0; padding: 0; margin: 2px 0 0; accent-color: var(--teal); flex-shrink: 0; }
 .checkbox-box { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
 .form-error { color: var(--clay-ink); font-weight: 600; min-height: 1em; }
 .form-error:empty { display: none; }
