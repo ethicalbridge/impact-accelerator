@@ -30,17 +30,45 @@ export async function workspace(sub) {
   const approvedHours = hours.filter((h) => h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
   const pendingInv = invites.filter((i) => i.status === "pending");
 
-  const html = `<div class="stack" style="--gap:26px">
-    <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Your workspace")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Hello, ${e(p.name.split(" ")[0])}.</h1></div><div class="row">${btn("Edit profile", "#workspace/profile", "secondary sm")}${btn(`Find a need ${icon("arrow", 16)}`, "#needs", "sm")}</div></div>
+  const changes = hours.filter((h) => h.status === "changes_requested");
+  const engHours = (x) => hours.filter((h) => h.engagement_id === x.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
+  // Everything waiting for the professional, most urgent first.
+  const todo = [
+    ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
+    ...pendingInv.map((i) => `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${i.message ? `<p class="small invite-msg" data-no-i18n>“${e(i.message)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`),
+    ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Open agreement", `#agreement/${h.engagement_id}`, "sm")); }),
+    ...active.map((x) => todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}`)),
+  ];
+  const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
+  const appRows = apps.map((a) => `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || "Need")}</a><span class="small muted">${parts([e(a.need?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`);
+  const cvRows = completed.map((x) => `<div class="todo-row" style="align-items:flex-start"><div class="stack" style="--gap:4px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>${x.endorsement ? `<p class="small" data-no-i18n>“${e(x.endorsement)}”</p>` : ""}<span class="small muted">Private rating from the organisation: ${x.rating ? `${x.rating} out of 5` : "none"}. Only you can see this.</span></div><label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label></div>`);
+  const first = e(p.name.split(" ")[0]);
+
+  const html = `<div class="stack" style="--gap:22px">
+    <div class="row between ws-head" style="align-items:flex-end"><div class="stack" style="--gap:12px">${eyebrow("Your workspace")}<h1 class="ws-title">Hello, ${first}.</h1></div>${btn(`Find a need ${icon("arrow", 16)}`, "#needs", "sm")}</div>
     ${p.id_status === "approved" ? "" : identityCard(p)}
     ${reviewBanner(p)}
-    ${toSign.map((x) => `<div class="banner warn">${icon("pen", 24, "#7a4f0e")}<div style="flex:1"><strong>Sign your agreement with ${e(x.organisation?.name || "the organisation")}</strong><p class="small">${e(x.scope?.need_title)}. Work and hours can start once you both sign.</p></div>${btn("Review and sign", `#agreement/${x.id}`, "dark sm")}</div>`).join("")}
-    <div class="grid-4"><div class="stat"><strong>${approvedHours}</strong><span>reviewed hours</span></div><div class="stat"><strong>${completed.length}</strong><span>completed contributions</span></div><div class="stat"><strong>${apps.filter((a) => a.status === "pending").length}</strong><span>applications under review</span></div><div class="stat"><strong>${p.hours_available} h</strong><span>available each month</span></div></div>
-    ${pendingInv.length ? card("Invitations", listRows(pendingInv.map((i) => row(`<strong>${e(i.need?.title)}</strong><span class="small muted">${e(i.need?.organisation?.name)} · ${i.need?.hours} hours · ${e(i.need?.arrangement)}</span><p class="small">“${e(i.message)}”</p>`, `<button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}`)), "")) : ""}
-    ${active.length ? card("In progress", listRows(active.map((x) => row(`<strong>${e(x.scope?.need_title)}</strong><span class="small muted">${e(x.organisation?.name)} · ${hours.filter((h) => h.engagement_id === x.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0)} of ${x.scope?.hours} hours reviewed</span>`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}`)), "")) : ""}
-    ${card("Applications", listRows(apps.map((a) => row(`<a href="#need/${a.need_id}" style="font-weight:700">${e(a.need?.title || "Need")}</a><span class="small muted">${e(a.need?.organisation?.name || "")} · applied ${date(a.created_at)}</span>`, `${status(a.status)}${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}${a.status === "pending" ? `<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}`)), empty("No applications yet", "Find a need that fits your skills and apply with a short plan.", btn("Explore needs", "#needs", "secondary sm"))), `<a href="#needs" style="font-weight:700">Find more needs</a>`)}
-    ${card("Your public impact CV", listRows(completed.map((x) => row(`<strong>${e(x.scope?.need_title)}</strong><span class="small muted">${e(x.organisation?.name)} · completed ${date(x.completed_at)}</span>${x.endorsement ? `<p class="small">“${e(x.endorsement)}”</p>` : ""}<span class="small muted">Private rating from the organisation: ${x.rating ? `${x.rating} out of 5` : "none"}. Only you can see this.</span>`, `<label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label>`)), empty("Nothing to publish yet", "When an organisation completes and endorses your work, you choose whether it appears here.")), btn("View my CV", `#profile/${uid}`, "secondary sm"))}
-    ${saved.filter((s) => s.need).length ? `<section class="stack"><h2 style="font-size:1.7rem">Saved needs</h2><div class="grid">${saved.filter((s) => s.need).map((s) => needCard(s.need)).join("")}</div></section>` : ""}
+    <div class="pro-grid">
+      <div class="stack" style="--gap:22px;min-width:0">
+        <section class="card stack" style="--gap:6px"><h2 class="card-title">Waiting for you</h2>${todo.length ? `<div>${todo.join("")}</div>` : `<div class="quiet-empty"><p><strong>Nothing needs you right now.</strong> When an organisation invites you, or you have an agreement to sign or time to log, it appears here.</p>${btn("Browse open needs", "#needs", "secondary sm")}</div>`}</section>
+        <section class="card stack" style="--gap:6px"><div class="row between"><h2 class="card-title">Your applications</h2>${apps.length ? `<a href="#needs" style="font-weight:700">Find more needs</a>` : ""}</div>${apps.length ? `<div>${appRows.join("")}</div>` : `<div class="quiet-empty"><p>You haven’t applied to a need yet. Pick one that fits your skills and send a short message about how you would help.</p>${btn("Explore needs", "#needs", "secondary sm")}</div>`}</section>
+        ${cvRows.length ? `<section class="card stack" style="--gap:6px"><h2 class="card-title">Completed contributions</h2><p class="small muted">You choose which ones appear on your public impact CV.</p><div>${cvRows.join("")}</div></section>` : ""}
+      </div>
+      <aside class="stack" style="--gap:18px">
+        <section class="card impact-card">
+          <h2 class="card-title">Your impact</h2>
+          <dl class="impact-stats">
+            <div><dt>Hours reviewed</dt><dd>${approvedHours}</dd></div>
+            <div><dt>Contributions completed</dt><dd>${completed.length}</dd></div>
+            <div><dt>Applications waiting</dt><dd>${apps.filter((a) => a.status === "pending").length}</dd></div>
+            <div><dt>Available each month</dt><dd>${p.hours_available} h</dd></div>
+          </dl>
+          <p class="small muted">${completed.length ? "Endorsed work you choose to show appears on your public impact CV." : "Your first completed and endorsed contribution will appear on your public impact CV."}</p>
+          <div class="row" style="--gap:8px">${btn("View my impact CV", `#profile/${uid}`, "secondary sm")}${btn("Edit profile", "#workspace/profile", "secondary sm")}</div>
+        </section>
+      </aside>
+    </div>
+    ${saved.filter((s) => s.need).length ? `<section class="stack"><h2 class="card-title">Saved needs</h2><div class="grid">${saved.filter((s) => s.need).map((s) => needCard(s.need)).join("")}</div></section>` : ""}
   </div>`;
   return wsShell("Your workspace", html, "#workspace", pendingInv.length + toSign.length);
 }
@@ -54,9 +82,9 @@ function reviewBanner(p) {
 }
 
 function wsShell(title, main, active, badge = 0) {
-  const items = [["home", "Overview", "#workspace", badge || ""], ["user", "Edit profile", "#workspace/profile"], ["shield", "My impact CV", `#profile/${state.user.id}`], ["bell", "Notifications", "#notifications", state.unread || ""], ["settings", "Account and privacy", "#account"]];
-  if (state.memberships.length) items.push(["grid", "Organisation workspace", "#org"]);
-  return { title, html: `<div class="workspace">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` };
+  const items = [["home", "Overview", "#workspace", badge || ""], ["user", `<span class="nav-long">Edit profile</span><span class="nav-short">Profile</span>`, "#workspace/profile"], ["shield", `<span class="nav-long">My impact CV</span><span class="nav-short">Impact CV</span>`, `#profile/${state.user.id}`]];
+  if (state.memberships.length) items.push(["grid", `<span class="nav-long">Organisation workspace</span><span class="nav-short">Organisation</span>`, "#org"]);
+  return { title, html: `<div class="workspace org-ws pro-ws" style="--tabs:${items.length}">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` };
 }
 
 // ================= Organisation workspace =================
