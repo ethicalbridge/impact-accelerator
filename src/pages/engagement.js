@@ -1,6 +1,6 @@
 import { locale, getLang, t } from "../i18n.js";
 import { db, state, result, e, toast, go, withForm, val } from "../core.js";
-import { icon, eyebrow, back, status, pill, field, check, formEnd, btn, empty } from "../ui.js";
+import { icon, eyebrow, back, status, pill, field, check, formEnd, btn, empty, avatar } from "../ui.js";
 import { date, today, safeURL } from "../utils.js";
 import { notFound } from "./public.js";
 import { CONTRIBUTION_VERSION, contributionSections, contributionText, contributionHtml } from "../agreement.js";
@@ -38,10 +38,10 @@ export async function agreement(id) {
     <article class="agreement-doc">
       <div class="row between">${eyebrow(`Contribution agreement · ${e(x.terms_version)}`)}${status(x.status)}</div>
       <h1 style="font-size:clamp(2rem,3.6vw,3rem);margin:12px 0 8px" data-no-i18n>${e(s.need_title)}</h1>
-      <p class="muted">Between <strong>${e(s.organisation)}</strong>${s.organisation_country ? ` (${e(s.organisation_country)})` : ""} and <strong>${e(s.talent)}</strong>${s.talent_country ? ` (${e(s.talent_country)})` : ""}. Built from the need as it stood when the match was accepted; it cannot be changed after signing.</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}
+      <p class="muted">Between <strong>${e(s.organisation)}</strong>${s.organisation_country ? ` (${e(s.organisation_country)})` : ""} and <strong>${e(s.talent)}</strong>${s.talent_country ? ` (${e(s.talent_country)})` : ""}. Built from the need as it stood when the match was accepted; it cannot be changed after signing.</p>${getLang() === "en" || x.terms_version === CONTRIBUTION_VERSION ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}
       <div class="facts"><div><span>Estimated hours</span><strong>${e(s.hours)}</strong></div><div><span>Working languages</span><strong>${e((s.languages || []).map(t).join(", "))}</strong></div><div><span>Delivery date</span><strong>${x.terms_version === CONTRIBUTION_VERSION ? "Agreed in your first call" : s.deadline ? date(s.deadline) : "None fixed"}</strong></div><div><span>Payment</span><strong>None · voluntary</strong></div></div>
       ${orgSig?.focal_point_name ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>Safeguarding focal point:</strong> <span data-no-i18n>${e(orgSig.focal_point_name)} · ${e(orgSig.focal_point_contact || "")}</span></p></div>` : ""}
-      ${contributionHtml(contributionSections(s, x.terms_version), e)}
+      ${x.terms_version === CONTRIBUTION_VERSION && getLang() !== "en" ? `<p class="small muted">The agreement text below is in English, which is the binding version. A translation is coming soon.</p><div data-no-i18n lang="en">${contributionHtml(contributionSections(s, x.terms_version), e)}</div>` : contributionHtml(contributionSections(s, x.terms_version), e)}
       <div class="row no-print" style="margin-top:20px"><button class="btn secondary sm" type="button" data-action="print">${icon("download", 16)} Print or save as PDF</button></div>
     </article>
     <aside class="stack sticky" style="--gap:18px">
@@ -69,6 +69,30 @@ function linkCalls(escaped) {
     return url;
   });
 }
+// Chat view: bubbles left and right, a date line for each day, time under each message.
+const dayKey = (d) => new Date(d).toDateString();
+function dayLabel(d) {
+  const x = new Date(d), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  if (x.toDateString() === now.toDateString()) return t("Today");
+  if (x.toDateString() === y.toDateString()) return t("Yesterday");
+  return x.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short", ...(x.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
+}
+const timeOf = (d) => new Date(d).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+function chatHtml(msgs, c, orgName, personName) {
+  if (!msgs.length) return `<div class="chat-empty">${icon("chat", 28, "#0f6f63")}<strong>Start the conversation</strong><span class="small muted">Say hello, and suggest a time for a short first call.</span></div>`;
+  let last = "", prevSender = "";
+  return msgs.map((m) => {
+    const day = dayKey(m.created_at), sep = day !== last ? `<div class="chat-day"><span>${e(dayLabel(m.created_at))}</span></div>` : "";
+    if (day !== last) prevSender = "";
+    last = day;
+    if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${linkCalls(e(m.body))}</p></div>`; }
+    const mine = m.sender_id === state.user.id;
+    const name = m.kind === "former" ? "Former member" : m.sender_id === c.user_id ? personName : orgName;
+    const cont = prevSender === (m.sender_id || m.kind);
+    prevSender = m.sender_id || m.kind;
+    return `${sep}<div class="chat-row ${mine ? "mine" : "theirs"}${cont ? " cont" : ""}">${mine ? "" : `<span class="chat-av">${cont ? "" : avatar(name, 32)}</span>`}<div class="chat-col">${!mine && !cont ? `<span class="chat-name" data-no-i18n>${e(name)}</span>` : ""}<div class="bubble"><p data-no-i18n>${linkCalls(e(m.body))}</p></div><time class="chat-time" datetime="${e(m.created_at)}">${e(timeOf(m.created_at))}</time></div></div>`;
+  }).join("");
+}
 export async function conversation(id) {
   if (!state.user) return { redirect: `#signin?next=${encodeURIComponent("#conversation/" + id)}` };
   const c = await result(db.from("conversations").select("*, need:needs(id,title,organisation_id,organisation:organisations(name)), person:profiles(user_id,name)").eq("id", id).maybeSingle()).catch(() => null);
@@ -84,11 +108,42 @@ export async function conversation(id) {
     <div class="banner">${icon("lock", 22, "#0f6f63")}<p class="small"><span>Who can read this: you, the people who manage ${e(c.need?.organisation?.name || "the organisation")}’s Handova account, and Handova’s safeguarding lead only if someone here reports a concern.</span> <span>Keep it about the work. Video-call links are fine to share here. Never share passwords, card details or access codes, or personal information about the people the organisation supports.</span></p></div>
     ${eng?.status === "awaiting_signatures" || (!eng && c.status === "open") ? `<p class="small muted">Please keep phone numbers and personal emails out of Messages until you have both signed the agreement.</p>` : ""}
     ${eng?.status === "active" && !eng.first_call_at ? `<details class="card fold-card"><summary><h2 class="card-title">Tips for your first call</h2></summary><div class="stack" style="--gap:8px;margin-top:10px"><p>Use any video tool you both already use and post the link here. You don’t need to swap phone numbers to have a call. Audio only is fine if data is limited.</p><p>Talk anywhere, but write any decision or change to the output, hours or deadline here in Messages, so you both have it in writing.</p><p>Don’t record the call or use AI note-takers unless everyone agrees at the start. Introduce everyone who joins. Don’t show or discuss names, photos or files about the people the organisation supports, and close other windows before sharing your screen.</p><p>You can leave a call at any time if you feel uncomfortable. If something worrying happens on a call, by phone or on another app, you can still report it on Handova. If someone is in immediate danger, contact local emergency services first.</p><div class="row" style="--gap:8px">${btn("Record what we agreed", `#agreement/${e(eng.id)}`, "sm")}</div></div></details>` : ""}
-    <div class="card"><div class="messages" id="messages" aria-live="polite">${msgs.length ? msgs.map((m) => { const mine = m.sender_id === state.user.id, sys = m.kind === "system"; const who = sys ? "Handova" : mine ? "You" : m.kind === "former" ? "Former member" : e(other); return `<div class="message ${mine ? "mine" : ""}${sys ? " system" : ""}"><small>${who} · ${e(new Date(m.created_at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</small><p class="prose" style="font-size:1rem;white-space:pre-line" ${sys ? "" : "data-no-i18n"}>${linkCalls(e(m.body))}</p></div>`; }).join("") : `<p class="muted">No messages yet. Use this space to agree timing and next steps.</p>`}</div></div>
-    ${c.status === "open" ? `<form class="form" data-form="message" data-id="${e(id)}">${field("body", "Message", { type: "textarea", required: true, attrs: 'maxlength="4000"' })}${formEnd("Send message", live ? "" : `<button class="btn secondary" type="button" data-action="close-conversation" data-id="${e(id)}">End conversation</button>`)}${live ? `<p class="small muted">Messages stay open while the contribution is live. To stop the work, use End this contribution on the agreement. If you feel unsafe, Report a concern.</p>` : ""}${""}</form>` : `<p class="muted">This conversation is closed${c.closed_reason ? ": " + e(c.closed_reason.toLowerCase()) : ""}.</p>`}
+    <section class="chat card">
+      <div class="chat-head">${avatar(other, 40)}<div class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(other)}</strong><span class="small muted">${isTalent ? "" : `<span data-no-i18n>${e(c.need?.organisation?.name || "")}</span> · `}<span>${live ? (eng.status === "active" ? "Contribution in progress" : "Waiting for signatures") : c.status === "open" ? "Application" : "Closed"}</span></span></div></div>
+      <div class="chat-log" id="messages" aria-live="polite" data-count="${msgs.length}">${chatHtml(msgs, c, c.need?.organisation?.name || "Organisation", c.person?.name || "Professional")}</div>
+      ${c.status === "open" ? `<form class="chat-compose" data-form="message" data-id="${e(id)}"><label class="visually-hidden" for="f-body">Message</label><textarea id="f-body" name="body" rows="1" maxlength="4000" required placeholder="Write a message…"></textarea><button class="btn chat-send" type="submit" aria-label="Send message">${icon("send", 18)}<span>Send</span></button><p class="form-error small" role="alert"></p></form><p class="small muted chat-hint">Press Ctrl + Enter to send. Messages stay here for both of you.</p>` : `<p class="chat-closed muted">This conversation is closed${c.closed_reason ? ": " + e(c.closed_reason.toLowerCase()) : ""}.</p>`}
+    </section>
+    ${c.status === "open" ? (live ? `<p class="small muted">Messages stay open while the contribution is live. To stop the work, use End this contribution on the agreement. If you feel unsafe, Report a concern.</p>` : `<div class="row"><button class="btn secondary sm" type="button" data-action="close-conversation" data-id="${e(id)}">End conversation</button></div>`) : ""}
     <button class="link-btn" type="button" data-action="report" data-type="conversation" data-id="${e(id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this conversation</button>
   </div></div>`;
-  return { title: `Conversation · ${other}`, html, after: () => { const m = document.getElementById("messages"); if (m) m.scrollTop = m.scrollHeight; } };
+  const after = () => {
+    const log = document.getElementById("messages"), ta = document.getElementById("f-body");
+    if (log) log.scrollTop = log.scrollHeight;
+    if (ta) {
+      const grow = () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 200) + "px"; };
+      ta.addEventListener("input", grow);
+      ta.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); ta.form.requestSubmit(); } });
+    }
+    // New messages appear without reloading: check every 15 seconds while this chat is open.
+    const here = location.hash;
+    const timer = setInterval(async () => {
+      if (location.hash !== here || !document.getElementById("messages")) return clearInterval(timer);
+      if (document.hidden) return;
+      try { await refreshChat(id); } catch {}
+    }, 15000);
+  };
+  return { title: `Conversation · ${other}`, html, after };
+}
+async function refreshChat(id) {
+  const log = document.getElementById("messages");
+  if (!log) return;
+  const msgs = await result(db.from("messages").select("*").eq("conversation_id", id).order("created_at"));
+  if (String(msgs.length) === log.dataset.count) return;
+  const c = await result(db.from("conversations").select("user_id, need:needs(organisation:organisations(name)), person:profiles(user_id,name)").eq("id", id).maybeSingle());
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  log.innerHTML = chatHtml(msgs, c, c?.need?.organisation?.name || "Organisation", c?.person?.name || "Professional");
+  log.dataset.count = String(msgs.length);
+  if (atBottom) log.scrollTop = log.scrollHeight;
 }
 
 export async function submitEngagement(kind, form) {
@@ -108,7 +163,12 @@ export async function submitEngagement(kind, form) {
     go(location.hash);
   });
   if (kind === "message") return withForm(form, async (fd) => {
-    await result(db.from("messages").insert({ conversation_id: form.dataset.id, sender_id: state.user.id, body: val(fd, "body") }));
-    go(location.hash);
+    const body = val(fd, "body");
+    if (!body) throw Error("Write a message first.");
+    await result(db.from("messages").insert({ conversation_id: form.dataset.id, sender_id: state.user.id, body }));
+    const ta = form.querySelector("textarea"); ta.value = ""; ta.style.height = "auto";
+    await refreshChat(form.dataset.id);
+    const log = document.getElementById("messages"); if (log) log.scrollTop = log.scrollHeight;
+    ta.focus();
   });
 }

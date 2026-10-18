@@ -38,7 +38,9 @@ export async function workspace(sub) {
     ...pendingInv.map((i) => `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${i.message ? `<p class="small invite-msg" data-no-i18n>“${e(i.message)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`),
     ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Open agreement", `#agreement/${h.engagement_id}`, "sm")); }),
     ...active.filter((x) => !x.first_call_at).map((x) => todoRow(`Plan your first call with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · 30–45 minutes to meet and agree how you’ll work`, `${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`)),
-    ...active.map((x) => todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}`)),
+    ...active.map((x) => (x.talent_delivered_at || hoursReadyAt(x, hours))
+      ? todoRow(`Waiting for ${e(x.organisation?.name || "the organisation")} to finish and endorse your work`, `${quoted(x.scope?.need_title || "")} · <span>${x.talent_delivered_at ? `you told them on ${date(x.talent_delivered_at)}` : "all agreed hours are approved"}</span> · <span>they’re reminded after 7 and 14 days</span>`, btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm"))
+      : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
   const appRows = apps.map((a) => `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || "Need")}</a><span class="small muted">${parts([e(a.need?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`);
@@ -126,6 +128,21 @@ const parts = (list) => list.filter(Boolean).map((x) => `<span>${x}</span>`).joi
 const quoted = (s) => `“${e(s)}”`;
 const addDays = (d, k) => { const x = new Date(d); x.setDate(x.getDate() + k); return x.toISOString().slice(0, 10); };
 const personName = (x) => e(x?.person?.name || x?.scope?.talent || "the professional");
+// When the work counts as delivered: all agreed hours approved with none waiting, or the professional said so.
+function hoursReadyAt(x, hours) {
+  const mine = hours.filter((h) => h.engagement_id === x.id);
+  if (mine.some((h) => h.status === "pending")) return null;
+  const ok = mine.filter((h) => h.status === "approved"), total = Number(x.scope?.hours) || 0;
+  if (!total || ok.reduce((t, h) => t + Number(h.hours || 0), 0) < total) return null;
+  return ok.map((h) => h.reviewed_at || h.created_at).sort().pop() || null;
+}
+function dueSince(x, hours) {
+  if (x.status !== "active") return null;
+  const a = x.talent_delivered_at || null, b = hoursReadyAt(x, hours);
+  return a && b ? (a < b ? a : b) : a || b;
+}
+const daysSince = (d) => Math.floor((Date.now() - Date.parse(d)) / 864e5);
+const overdueEng = (engs, hours) => engs.find((x) => { const d = dueSince(x, hours); return d && daysSince(d) > 14; });
 const approvedHours = (hours, engId) => hours.filter((h) => h.engagement_id === engId && h.status === "approved").reduce((s, h) => s + Number(h.hours || 0), 0);
 
 // The status of one contribution, in words, from the organisation's side.
@@ -166,7 +183,9 @@ export async function org(sub, id) {
   const head = (title, action = "") => `<div class="row between ws-head" style="align-items:flex-end"><div class="stack" style="--gap:18px"><div class="row" style="--gap:10px">${o.logo_url ? `<img class="ws-logo" src="${e(o.logo_url)}" width="40" height="40" alt="">` : ""}${eyebrow(e(o.name))}${ORG_STATUS[o.status] ? pill(...ORG_STATUS[o.status]) : ""}</div><h1 class="ws-title">${title}</h1></div>${action}</div>`;
   const switcher = state.memberships.length > 1 ? `<label class="field" style="max-width:360px">Organisation<select data-action="switch-org">${state.memberships.map((x) => `<option value="${x.organisation_id}" ${x.organisation_id === o.id ? "selected" : ""}>${e(x.organisation.name)}</option>`).join("")}</select></label>` : "";
   const shell = (main) => ({ title: `${o.name} · workspace`, html: `<div class="workspace org-ws">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` });
-  const banner = orgBanner(o);
+  const late = data ? overdueEng(data.engs, data.hours) : null;
+  const paused = late ? `<div class="banner alert">${icon("alert", 22)}<p><strong>New needs are paused.</strong> <span>${personName(late)}’s work on ${quoted(late.scope?.need_title || "")} has been waiting for your endorsement for ${daysSince(dueSince(late, data.hours))} days.</span> <span>Finish and endorse it, and you can send new needs for review again.</span> <a href="#org/needs/${late.need_id}" style="font-weight:700">Open the need</a></p></div>` : "";
+  const banner = orgBanner(o) + paused;
   const postBtn = btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
 
   if (sub === "details") return shell(`<div class="stack" style="--gap:20px">${head("Organisation profile")}<p class="lead">How professionals see your organisation, on your public page and on every need you post.${approved ? ` <a href="#organisations/${e(o.id)}" style="font-weight:700">View your public page</a>` : ""}</p>${banner}${orgForm(o)}</div>`);
@@ -197,7 +216,7 @@ export async function org(sub, id) {
     const tile = (num, label) => `<div class="stat"><strong>${num}</strong><span>${label}</span></div>`;
     const stats = `<div class="need-stats">${tile(`${Math.max(0, 3 - inUse)} of 3`, approved ? "places available" : "places available once your organisation is approved")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "open for applications")}${tile(progressCount, "in progress")}</div>`;
     const line = approved ? "Up to 3 needs can be waiting for review, open or in progress at a time. When one is finished or closed, its place becomes available again. Drafts don’t use a place." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
-    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
+    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${paused}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
   }
 
   // To do
@@ -216,6 +235,10 @@ export async function org(sub, id) {
 function todoItems(o, { needs, apps, engs, hours }) {
   const need = (nid) => needs.find((n) => n.id === nid);
   const out = [];
+  for (const x of engs.filter((y) => dueSince(y, hours))) {
+    const since = dueSince(x, hours), waitingH = hours.some((h) => h.engagement_id === x.id && h.status === "pending");
+    out.push({ html: todoRow(`Finish and endorse ${personName(x)}’s work`, `${quoted(x.scope?.need_title || need(x.need_id)?.title || "")} · <span>${x.talent_delivered_at ? `${personName(x)} says everything is delivered` : "All agreed hours are approved"}</span>${daysSince(since) > 14 ? ` · <span style="color:var(--clay-ink);font-weight:600">New needs are paused until you do this</span>` : ""}`, waitingH ? btn("Review hours first", `#org/needs/${x.need_id}`, "secondary sm") : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Finish and endorse</button>`) });
+  }
   for (const x of engs.filter((y) => y.status === "awaiting_signatures" && !y.org_signed_at)) out.push({ html: todoRow(`Sign the agreement with ${personName(x)}`, quoted(x.scope?.need_title || need(x.need_id)?.title || ""), btn("Review and sign", `#agreement/${x.id}`, "sm")) });
   for (const n of needs.filter((y) => y.status === "draft" && y.review_note)) out.push({ html: todoRow(`Handova asked for changes to ${quoted(n.title)}`, `<span data-no-i18n>${e(n.review_note)}</span>`, btn("Update need", `#org/need/${n.id}`, "sm")) });
   for (const n of needs) {
@@ -282,7 +305,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   const boxes = [];
   if (st === "draft") {
     if (n.review_note) boxes.push(box("alert", "alert", "Handova asked for changes", `<span data-no-i18n>${quoted(n.review_note)}</span> <span>Update the need and send it again.</span>`, btn("Update need", `#org/need/${n.id}`, "sm")));
-    else boxes.push(box("", "pen", "Next step: send it for review", "Only your organisation can see this need. When it is ready, send it to Handova for review.", (placesInUse(needs, engs) >= 3 ? `<span class="small muted">All 3 places are in use. You can send this for review when another need is finished or closed.</span>` : `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>`) + btn("Edit", `#org/need/${n.id}`, "secondary sm")));
+    else boxes.push(box("", "pen", "Next step: send it for review", "Only your organisation can see this need. When it is ready, send it to Handova for review.", (overdueEng(engs, hours) ? `<span class="small muted">New needs are paused until you finish and endorse the work that’s waiting.</span>` : placesInUse(needs, engs) >= 3 ? `<span class="small muted">All 3 places are in use. You can send this for review when another need is finished or closed.</span>` : `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>`) + btn("Edit", `#org/need/${n.id}`, "secondary sm")));
   } else if (st === "pending") {
     boxes.push(box("wait", "clock", "Handova is checking this need", approved ? "We usually reply within two working days and will notify you." : "It can go live once your organisation is approved.", btn("Edit", `#org/need/${n.id}`, "secondary sm")));
   } else if (st === "open") {
@@ -295,6 +318,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
       if (x.status === "awaiting_signatures" && !x.org_signed_at) boxes.push(box("", "pen", "Next step: sign the agreement", `<span>Work and hours start when you and ${first(x)} have both signed.</span> <span>${x.talent_signed_at ? `${first(x)} has already signed.` : `${first(x)} hasn’t signed yet either.`}</span>`, btn("Review and sign", `#agreement/${x.id}`, "sm")));
       else if (x.status === "awaiting_signatures") boxes.push(box("wait", "clock", `Waiting for ${first(x)} to sign`, `You signed on ${date(x.org_signed_at)}. We’ll notify you when ${first(x)} signs. Nothing to do for now.`, msgBtn(x)));
       else if (wh.length) { const due = wh.map((h) => addDays(h.created_at, 14)).sort()[0]; boxes.push(box("", "clock", `Next step: review ${sumH(wh)} ${sumH(wh) === 1 ? "hour" : "hours"} from ${first(x)}`, `Please review by ${date(due)}.`, "", `<div class="next-list">${wh.map((h) => hoursRow(h, x, n)).join("")}</div>`)); }
+      else if (dueSince(x, hours)) { const since = dueSince(x, hours); boxes.push(box(daysSince(since) > 14 ? "alert" : "", "check", `Next step: finish and endorse ${first(x)}’s work`, `<span>${x.talent_delivered_at ? `${first(x)} told you on ${date(x.talent_delivered_at)} that everything is delivered. Check the work, then confirm what was handed over and write the endorsement.` : `All ${x.scope?.hours || n.hours} agreed hours are approved. Confirm what was handed over and write the endorsement.`}</span> <span>It’s what ${first(x)} keeps from this work.</span>${daysSince(since) > 14 ? ` <strong>New needs are paused until you do this.</strong>` : ""}`, `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Finish and endorse</button>${msgBtn(x)}`)); }
       else if (!x.first_call_at) boxes.push(box("", "chat", `Next step: meet ${first(x)}`, `<span>Arrange a short first call (30–45 minutes) to get to know each other and plan the work. We’ve put a suggested agenda in your Messages.</span> <span class="small muted">Already agreed everything in writing? You can record that instead.</span>`, `${btn("Plan the call in Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`));
       else boxes.push(box("ok", "check", "Nothing to do right now", `${first(x)} logs time as they work. We’ll notify you when there are hours to review; please review them within 14 days.`, msgBtn(x)));
     }
@@ -318,13 +342,13 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
     const finishSub = x.status === "completed" ? `Finished ${date(x.completed_at)}` : x.status === "ended" ? "Ended early" : "When everything is delivered";
     const bar = signed ? `<div class="hours-bar" role="img" aria-label="${appr} of ${total} hours approved"><span style="width:${Math.min(100, Math.round((appr / total) * 100))}%"></span></div>` : "";
     const live = x.status === "active" || x.status === "awaiting_signatures";
-    const finish = x.status === "active" ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. ${first(x)} reads it first and decides whether to publish it.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
+    const finish = x.status === "active" && !dueSince(x, hours) ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. ${first(x)} reads it first and decides whether to publish it.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
     const endorsement = x.status === "completed" && x.endorsement ? `<blockquote class="small" data-no-i18n>“${e(x.endorsement.slice(0, 400))}${x.endorsement.length > 400 ? "…" : ""}”</blockquote>` : "";
     return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span><a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a></div></div>
       <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(!!x.first_call_at || x.status === "completed", "First call", x.first_call_at ? `${x.first_call_written ? "Agreed in writing" : "Held"} ${date(x.first_call_at)}` : signed ? "Not recorded yet" : "After you have both signed")}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
       <div class="row" style="--gap:8px">${live ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm") : ""}${btn("Agreement and time log", `#agreement/${x.id}`, "secondary sm")}</div>
       ${finish}
-      ${live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button></p>` : ""}
+      ${live && hoursReadyAt(x, hours) && x.status === "active" ? `<p class="small muted work-foot">All agreed hours are approved, so this contribution can’t be ended early. Problem with what was delivered? Talk to ${first(x)} first, or <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button> and Handova will help.</p>` : live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button></p>` : ""}
     </section>`;
   };
   const cards = (st === "progress" || st === "open" ? working : st === "done" ? mine.filter((x) => x.status === "completed") : []).map(workCard).join("");
@@ -522,12 +546,15 @@ export async function completeDialog(id) {
     <fieldset class="field full"><legend>Was the agreed work delivered? <span class="req" aria-hidden="true">*</span></legend>
       <label class="check"><input type="radio" name="delivered" value="all" required checked><span>Yes, everything we agreed</span></label>
       <label class="check"><input type="radio" name="delivered" value="partly"><span>Partly</span></label>
-      <span class="hint">If it was only partly delivered, the endorsement is optional. Nothing usable delivered? End the contribution instead.</span>${who(`${first} and Handova`)}</fieldset>
+      <span class="hint">If it was only partly delivered, the written endorsement is optional, but please still confirm at least one skill and say what was handed over. ${first} is told and can ask for a correction or report a concern.</span>${who(`${first} and Handova`)}</fieldset>
     ${field("deliverables", "What was handed over", { type: "textarea", required: true, value: s.output || "", attrs: 'minlength="10" maxlength="1500"', hint: "One item per line, for example: Brand manual (PDF, 24 pages). Each line becomes a bullet on the impact CV." })}${who(`${first}, and the public if ${first} publishes it`)}
     <fieldset class="field full skill-pick"><legend>Skills ${first} showed in this work</legend>
       <span class="hint">Choose 1 to 3. Only tick what you saw in the work itself.</span>
       <div class="chip-checks">${needSkills.map((k) => `<label class="chip-check"><input type="checkbox" name="skill" value="${e(k)}"><span>${e(k)}</span></label>`).join("")}</div>
-      <label class="field" style="margin-top:6px"><span>Add another skill</span><select name="skill_extra"><option value="">Choose a skill</option>${allSkills.map((k) => `<option value="${e(k)}">${e(k)}</option>`).join("")}</select></label>
+      <div class="field skill-add" style="margin-top:6px"><label for="f-skill-add" style="font-weight:700">Add another skill</label>
+        <div class="row" style="--gap:8px;flex-wrap:nowrap"><input id="f-skill-add" type="text" list="skill-options" autocomplete="off" maxlength="60" placeholder="Start typing, e.g. Grant writing"><button type="button" class="btn secondary" id="skill-add-btn" style="min-height:50px">Add</button></div>
+        <span class="hint">Choose from the suggestions or type your own, then press Enter or Add.</span>
+        <datalist id="skill-options">${allSkills.map((k) => `<option value="${e(k)}"></option>`).join("")}</datalist></div>
       ${who(`Public as “Skills confirmed by your organisation”, if ${first} publishes`)}</fieldset>
     <div class="field full"><label for="f-endorsement"><span>Your endorsement of ${first}</span></label>
       <div class="starters" role="group" aria-label="Sentence starters">${STARTERS.map((t) => `<button type="button" class="chip-btn" data-action="insert-starter" data-text="${e(t.replace("{name}", first))}">${e(t.replace("{name}", first))}</button>`).join("")}</div>
@@ -550,16 +577,29 @@ export async function completeDialog(id) {
     ${formEnd(`Complete and send to ${first}`, `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
   const ta = document.getElementById("f-endorsement"), ctr = document.querySelector('[data-counter-for="f-endorsement"]');
   ta?.addEventListener("input", () => { if (ctr) ctr.textContent = `${ta.value.length} / 1200`; });
+  // Type a skill: it becomes a ticked chip next to the others.
+  const add = document.getElementById("f-skill-add"), chips = document.querySelector(".skill-pick .chip-checks");
+  const addSkill = () => {
+    const v = add.value.trim().replace(/\s+/g, " ");
+    if (!v) return;
+    const same = [...chips.querySelectorAll("input[name=skill]")].find((i) => i.value.toLowerCase() === v.toLowerCase());
+    if (same) same.checked = true;
+    else chips.insertAdjacentHTML("beforeend", `<label class="chip-check"><input type="checkbox" name="skill" value="${e(v)}" checked><span data-no-i18n>${e(v)}</span></label>`);
+    add.value = ""; add.focus();
+  };
+  add?.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); addSkill(); } });
+  add?.addEventListener("change", () => { if (allSkills.some((k) => k.toLowerCase() === add.value.trim().toLowerCase())) addSkill(); });
+  document.getElementById("skill-add-btn")?.addEventListener("click", addSkill);
 }
 export async function submitComplete(form) {
   await withForm(form, async (fd) => {
     const delivered = fd.get("delivered") || "";
-    const skills = [...new Set([...fd.getAll("skill"), fd.get("skill_extra")].map((v) => String(v || "").trim()).filter(Boolean))];
+    const skills = [...new Set(fd.getAll("skill").map((v) => String(v || "").trim()).filter(Boolean))];
     const endorsement = val(fd, "endorsement");
     const deliverables = form.querySelector('[name="deliverables"]'), ta = form.querySelector('[name="endorsement"]');
     if (val(fd, "deliverables").length < 10) throw fieldError(deliverables, "Describe what was handed over, at least 10 characters.");
     if (skills.length > 3) throw fieldError(form.querySelector(".skill-pick input"), "Choose up to 3 skills.");
-    if (delivered === "all" && !skills.length) throw fieldError(form.querySelector(".skill-pick select"), "Choose at least one skill you saw in this work.");
+    if (!skills.length) throw fieldError(form.querySelector("#f-skill-add"), "Choose at least one skill you saw in this work.");
     if ((delivered === "all" || endorsement) && endorsement.length < 100) throw fieldError(ta, `Please write at least 100 characters (you have ${endorsement.length}).`);
     if (val(fd, "role").length < 2) throw fieldError(form.querySelector('[name="role"]'), "Add your role.");
     if (!fd.get("work_again")) throw fieldError(form.querySelector('[name="work_again"]'), "Please answer this question for Handova.");
