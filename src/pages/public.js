@@ -339,11 +339,11 @@ export async function need(id) {
     ${back("All needs", "#needs")}
     ${n.status === "draft" || n.status === "pending" ? `<div class="notice" role="note">${pill(n.status === "draft" ? "Draft" : "Waiting for review", n.status === "draft" ? "grey" : "ochre")}<span>Not public yet: only your organisation and Handova can see this need.</span></div>` : ""}
     ${n.handed ? `<div class="notice" role="note">${handedPill()}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
-    ${n.example && !(org.logo || org.logo_url) ? ((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title)) : `<div class="card flush">${orgCover(org, { banner: true })}</div>`}
+    ${n.example ? ((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title)) : ""}
     <div class="split">
       <div class="stack" style="--gap:36px">
         <div class="stack">
-          <div class="row">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="44" height="44" alt="">` : avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed || (org.status && org.status !== "approved") ? "" : pill("Approved organisation")}</div>
+          ${((logo, place, id) => `<div class="need-org">${id ? `<a class="need-org-id" href="#organisations/${e(id)}">` : `<span class="need-org-id">`}${logo ? `<img class="need-org-logo" src="${e(logo)}" width="64" height="64" alt="">` : avatar(org.name || "Organisation", 64)}<span class="stack" style="--gap:2px"><strong>${e(org.name || "Organisation")}</strong>${place ? `<span class="small muted">${e(place)}</span>` : ""}</span>${id ? "</a>" : "</span>"}${n.example || n.handed || (org.status && org.status !== "approved") ? "" : pill("Approved organisation")}</div>`)(org.logo || org.logo_url, [org.city, org.country].filter(Boolean).join(", "), !n.example && org.id)}
           <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </div>
