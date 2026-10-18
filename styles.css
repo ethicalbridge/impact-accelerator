@@ -234,6 +234,8 @@ label.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: va
 .checkbox-box { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
 .form-error { color: var(--clay-ink); font-weight: 600; min-height: 1em; }
 .form-error:empty { display: none; }
+.field-error { margin: 6px 0 0; color: var(--clay-ink); font-weight: 600; font-size: 0.9rem; }
+[aria-invalid="true"]:is(input, textarea, select, summary) { border-color: var(--clay-ink) !important; box-shadow: 0 0 0 1px var(--clay-ink); }
 fieldset { border: 0; margin: 0; padding: 0; }
 legend { font-weight: 700; margin-bottom: 12px; }
 .role-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }

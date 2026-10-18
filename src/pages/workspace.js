@@ -1,4 +1,4 @@
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession } from "../core.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldProblem, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard } from "./account.js";
 import { list, languages, date, plural, today } from "../utils.js";
@@ -129,7 +129,7 @@ function needForm(n, o, approved, langs) {
   n = n || {};
   return `<form class="form card" data-form="need" data-id="${e(n.id || "")}" data-org="${e(o.id)}" novalidate><div class="form-grid">
     ${field("title", "Title", { value: n.title, required: true, full: true, attrs: 'maxlength="160" minlength="5" placeholder="e.g. Improve our community data tools"' })}
-    ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? Don’t include names of the people you support." })}
+    ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? At least 20 characters. Don’t include names of the people you support." })}
     ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome. These are the languages our professionals work in.", options: langs })}
@@ -145,8 +145,11 @@ function needForm(n, o, approved, langs) {
 
 export async function submitNeed(form) {
   await withForm(form, async (fd) => {
-    if (!fd.has("no_vulnerable_contact")) { form.querySelector('[name="no_vulnerable_contact"]')?.focus(); throw Error("Tick the safeguarding confirmation to continue. Needs on Handova never involve direct contact with children or adults at risk."); }
-    if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and the safeguarding confirmation.")); }
+    // Check top to bottom, and show each problem right under its field.
+    const bad = form.querySelector("input:invalid:not([name=no_vulnerable_contact]), textarea:invalid, select:invalid");
+    if (bad) throw fieldError(bad, fieldProblem(bad));
+    if (!val(fd, "languages")) throw fieldError(form.querySelector('[name="languages"]'), "Choose at least one working language.");
+    if (!fd.has("no_vulnerable_contact")) throw fieldError(form.querySelector('[name="no_vulnerable_contact"]'), "Tick the safeguarding confirmation to continue. Needs on Handova never involve direct contact with children or adults at risk.");
     const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
     else await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }));

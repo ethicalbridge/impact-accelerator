@@ -88,15 +88,47 @@ export async function withForm(form, fn) {
   const btn = form.querySelector("[type=submit]");
   const err = form.querySelector(".form-error");
   if (err) err.textContent = "";
+  form.querySelectorAll(".field-error").forEach((x) => x.remove());
+  form.querySelectorAll("[aria-invalid]").forEach((x) => x.removeAttribute("aria-invalid"));
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Working…"; }
   try {
     return await fn(new FormData(form));
   } catch (error) {
-    if (err) { err.textContent = errorMessage(error); err.scrollIntoView({ block: "nearest" }); }
-    else toast(errorMessage(error));
+    if (error?.field) showFieldError(error.field, errorMessage(error));
+    if (err) { err.textContent = errorMessage(error); if (!error?.field) err.scrollIntoView({ block: "nearest" }); }
+    else if (!error?.field) toast(errorMessage(error));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
   }
+}
+
+// An error tied to one field: withForm shows it right under that field and scrolls there,
+// so people never lose sight of what needs fixing.
+export function fieldError(el, message) {
+  const err = Error(message);
+  err.field = el;
+  return err;
+}
+function showFieldError(el, message) {
+  const box = el.closest(".field, .checkbox-box, .lang-picker") || el.parentElement;
+  const control = el.type === "hidden" ? box.querySelector("summary") : el;
+  control?.setAttribute("aria-invalid", "true");
+  const note = document.createElement("p");
+  note.className = "field-error";
+  note.setAttribute("role", "alert");
+  note.textContent = message;
+  box.appendChild(note);
+  box.scrollIntoView({ block: "center", behavior: "smooth" });
+  try { control?.focus({ preventScroll: true }); } catch {}
+}
+// Plain, translatable wording for the first invalid field.
+export function fieldProblem(el) {
+  const v = el.validity || {};
+  if (v.valueMissing) return el.type === "checkbox" ? "Please tick this box to continue." : "Please fill in this field.";
+  if (v.tooShort) return `Please write at least ${el.minLength} characters.`;
+  if (v.tooLong) return `Please keep this under ${el.maxLength} characters.`;
+  if (v.rangeUnderflow && el.type === "date") return "Please choose a date from today onwards.";
+  return el.validationMessage || "Please check this field.";
 }
 
 export function invalidMessage(form, fallback = "Please complete the required fields.") {
