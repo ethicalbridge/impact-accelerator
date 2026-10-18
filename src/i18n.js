@@ -36,7 +36,7 @@ export async function loadLang(l, version = "") {
     if (!/\{\w+\}/.test(k)) continue;
     const names = [];
     const re = "^" + esc(k).replace(/\\?\{(\w+)\\?\}/g, (_, name) => { names.push(name); return name === "n" ? "(\\d+(?:[.,]\\d+)?)" : "(.*?)"; }) + "$";
-    patterns.push({ re: new RegExp(re), names, v, len: k.length });
+    patterns.push({ re: new RegExp(re), names, v, len: k.length, lit: k.replace(/\{\w+\}/g, "").trim().length });
   }
   patterns.sort((a, b) => b.len - a.len);
 }
@@ -58,6 +58,8 @@ export function t(s) {
     for (const p of patterns) {
       const m = k.match(p.re);
       if (!m) continue;
+      // A short pattern such as "{degree} in {field}" must not swallow a whole sentence that merely contains " in ".
+      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > 60 || /[.!?]\s/.test(m[i + 1])))) continue;
       const vals = {}; const seen = {};
       p.names.forEach((name, i) => { (vals[name] = vals[name] || []).push(m[i + 1]); });
       out = p.v.replace(/\{(\w+)\}/g, (_, name) => { const i = seen[name] = (seen[name] ?? -1) + 1; const arr = vals[name] || []; return t(arr[Math.min(i, arr.length - 1)] ?? ""); });
@@ -99,7 +101,7 @@ function translateNode(root) {
   if (root.nodeType === 3) { if (!root.parentElement?.closest("[data-no-i18n], script, style, textarea, code")) textNode(root); return; }
   if (root.nodeType !== 1 || SKIP.has(root.nodeName) || root.closest?.("[data-no-i18n]")) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => (n.nodeType === 1 && (SKIP.has(n.nodeName) || n.hasAttribute("data-no-i18n")) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    acceptNode: (n) => { if (n.nodeName === "TEXTAREA" && !n.hasAttribute("data-no-i18n")) attrsOf(n); return n.nodeType === 1 && (SKIP.has(n.nodeName) || n.hasAttribute("data-no-i18n")) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; },
   });
   const nodes = [root];
   while (walker.nextNode()) nodes.push(walker.currentNode);
