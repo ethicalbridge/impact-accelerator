@@ -203,6 +203,11 @@ begin
     update public.conversations c set status = 'closed', closed_reason = 'Need closed', closed_at = now()
       from public.applications a where a.need_id = new.id and a.status = 'pending' and c.need_id = new.id and c.user_id = a.user_id and c.status = 'open';
     update public.applications set status = 'declined', decided_at = now() where need_id = new.id and status = 'pending';
+    -- Invitations nobody answered can no longer be accepted either.
+    perform public.notify(i.user_id, 'invitation', 'An invitation is no longer open',
+      new.title || ': this need is no longer taking anyone new. Thank you.', '#workspace')
+      from public.invitations i where i.need_id = new.id and i.status = 'pending';
+    update public.invitations set status = 'declined', decided_at = now() where need_id = new.id and status = 'pending';
   end if;
   if new.status = 'pending' and (tg_op = 'INSERT' or old.status <> 'pending') then
     if not adm and public.endorsement_overdue(new.organisation_id) then
