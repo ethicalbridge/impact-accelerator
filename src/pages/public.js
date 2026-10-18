@@ -387,7 +387,9 @@ export async function need(id) {
 }
 
 // ---------- Talent ----------
-export async function talent() {
+export async function talent(params = new URLSearchParams()) {
+  // Arriving from the organisation workspace ("Find talent", "Invite a professional"): offer the way back.
+  const fromOrg = params.get("from") === "org" && state.memberships?.length;
   const real = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
@@ -395,7 +397,7 @@ export async function talent() {
   const others = real.filter((p) => p.user_id !== config.founderUserId);
   const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
-    <div class="page-head">${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
+    <div class="page-head">${fromOrg ? `<div style="margin-bottom:18px">${back("Back to your workspace", "#org")}</div>` : ""}${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
     ${filtersForm("talent", talentLanguages(rows))}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
     <div class="card row between band-dark" style="border-color:var(--deep)"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Are you an organisation?</span><p class="muted">Post a need and invite the people whose work fits. It is free.</p></div>${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div>

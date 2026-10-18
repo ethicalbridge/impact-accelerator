@@ -1128,6 +1128,9 @@ details.need-group[open] > summary::after { content: "Hide"; }
   .ws-head { align-items: flex-start !important; }
 }
 .admin-stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.need-stats { display: grid; gap: 14px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.need-stats .stat { padding: 18px 18px; }
+@media (max-width: 1200px) { .need-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .need-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .need-stats .stat strong { font-size: 2rem; } }
 .org-cover { display: flex; align-items: center; justify-content: center; aspect-ratio: 384 / 176; background: linear-gradient(135deg, #e6efeb 0%, #f4efe4 100%); }
 .org-cover.banner { aspect-ratio: auto; height: clamp(150px, 22vw, 230px); }
