@@ -197,7 +197,7 @@ export const agreementHtml = (sections, esc) => sections.map(([h, items], i) => 
 // v2 adds parties, changes, ownership transfer, liability, data roles, ending and disputes.
 // The wording on ownership, liability, data roles and governing law is a draft for a lawyer to review.
 export const CONTRIBUTION_VERSION = "contribution-2026-10-v2";
-const deadlineText = (s) => (s.deadline ? `Agreed by: ${s.deadline}.` : "No fixed deadline: the parties agree the timing in Handova Messages before work starts.");
+const deadlineText = () => "Delivery date: agreed by both parties in their first call and recorded in Handova Messages.";
 export function contributionSections(s = {}, version = CONTRIBUTION_VERSION) {
   const org = s.organisation || "the organisation", pro = s.talent || "the professional";
   const common3 = "Each party uses confidential information only for this contribution and shares the minimum necessary, through an agreed secure channel. **Passwords, payment-card details, PINs and access codes are never shared through Handova.** Any system access uses individual, limited accounts that are removed when the work ends. Confidential or personal information is never put into AI tools or personal accounts without the organisation’s written permission, and is returned or deleted at handover. A suspected data breach is reported to the other party and to Handova within 24 hours.";
