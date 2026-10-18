@@ -1,7 +1,10 @@
 // Sends one email per in-app notification: the title and a link, never message content.
 // Called by the notifications_email database trigger with {"id": "<notification id>"}.
-// Inactive until the RESEND_API_KEY and NOTIFY_FROM secrets are set (Supabase → Edge Functions → Secrets).
+// Sends through the same mailbox as the sign-up emails (hello@handova.org on Hostinger, port 465).
+// Inactive until the SMTP_PASS secret is set (Supabase → Edge Functions → Secrets). Optional secrets:
+// SMTP_HOST, SMTP_PORT, SMTP_USER, NOTIFY_FROM. A Resend key (RESEND_API_KEY) still works as an alternative.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
 
 const SITE = Deno.env.get("SITE_URL") ?? "https://handova.org/";
 const json = (body: unknown, status = 200) =>
@@ -15,8 +18,10 @@ Deno.serve(async (req) => {
   try { ({ id } = await req.json()); } catch { return json({ error: "Invalid body" }, 400); }
   if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
 
-  const key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("NOTIFY_FROM");
-  if (!key || !from) return json({ skipped: "Email sending is not configured yet" });
+  const smtpPass = Deno.env.get("SMTP_PASS"), key = Deno.env.get("RESEND_API_KEY");
+  const smtpUser = Deno.env.get("SMTP_USER") ?? "hello@handova.org";
+  const from = Deno.env.get("NOTIFY_FROM") ?? `Handova <${smtpUser}>`;
+  if (!smtpPass && !key) return json({ skipped: "Email sending is not configured yet" });
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -60,14 +65,28 @@ ${n.body ? `<tr><td style="padding:10px 32px 0;font-size:16px;line-height:1.5;co
 <tr><td style="padding:16px 32px 24px;border-top:1px solid #e3ded2;font-size:12px;line-height:1.5;color:#6b7d79">For your privacy, this email never includes message content. You receive it because you have a Handova account. <a href="${esc(settings)}" style="color:#0f6f63">Turn emails off</a>. An initiative of Ethical Bridge.</td></tr>
 </table></td></tr></table></body></html>`;
 
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject, html, text }),
-  });
-  if (!r.ok) {
+  let ok = false, detail = "";
+  try {
+    if (smtpPass) {
+      const port = Number(Deno.env.get("SMTP_PORT") ?? 465);
+      const mail = nodemailer.createTransport({
+        host: Deno.env.get("SMTP_HOST") ?? "smtp.hostinger.com", port, secure: port === 465,
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+      await mail.sendMail({ from, to, subject, html, text });
+      ok = true;
+    } else {
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [to], subject, html, text }),
+      });
+      ok = r.ok; detail = String(r.status);
+    }
+  } catch (err) { detail = String((err as Error)?.message || err).slice(0, 200); }
+  if (!ok) {
     await db.from("notifications").update({ emailed_at: null }).eq("id", id);
-    return json({ error: "Send failed", status: r.status }, 502);
+    return json({ error: "Send failed", detail }, 502);
   }
   return json({ sent: true });
 });
