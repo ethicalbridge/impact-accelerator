@@ -1134,3 +1134,9 @@ details.need-group[open] > summary::after { content: "Hide"; }
 .org-cover-tile { display: flex; align-items: center; justify-content: center; width: 112px; height: 112px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 6px 18px rgba(18, 62, 58, 0.08); }
 .org-cover.banner .org-cover-tile { width: 140px; height: 140px; border-radius: 26px; }
 .org-cover-tile img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+.need-org { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 18px; }
+.need-org-id { display: inline-flex; align-items: center; gap: 14px; color: var(--ink); text-decoration: none; }
+a.need-org-id:hover strong { color: var(--teal); text-decoration: underline; }
+.need-org-id strong { font-size: 1.1rem; color: var(--deep); }
+.need-org-logo { width: 64px; height: 64px; border-radius: 16px; object-fit: contain; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+.need-org .avatar { flex-shrink: 0; }
