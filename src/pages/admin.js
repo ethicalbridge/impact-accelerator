@@ -9,7 +9,7 @@ export async function notifications() {
   const html = `<div class="wrap" style="max-width:860px;padding-block:48px 80px"><div class="stack" style="--gap:20px">
     <div class="row between">${`<div>${eyebrow("Notifications")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What’s new</h1></div>`}${rows.some((r) => !r.read_at) ? `<button class="btn secondary sm" type="button" data-action="read-all">Mark all as read</button>` : ""}</div>
     <div class="card" style="padding-block:6px">${rows.length ? rows.map((r) => `<a class="notif ${r.read_at ? "" : "unread"}" href="${e(r.link || "#home")}" data-action="read-one" data-id="${r.id}">${icon("bell", 22, "#0f6f63")}<div class="stack" style="--gap:2px"><strong>${e(r.title)}</strong>${r.body ? `<span class="muted">${e(r.body)}</span>` : ""}<span class="small muted">${date(r.created_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></div></a>`).join("") : empty("Nothing yet", "Applications, decisions, agreements and messages will appear here.")}</div>
-    <p class="small muted">Email notifications will be switched on once the email service is set up.</p>
+    <p class="small muted">We also send you a short email for each notification (never the content of messages). You can turn emails off in <a href="#account">Account and privacy</a>.</p>
   </div></div>`;
   return { title: "Notifications", html };
 }
