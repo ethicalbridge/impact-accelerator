@@ -245,51 +245,91 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   if (!n) return `<div class="stack" style="--gap:20px">${back("All needs", "#org/needs")}${empty("This need isn’t here", "It may belong to another organisation, or it was removed.", btn("All needs", "#org/needs", "sm"))}</div>`;
   const st = needStage(n, engs);
   const mine = engs.filter((x) => x.need_id === n.id);
+  const working = mine.filter((x) => x.status === "active" || x.status === "awaiting_signatures");
   const pendingApps = apps.filter((a) => a.need_id === n.id && a.status === "pending");
   const decided = apps.filter((a) => a.need_id === n.id && a.status !== "pending");
   const myInvites = invites.filter((i) => i.need_id === n.id);
-  const myHours = hours.filter((h) => h.status === "pending" && mine.some((x) => x.id === h.engagement_id));
-  const next = {
-    draft: "Only your organisation can see this need. When it is ready, send it to Handova for review.",
-    pending: approved ? "Handova is checking this need. We usually reply within two working days and will notify you." : "Handova is checking this need. It can go live once your organisation is approved.",
-    open: "Professionals can apply now, and you can invite someone. We’ll notify you when someone applies.",
-    progress: mine.some((x) => x.status === "awaiting_signatures") ? "The agreement needs both signatures before the work starts." : "Someone is working on this need. Please review logged hours within 14 days.",
-    done: "This need is finished. Thank you for the work you put into it.",
-    closed: "This need is closed and no longer takes applications.",
-  }[st];
-  const buttons = [
-    st === "draft" ? (placesInUse(needs, engs) >= 3 ? `<span class="small muted">All 3 places are in use. You can send this for review when another need is finished or closed.</span>` : `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>`) : "",
-    st === "open" ? btn("Invite a professional", "#talent?from=org", "sm") : "",
-    ["draft", "pending"].includes(st) ? btn("Edit", `#org/need/${n.id}`, "secondary sm") : "",
-    st === "open" ? `<button class="btn secondary sm" type="button" data-action="need-revise" data-id="${n.id}">Change this need</button>` : "",
-    n.status === "open" || n.status === "closed" ? btn("View public page", `#need/${n.id}`, "secondary sm") : "",
-    st === "open" ? `<button class="btn secondary sm" type="button" data-action="close-need" data-id="${n.id}">Stop applications</button>` : "",
-  ].join("");
-  const note = n.review_note && n.status === "draft" ? `<div class="banner alert">${icon("alert", 22)}<p><strong>Handova asked for changes:</strong> <span data-no-i18n>${quoted(n.review_note)}</span> Update the need and send it again.</p></div>` : "";
-  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 48)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? `Works in ${e(a.person.languages.join(", "))}` : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p></div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
+  const first = (x) => e((x?.person?.name || x?.scope?.talent || "the professional").split(" ")[0]);
+  const waitingHours = (x) => hours.filter((h) => h.engagement_id === x.id && h.status === "pending");
+  const sumH = (list) => list.reduce((s, h) => s + Number(h.hours || 0), 0);
+  const signedOn = (x) => (x.org_signed_at && x.talent_signed_at ? (x.org_signed_at > x.talent_signed_at ? x.org_signed_at : x.talent_signed_at) : null);
+  const box = (kind, iconName, title, text, actions = "", extra = "") => `<section class="next-box ${kind}"><div class="next-head">${icon(iconName, 22)}<div class="stack" style="--gap:4px"><h2>${title}</h2>${text ? `<p>${text}</p>` : ""}</div></div>${extra}${actions ? `<div class="next-actions">${actions}</div>` : ""}</section>`;
+  const msgBtn = (x) => btn("Send a message", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm");
+
+  // ---- Pill and the line under the title ----
+  const awaitingOnly = st === "progress" && !working.some((x) => x.status === "active");
+  const pillHtml = awaitingOnly ? pill("Waiting for signatures", "ochre") : stagePill(n, st);
+  let meta;
+  if (st === "progress") meta = working.map((x) => parts([`With ${first(x)}`, `${x.scope?.hours || n.hours} hours agreed`, signedOn(x) ? `agreement signed ${date(signedOn(x))}` : "agreement not signed yet"])).join("<br>");
+  else if (st === "done") meta = parts([`With ${mine.filter((x) => x.status === "completed").map(first).join(", ")}`, `finished ${date(mine.find((x) => x.status === "completed")?.completed_at)}`]);
+  else meta = parts([`${n.hours} hours`, `${plural(n.places || 1, "person", "people")} needed`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"]);
+
+  // ---- Next step: the one thing to do now ----
+  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? `Works in ${e(a.person.languages.join(", "))}` : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p></div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
+  const boxes = [];
+  if (st === "draft") {
+    if (n.review_note) boxes.push(box("alert", "alert", "Handova asked for changes", `<span data-no-i18n>${quoted(n.review_note)}</span> <span>Update the need and send it again.</span>`, btn("Update need", `#org/need/${n.id}`, "sm")));
+    else boxes.push(box("", "pen", "Next step: send it for review", "Only your organisation can see this need. When it is ready, send it to Handova for review.", (placesInUse(needs, engs) >= 3 ? `<span class="small muted">All 3 places are in use. You can send this for review when another need is finished or closed.</span>` : `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>`) + btn("Edit", `#org/need/${n.id}`, "secondary sm")));
+  } else if (st === "pending") {
+    boxes.push(box("wait", "clock", "Handova is checking this need", approved ? "We usually reply within two working days and will notify you." : "It can go live once your organisation is approved.", btn("Edit", `#org/need/${n.id}`, "secondary sm")));
+  } else if (st === "open") {
+    if (pendingApps.length) boxes.push(box("", "people", pendingApps.length === 1 ? "Next step: reply to 1 applicant" : `Next step: reply to ${pendingApps.length} applicants`, "Read their messages, then accept or decline. Everyone gets an answer.", "", `<div class="next-list">${pendingApps.map(appRow).join("")}</div>`));
+    else boxes.push(box("wait", "clock", "Waiting for applications", "Professionals can apply now. You can also invite someone whose profile fits.", btn("Invite a professional", "#talent?from=org", "sm")));
+  }
+  if (st === "progress" || (st === "open" && working.length)) {
+    for (const x of working) {
+      const wh = waitingHours(x);
+      if (x.status === "awaiting_signatures" && !x.org_signed_at) boxes.push(box("", "pen", "Next step: sign the agreement", `<span>Work and hours start when you and ${first(x)} have both signed.</span> <span>${x.talent_signed_at ? `${first(x)} has already signed.` : `${first(x)} hasn’t signed yet either.`}</span>`, btn("Review and sign", `#agreement/${x.id}`, "sm")));
+      else if (x.status === "awaiting_signatures") boxes.push(box("wait", "clock", `Waiting for ${first(x)} to sign`, `You signed on ${date(x.org_signed_at)}. We’ll notify you when ${first(x)} signs. Nothing to do for now.`, msgBtn(x)));
+      else if (wh.length) { const due = wh.map((h) => addDays(h.created_at, 14)).sort()[0]; boxes.push(box("", "clock", `Next step: review ${sumH(wh)} ${sumH(wh) === 1 ? "hour" : "hours"} from ${first(x)}`, `Please review by ${date(due)}.`, "", `<div class="next-list">${wh.map((h) => hoursRow(h, x, n)).join("")}</div>`)); }
+      else boxes.push(box("ok", "check", "Nothing to do right now", `${first(x)} logs time as they work. We’ll notify you when there are hours to review; please review them within 14 days.`, msgBtn(x)));
+    }
+  }
+  if (st === "done") {
+    for (const x of mine.filter((y) => y.status === "completed")) {
+      if (x.followup_due && x.followup_due <= today() && !x.followup_answered_at) boxes.push(box("", "check", `Six months on: are you still using what ${first(x)} delivered?`, "Your answer helps show what lasts. It is not shown publicly.", `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`));
+      else boxes.push(box("ok", "check", `Finished on ${date(x.completed_at)}. Thank you.`, x.followup_answered_at ? `Six-month check answered: ${x.followup_in_use ? "still in use" : "no longer in use"}.` : x.followup_due ? `We’ll ask you on ${date(x.followup_due)} whether the work is still in use.` : ""));
+    }
+  }
+  if (st === "closed") boxes.push(box("wait", "clock", mine.some((x) => x.status === "ended") ? `The contribution with ${first(mine.find((x) => x.status === "ended"))} ended early` : "Applications stopped. No one was matched.", "Its place is free again. You can post a new need whenever you are ready.", btn("Post a need", "#org/need", "secondary sm")));
+
+  // ---- One card per person doing the work ----
+  const step = (done, title, sub) => `<li class="${done ? "done" : ""}">${icon(done ? "check" : "clock", 18)}<span><strong>${title}</strong><span class="small muted">${sub}</span></span></li>`;
+  const workCard = (x) => {
+    const appr = approvedHours(hours, x.id), wh = sumH(waitingHours(x)), total = Number(x.scope?.hours || n.hours) || 1;
+    const signed = !!(x.org_signed_at && x.talent_signed_at);
+    const sigSub = signed ? date(signedOn(x)) : !x.org_signed_at ? "Waiting for your signature" : `Waiting for ${first(x)}’s signature`;
+    const hoursSub = !signed ? "Starts when you have both signed" : `${appr} of ${total} hours approved${wh ? ` · ${wh} waiting for your review` : ""}`;
+    const finishSub = x.status === "completed" ? `Finished ${date(x.completed_at)}` : x.status === "ended" ? "Ended early" : "When everything is delivered";
+    const bar = signed ? `<div class="hours-bar" role="img" aria-label="${appr} of ${total} hours approved"><span style="width:${Math.min(100, Math.round((appr / total) * 100))}%"></span></div>` : "";
+    const live = x.status === "active" || x.status === "awaiting_signatures";
+    const finish = x.status === "active" ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. Your rating is only seen by ${first(x)}.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
+    const endorsement = x.status === "completed" && x.endorsement ? `<blockquote class="small" data-no-i18n>“${e(x.endorsement.slice(0, 400))}${x.endorsement.length > 400 ? "…" : ""}”</blockquote>` : "";
+    return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span><a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a></div></div>
+      <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
+      <div class="row" style="--gap:8px">${live ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm") : ""}${btn("Agreement and time log", `#agreement/${x.id}`, "secondary sm")}</div>
+      ${finish}
+      ${live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button></p>` : ""}
+    </section>`;
+  };
+  const cards = (st === "progress" || st === "open" ? working : st === "done" ? mine.filter((x) => x.status === "completed") : []).map(workCard).join("");
+
+  // ---- Folded background ----
   const APP_DONE = { accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrew", "grey"] };
   const INV = { pending: ["Awaiting reply", "ochre"], accepted: ["Accepted", ""], declined: ["Declined by the professional", "grey"] };
-  const showApps = st !== "draft" && st !== "pending";
-  const appsSection = showApps ? `<section class="card stack" style="--gap:6px"><h2 class="card-title">Applicants${pendingApps.length ? ` (${pendingApps.length})` : ""}</h2>${pendingApps.length ? `<div>${pendingApps.map(appRow).join("")}</div>` : `<p class="muted">${st === "open" ? "No applications waiting. You can also invite a professional." : "No applications waiting."}</p>`}${decided.length ? `<details class="fold"><summary>Earlier applicants (${decided.length})</summary><div>${decided.map((a) => `<div class="list-row"><span><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a> <span class="small muted">· ${date(a.created_at)}</span></span>${pill(...(APP_DONE[a.status] || [a.status, "grey"]))}</div>`).join("")}</div></details>` : ""}</section>` : "";
-  const invSection = myInvites.length ? `<section class="card stack" style="--gap:6px"><h2 class="card-title">Invitations you sent</h2><div>${myInvites.map((i) => `<div class="list-row"><span><strong>${e(i.person?.name || "Professional")}</strong> <span class="small muted">· sent ${date(i.created_at)}</span></span>${pill(...(INV[i.status] || [i.status, "grey"]))}</div>`).join("")}</div></section>` : "";
-  const engRow = (x) => {
-    const acts = [
-      x.status === "awaiting_signatures" && !x.org_signed_at ? btn("Review and sign", `#agreement/${x.id}`, "sm") : btn("Open agreement", `#agreement/${x.id}`, "secondary sm"),
-      x.status === "active" ? `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>` : "",
-      x.status === "active" || x.status === "awaiting_signatures" ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm") : "",
-    ].join("");
-    const extra = x.status === "completed" ? `<p class="small" data-no-i18n>${x.endorsement ? `“${e(x.endorsement.slice(0, 280))}${x.endorsement.length > 280 ? "…" : ""}”` : ""}</p><span class="small muted">${x.followup_answered_at ? `Six-month check answered: ${x.followup_in_use ? "still in use" : "no longer in use"}.` : x.followup_due ? `We’ll ask on ${date(x.followup_due)} whether the work is still in use.` : ""}</span>` : "";
-    return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${x.user_id}" style="font-weight:700">${personName(x)}</a><span class="small muted">${engState(x, hours, n)}</span>${extra}</div><div class="todo-actions">${acts}</div></div>`;
-  };
-  const engSection = mine.length ? `<section class="card stack" style="--gap:6px"><h2 class="card-title">${mine.length === 1 ? "The person helping you" : "The people helping you"}</h2><div>${mine.map(engRow).join("")}</div></section>` : "";
-  const hoursSection = myHours.length ? `<section class="card stack" style="--gap:6px"><h2 class="card-title">Hours to review</h2><div>${myHours.map((h) => hoursRow(h, mine.find((x) => x.id === h.engagement_id), n)).join("")}</div></section>` : "";
+  const history = [...decided.map((a) => `<div class="list-row"><span><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a> <span class="small muted">· applied ${date(a.created_at)}</span></span>${pill(...(APP_DONE[a.status] || [a.status, "grey"]))}</div>`),
+    ...myInvites.map((i) => `<div class="list-row"><span><strong>${e(i.person?.name || "Professional")}</strong> <span class="small muted">· invited ${date(i.created_at)}</span></span>${pill(...(INV[i.status] || [i.status, "grey"]))}</div>`)];
+  const historyFold = history.length && st !== "draft" && st !== "pending" ? `<details class="card fold-card"><summary><h2 class="card-title">Applications and invitations (${history.length})</h2></summary><div style="margin-top:8px">${history.join("")}</div></details>` : "";
   const deliverables = (n.output || "").split(/\n|;/).map((s) => s.trim()).filter(Boolean);
-  const about = `<details class="card fold-card" ${st === "draft" || st === "pending" ? "open" : ""}><summary><h2 class="card-title">About this need</h2></summary><div class="stack" style="--gap:14px;margin-top:12px"><div><strong>The challenge</strong><p class="prose" data-no-i18n>${e(n.description)}</p></div><div><strong>What should be delivered</strong><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 20, "#0f6f63", 2.2)}<span data-no-i18n>${e(d)}</span></li>`).join("")}</ul></div>${(n.skills || []).length ? `<div class="row" style="--gap:6px"><strong>Skills</strong>${tags(n.skills)}</div>` : ""}<p><strong>Working languages:</strong> ${e((n.languages || []).join(", "))}</p></div></details>`;
+  const publicLink = n.status === "open" || n.status === "closed" ? `<a href="#need/${n.id}" style="font-weight:700">See the public page</a>` : "";
+  const about = `<details class="card fold-card" ${st === "draft" || st === "pending" ? "open" : ""}><summary><h2 class="card-title">About this need</h2></summary><div class="stack" style="--gap:14px;margin-top:12px"><div><strong>The challenge</strong><p class="prose" data-no-i18n>${e(n.description)}</p></div><div><strong>What should be delivered</strong><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 20, "#0f6f63", 2.2)}<span data-no-i18n>${e(d)}</span></li>`).join("")}</ul></div>${(n.skills || []).length ? `<div class="row" style="--gap:6px"><strong>Skills</strong>${tags(n.skills)}</div>` : ""}<p><strong>Working languages:</strong> ${e((n.languages || []).join(", "))}</p>${publicLink}</div></details>`;
+  const changeFold = st === "open" ? `<details class="card fold-card"><summary><h2 class="card-title">Change or stop this need</h2></summary><div class="stack" style="--gap:10px;margin-top:10px"><p class="small muted">A live need can’t be edited. To change it, stop applications and send a corrected copy for review.</p><div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="need-revise" data-id="${n.id}">Change this need</button><button class="btn secondary sm" type="button" data-action="close-need" data-id="${n.id}">Stop applications</button></div></div></details>` : "";
+
   return `<div class="stack" style="--gap:22px">${back("All needs", "#org/needs")}
-    <div class="stack" style="--gap:14px"><div class="row" style="--gap:10px">${eyebrow(e(o.name))}${stagePill(n, st)}</div><h1 class="ws-title" data-no-i18n>${e(n.title)}</h1><p class="muted">${parts([`${n.hours} hours`, `${plural(n.places || 1, "person", "people")} needed`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"])}</p></div>
-    ${note}<div class="banner">${icon("check", 22, "#0f6f63")}<p>${next}</p></div>
-    ${buttons ? `<div class="row" style="--gap:8px">${buttons}</div>` : ""}
-    ${hoursSection}${engSection}${appsSection}${invSection}${about}
+    <div class="stack" style="--gap:14px"><div class="row" style="--gap:10px">${eyebrow(e(o.name))}${pillHtml}</div><h1 class="ws-title" data-no-i18n>${e(n.title)}</h1><p class="muted">${meta}</p></div>
+    ${boxes.join("")}
+    ${cards}
+    ${about}${changeFold}${historyFold}
   </div>`;
 }
 
