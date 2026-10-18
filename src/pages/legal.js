@@ -43,7 +43,7 @@ export function privacy() {
     <li><strong>GitHub Pages</strong> (United States) publishes the website.</li>
     <li><strong>Didit</strong> carries out identity checks under a data processing agreement.</li>
     <li><strong>Google Analytics</strong> processes website usage information when you accept analytics. Google may process this information outside your country.</li>
-    <li><strong>An email provider</strong> sends account emails and notifications; we will name it here when email notifications are switched on.</li></ul>
+    <li><strong>Hostinger</strong> (email hosting) sends account emails and notifications from hello@handova.org.</li></ul>
   <p>Where a provider processes information outside your country, including in the United States, we rely on safeguards such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
   <h2>How long we keep it</h2><ul>
     <li><strong>Your account and profile:</strong> until you delete them. A profile closed for inactivity is kept, unpublished, so you can publish it again.</li>
