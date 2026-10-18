@@ -18,7 +18,7 @@ export async function result(query) {
 }
 
 // Every profile column the site may read. Never select("*"): the name on an identity document is admin-only.
-export const PROFILE_COLS = "user_id,name,headline,bio,experience,location,country,skills,languages,hours_available,arrangement,website,age_confirmed,unpaid_confirmed,published,review_status,approved_at,created_at,updated_at,linkedin,photo_url,experience_items,education_items,closed_at,closed_reason,inactive_since,id_status,id_verified_at";
+export const PROFILE_COLS = "user_id,name,headline,bio,experience,location,country,skills,languages,hours_available,arrangement,website,age_confirmed,unpaid_confirmed,published,review_status,approved_at,created_at,updated_at,linkedin,photo_url,experience_items,education_items,closed_at,closed_reason,inactive_since,id_status,id_verified_at,cv_hidden";
 
 export async function loadSession() {
   const { data } = await db.auth.getSession();

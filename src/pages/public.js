@@ -451,7 +451,13 @@ export async function profile(id) {
   const isPublic = ex || (p.published && p.review_status === "approved");
   const live = ex ? [] : await result(db.rpc("public_contributions", { p_user: id })).catch(() => []);
   // The founder's three handovers made before Handova's records began stay on her CV.
-  const contributions = ex ? exampleContributions : founderLive ? [...live, ...exampleContributions] : live;
+  // Contributions the professional took off their CV: live ones are private, earlier ones are listed in cv_hidden.
+  const hiddenIds = new Set(p.cv_hidden || []);
+  const vis = owner && live.length ? Object.fromEntries((await result(db.from("engagements").select("id,public").eq("user_id", id)).catch(() => [])).map((x) => [x.id, x.public])) : {};
+  const all = (ex ? exampleContributions : founderLive ? [...live, ...exampleContributions] : live)
+    .map((c) => (live.includes(c) ? { ...c, live: true, public: owner ? vis[c.id] !== false : true } : { ...c, public: !hiddenIds.has(String(c.id)) }));
+  const contributions = all.filter((c) => c.public !== false);
+  const hiddenOnes = owner && !ex ? all.filter((c) => c.public === false) : [];
   const hours = contributions.reduce((s, c) => s + Number(c.hours || 0), 0);
   const orgs = new Set(contributions.map((c) => c.organisation)).size;
   const countries = new Set(contributions.map((c) => c.organisation_country).filter(Boolean)).size;
@@ -504,7 +510,7 @@ export async function profile(id) {
         </div>
         <div role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" class="stack" style="--gap:14px" hidden>
           <div class="row between" style="align-items:baseline"><p class="muted" style="margin:0">${plural(contributions.length, "contribution")} · ${hours} ${hours === 1 ? "hour" : "hours"} handed over to ${plural(orgs, "organisation")}</p><span class="small muted">Open one to see the details</span></div>
-          ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
+          ${contributions.length || hiddenOnes.length ? [...contributions, ...hiddenOnes].map((c) => contributionCard(c, { example: ex, owner: owner && !ex })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
         </div>
       </section>
     </div></div>`;

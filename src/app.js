@@ -161,6 +161,20 @@ const actions = {
   survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
   "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
   "staff-size": (el) => ws.staffSizeDialog(el.dataset.id),
+  "cv-hide": async (el) => {
+    const hide = !!el.dataset.hide, id = el.dataset.id;
+    if (el.dataset.live) await result(db.rpc("set_contribution_visibility", { p_id: id, p_public: !hide }));
+    else {
+      const cur = new Set(state.profile?.cv_hidden || []);
+      if (hide) cur.add(id); else cur.delete(id);
+      await result(db.from("profiles").update({ cv_hidden: [...cur] }).eq("user_id", state.user.id));
+      await loadSession();
+    }
+    toast(hide ? "Removed from your impact CV. You can add it back at any time." : "Added back to your impact CV.");
+    const open = document.querySelector('[data-profile-tab="contributions"][aria-selected="true"]');
+    await render();
+    if (open) document.querySelector('button[role="tab"][data-profile-tab="contributions"]')?.click();
+  },
   "rs-export": (el) => rsp.exportCsv(el.dataset.tab),
   "rs-codebook": () => rsp.exportCodebook(),
   "career-stage": () => ws.careerStageDialog(),

@@ -1291,3 +1291,10 @@ a.need-org-id:hover strong { color: var(--teal); text-decoration: underline; }
 .rs-open p { margin: 0 0 4px; white-space: pre-line; }
 @media (max-width: 560px) { .rs-grid { grid-template-columns: 1fr; } .rs-bar { grid-template-columns: 1fr 44px; } .rs-bar-t { grid-column: 1 / -1; grid-row: 2; } }
 .survey-form [hidden], form [hidden].sv-when, .sv-concern[hidden] { display: none !important; }
+.c-hide { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--muted); font: 600 .85rem var(--sans); cursor: pointer; white-space: nowrap; }
+.c-hide:hover { color: var(--ink); border-color: var(--ink); }
+.contrib.is-hidden > summary { opacity: .62; }
+.contrib.is-hidden > summary .c-hide { opacity: 1; }
+@media (max-width: 560px) { .c-hide span { display: none; } }
+details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr) auto auto 30px; }
+@media (max-width: 760px) { details.contrib summary:has(.c-hide) { grid-template-columns: 44px minmax(0, 1fr) auto auto; } }

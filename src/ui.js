@@ -512,15 +512,16 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     ? `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}<img src="${e(safeURL(c.org_logo))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`
     : `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}</span>`;
   const org = `${c.org_page ? `<a href="${e(c.org_page)}">${e(c.organisation)}</a>` : e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(t(c.organisation_country))}</span>` : ""}`;
-  return `<details class="contrib">
+  return `<details class="contrib${owner && c.public === false ? " is-hidden" : ""}">
   <summary>
     ${logo}
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
     ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
+    ${owner ? `<button type="button" class="c-hide" data-action="cv-hide" data-id="${e(c.id)}" data-live="${c.live ? 1 : ""}" data-hide="${c.public === false ? "" : 1}" title="${c.public === false ? "Add back to my CV" : "Remove from my CV"}">${icon(c.public === false ? "plus" : "eye", 16)}<span>${c.public === false ? "Add back" : "Remove"}</span></button>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>
   <div class="c-body">

@@ -169,3 +169,69 @@ begin
 end $function$;
 revoke all on function public.admin_survey_data() from public, anon;
 grant execute on function public.admin_survey_data() to authenticated;
+
+-- Professionals can take any contribution off their public impact CV (including ones recorded before Handova).
+alter table public.profiles add column if not exists cv_hidden text[] not null default '{}';
+grant update (cv_hidden) on public.profiles to authenticated;
+
+-- Daily reminders, now including the questionnaire reminder.
+create or replace function public.kickoff_reminders()
+ returns integer language plpgsql security definer set search_path to ''
+as $function$
+declare n integer := 0; k integer;
+begin
+  -- No first call recorded a week after both signed (once per contribution).
+  insert into public.notifications (user_id, kind, title, body, link, ref)
+  select x.uid, 'first_call_reminder', 'Have you had your first call yet?', e.scope->>'need_title', '#agreement/' || e.id, e.id
+  from public.engagements e
+  cross join lateral (select e.user_id as uid union select m.user_id from public.organisation_members m where m.organisation_id = e.organisation_id) x
+  where e.status = 'active' and e.first_call_at is null and greatest(e.org_signed_at, e.talent_signed_at) < now() - interval '7 days'
+    and x.uid is not null
+    and not exists (select 1 from public.notifications r where r.kind = 'first_call_reminder' and r.ref = e.id and r.user_id = x.uid);
+  get diagnostics k = row_count; n := n + k;
+  -- A message unanswered for 5 days, in a live contribution (once per message).
+  insert into public.notifications (user_id, kind, title, body, link, ref)
+  select x.uid, 'reply_reminder', 'Someone is waiting for your reply', nd.title, '#conversation/' || c.id, lm.id
+  from public.conversations c
+  join public.needs nd on nd.id = c.need_id
+  join public.engagements e on e.need_id = c.need_id and e.user_id = c.user_id and e.status in ('awaiting_signatures', 'active')
+  cross join lateral (select m.id, m.sender_id, m.created_at from public.messages m where m.conversation_id = c.id and m.kind = 'user' order by m.created_at desc limit 1) lm
+  cross join lateral (
+    select c.user_id as uid where lm.sender_id is distinct from c.user_id
+    union select om.user_id from public.organisation_members om where om.organisation_id = nd.organisation_id and lm.sender_id = c.user_id
+  ) x
+  where c.status = 'open' and lm.created_at < now() - interval '5 days'
+    and not exists (select 1 from public.notifications r where r.kind = 'reply_reminder' and r.ref = lm.id and r.user_id = x.uid);
+  get diagnostics k = row_count; n := n + k;
+  -- Work delivered but not endorsed: the organisation after 7 and 14 days (once each), Handova after 30.
+  insert into public.notifications (user_id, kind, title, body, link, ref)
+  select m.user_id, r.kind, r.title, (e.scope->>'talent') || ' · ' || (e.scope->>'need_title'), '#org/needs/' || e.need_id, e.id
+  from public.engagements e
+  cross join lateral (select public.endorsement_due_since(e.id) as since) d
+  cross join lateral (values
+    ('endorse_reminder_7', 'Please finish and endorse the work', interval '7 days'),
+    ('endorse_reminder_14', 'Finish and endorse the work to keep posting needs', interval '14 days')) r(kind, title, after)
+  join public.organisation_members m on m.organisation_id = e.organisation_id
+  where e.status = 'active' and d.since < now() - r.after
+    and not exists (select 1 from public.notifications x where x.kind = r.kind and x.ref = e.id and x.user_id = m.user_id);
+  get diagnostics k = row_count; n := n + k;
+  insert into public.notifications (user_id, kind, title, body, link, ref)
+  select a.user_id, 'endorse_overdue', 'An endorsement is 30 days overdue', (e.scope->>'organisation') || ' · ' || (e.scope->>'need_title'), '#admin', e.id
+  from public.engagements e cross join public.admins a
+  where e.status = 'active' and public.endorsement_due_since(e.id) < now() - interval '30 days'
+    and not exists (select 1 from public.notifications x where x.kind = 'endorse_overdue' and x.ref = e.id and x.user_id = a.user_id);
+  get diagnostics k = row_count; n := n + k;
+  -- Two days after a contribution is finished: a reminder of the two-minute questionnaire, once, if not answered or skipped.
+  insert into public.notifications (user_id, kind, title, body, link, ref)
+  select x.uid, 'survey_reminder', 'Two minutes: how did it go?', e.scope->>'need_title', x.link, e.id
+  from public.engagements e
+  cross join lateral (
+    select e.user_id as uid, '#workspace' as link, 'professional' as k
+    union all select m.user_id, '#org', 'organisation' from public.organisation_members m where m.organisation_id = e.organisation_id
+  ) x
+  where e.status = 'completed' and e.completed_at < now() - interval '2 days' and e.completed_at > now() - interval '30 days' and x.uid is not null
+    and not exists (select 1 from public.survey_responses r where r.engagement_id = e.id and r.kind = x.k)
+    and not exists (select 1 from public.notifications r where r.kind = 'survey_reminder' and r.ref = e.id and r.user_id = x.uid);
+  get diagnostics k = row_count; n := n + k;
+  return n;
+end $function$;
