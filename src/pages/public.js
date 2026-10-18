@@ -341,16 +341,30 @@ export async function need(id) {
     ${n.handed ? `<div class="notice" role="note">${handedPill()}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
     ${n.example ? ((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title)) : ""}
     <div class="split">
-      <div class="stack" style="--gap:36px">
-        <div class="stack">
+      <div class="stack" style="--gap:22px">
+        <section class="need-hero">
           ${((logo, place, id) => `<div class="need-org">${id ? `<a class="need-org-id" href="#organisations/${e(id)}">` : `<span class="need-org-id">`}${logo ? `<img class="need-org-logo" src="${e(logo)}" width="64" height="64" alt="">` : avatar(org.name || "Organisation", 64)}<span class="stack" style="--gap:2px"><strong>${e(org.name || "Organisation")}</strong>${place ? `<span class="small muted">${e(place)}</span>` : ""}</span>${id ? "</a>" : "</span>"}${n.example || n.handed || (org.status && org.status !== "approved") ? "" : pill("Approved organisation")}</div>`)(org.logo || org.logo_url, [org.city, org.country].filter(Boolean).join(", "), !n.example && org.id)}
-          <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
+          <h1 class="need-title">${e(n.title)}</h1>
+          <ul class="need-facts">
+            <li>${icon("clock", 18)}<span>${n.hours} ${n.hours === 1 ? "hour" : "hours"}${n.handed ? " delivered" : ""}</span></li>
+            <li>${icon("globe", 18)}<span>Remote${n.location ? " · " + e(n.location) : ""}</span></li>
+            <li>${icon("language", 18)}<span>${e((n.languages || []).map(t).join(" · "))}</span></li>
+            ${n.handed ? "" : `<li>${icon("calendar", 18)}<span>${n.deadline ? "Apply by " + date(n.deadline) : "No fixed deadline"}</span></li>`}
+          </ul>
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
-        </div>
-        <div class="stack"><h2 style="font-size:2rem">The challenge</h2><p class="prose" data-no-i18n>${e(n.description)}</p></div>
-        <div class="stack"><h2 style="font-size:2rem">${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="checks">${deliverables.map((d) => `<li>${icon("check", 22, "#0f6f63", 2.2)}${e(d)}</li>`).join("")}</ul></div>
-        <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:10px"><strong>Skills involved</strong>${tags(n.skills)}</div><div class="card stack" style="--gap:10px"><strong>Working languages</strong><p>${e((n.languages || []).join(", "))}. Support in any one of these is welcome.</p></div></div>
-        <div class="card row" style="align-items:flex-start;flex-wrap:nowrap">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="60" height="60" alt="">` : avatar(org.name || "Organisation", 60)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.6rem">${e(org.name || "")}</span><p class="muted">${e(org.summary || "")}</p>${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}</div></div>
+        </section>
+        <section class="card need-body">
+          <div class="need-sec"><h2>The challenge</h2><p class="prose" data-no-i18n>${e(n.description)}</p></div>
+          <div class="need-sec"><h2>${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="need-deliver">${deliverables.map((d) => `<li>${icon("check", 20, "#0f6f63", 2.4)}<span data-no-i18n>${e(d)}</span></li>`).join("")}</ul></div>
+          ${(n.skills || []).length ? `<div class="need-sec"><h2>Skills involved</h2>${tags(n.skills)}</div>` : ""}
+          <div class="need-sec"><h2>Working languages</h2><p>${e((n.languages || []).map(t).join(", "))}. Support in any one of these is welcome.</p></div>
+        </section>
+        ${n.example || n.handed ? "" : `<section class="card need-steps"><h2>How it works</h2><ol>
+          <li><strong>Apply</strong><span>Send a short message about why your skills fit this need.</span></li>
+          <li><strong>Agree</strong><span>If you are chosen, you and the organisation both sign a contribution agreement before any work starts.</span></li>
+          <li><strong>Deliver and hand over</strong><span>Do the work within about ${n.hours} hours, hand it over so the team can keep using it, and receive an endorsement for your impact CV.</span></li>
+        </ol></section>`}
+        <section class="card need-about">${(org.logo || org.logo_url) ? `<img class="need-org-logo" src="${e(org.logo || org.logo_url)}" width="64" height="64" alt="">` : avatar(org.name || "Organisation", 64)}<div class="stack" style="--gap:6px">${eyebrow("About the organisation")}<span class="serif" style="font-size:1.5rem">${e(org.name || "")}</span>${org.summary ? `<p class="muted" data-no-i18n>${e(org.summary)}</p>` : ""}<div class="row" style="--gap:16px">${safeLink(org.website, "Organisation website")}${safeLink(org.ethical_bridge_url, "See it in the Ethical Bridge directory")}${!n.example && org.id ? `<a href="#organisations/${e(org.id)}" style="font-weight:700">See all their needs</a>` : ""}</div></div></section>
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">
