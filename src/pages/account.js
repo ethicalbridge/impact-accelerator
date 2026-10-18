@@ -504,7 +504,7 @@ export async function submitAccount(kind, form) {
     if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url"), logo_url: val(fd, "logo_url") || null }).eq("id", newOrg));
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
     await loadSession();
-    toast("Submitted for review. You can prepare draft needs now.");
+    toast("Submitted for review. You can write your first need now.");
     go("#org");
   });
   if (kind === "org-edit") return withForm(form, async (fd) => {

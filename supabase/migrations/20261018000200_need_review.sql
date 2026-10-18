@@ -52,6 +52,16 @@ begin
     new.approved_at := coalesce(new.approved_at, now());
     new.review_note := null;
   end if;
+  -- When a need stops taking applications (closed by hand or because the places filled),
+  -- everyone still waiting gets an answer instead of hanging.
+  if tg_op = 'UPDATE' and old.status = 'open' and new.status = 'closed' then
+    perform public.notify(a.user_id, 'application_decision', 'The need you applied to is closed',
+      new.title || ': it is no longer taking applications. Thank you for applying.', '#workspace')
+      from public.applications a where a.need_id = new.id and a.status = 'pending';
+    update public.conversations c set status = 'closed', closed_reason = 'Need closed', closed_at = now()
+      from public.applications a where a.need_id = new.id and a.status = 'pending' and c.need_id = new.id and c.user_id = a.user_id and c.status = 'open';
+    update public.applications set status = 'declined', decided_at = now() where need_id = new.id and status = 'pending';
+  end if;
   if new.status = 'pending' and (tg_op = 'INSERT' or old.status <> 'pending') then
     new.review_note := null;
     perform public.notify_admins('need_submitted', 'A need is waiting for review', new.title, '#admin');
@@ -80,11 +90,11 @@ begin
       raise exception 'Approve the organisation first. The need stays pending until then.';
     end if;
     update public.needs set status = 'open' where id = p_need;
-    perform public.notify_org(n.organisation_id, 'need_decision', 'Your need is live', coalesce(nullif(trim(p_note), ''), n.title), '#need/' || p_need);
+    perform public.notify_org(n.organisation_id, 'need_decision', 'Your need is live', coalesce(nullif(trim(p_note), ''), n.title), '#org/needs/' || p_need);
   elsif p_decision = 'changes_requested' then
     if coalesce(trim(p_note), '') = '' then raise exception 'Write a note so the organisation knows what to change.'; end if;
     update public.needs set status = 'draft', review_note = trim(p_note) where id = p_need;
-    perform public.notify_org(n.organisation_id, 'need_decision', 'Please update your need', trim(p_note), '#org/need/' || p_need);
+    perform public.notify_org(n.organisation_id, 'need_decision', 'Please update your need', trim(p_note), '#org/needs/' || p_need);
   else
     raise exception 'Choose approve or ask for changes.';
   end if;
