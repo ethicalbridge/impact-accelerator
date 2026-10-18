@@ -1206,3 +1206,18 @@ a.need-org-id:hover strong { color: var(--teal); text-decoration: underline; }
 .agreement-doc section p + p { margin-top: 10px; }
 .message.system { background: var(--mint-2); border: 1px solid var(--mint); border-radius: 14px; padding: 12px 14px; }
 .message.system small { color: var(--teal); font-weight: 700; }
+.who-sees { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: .8rem; color: var(--teal); font-weight: 600; }
+.endorse-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.endorse-form legend { font-weight: 700; margin-bottom: 4px; }
+.chip-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip-check span { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--paper); cursor: pointer; font-weight: 600; font-size: .92rem; }
+.chip-check input:checked + span { background: var(--deep); color: var(--paper); border-color: var(--deep); }
+.chip-check input:focus-visible + span { outline: 3px solid var(--ink); outline-offset: 2px; }
+.starters { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.chip-btn { min-height: 36px; padding: 4px 12px; border-radius: 999px; border: 1px dashed var(--teal); background: var(--mint-2); color: var(--deep); font: 600 .88rem var(--sans); cursor: pointer; }
+.private-q { padding: 14px 16px !important; border-radius: 14px; background: #f6efe2; }
+.private-note { padding: 10px 14px; border-radius: 12px; background: var(--mint-2); }
+.endorse-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--teal); background: var(--mint-2); border-radius: 0 10px 10px 0; }
+.c-verify { margin: 0; }
+[data-counter-for] { display: block; text-align: right; margin-top: 2px; }

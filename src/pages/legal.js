@@ -24,7 +24,7 @@ export function privacy() {
     <li><strong>Identity check:</strong> the result (verified or not), the date and the name on your document. Our provider Didit compares a selfie with the photo on your passport or ID card; that comparison uses biometric data. Your document and selfie are processed by Didit and never stored by Handova. Only our administrators can see the name on your document.</li>
     <li><strong>Signed agreements:</strong> when you sign the professional or organisation agreement, your name (and role, for organisations), email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to.</li>
     <li><strong>Organisations:</strong> name, country, city, type, website, a summary, its Ethical Bridge directory page, and the name of the person who represents it.</li>
-    <li><strong>Activity:</strong> needs, applications, invitations, messages, contribution agreements and signatures, logged hours, reviews, endorsements, private ratings, saved needs, notifications, activity dates used for the inactivity rule, and reports of concern.</li>
+    <li><strong>Activity:</strong> needs, applications, invitations, messages, contribution agreements and signatures, logged hours, reviews, endorsements, confirmed skills, private notes and the private “would you work together again” answer, saved needs, notifications, activity dates used for the inactivity rule, and reports of concern.</li>
     <li><strong>Technical information:</strong> our hosting and database providers keep short-term logs (such as IP address and browser) to run and secure the service.</li></ul>
   <h2>Why we use it, and on what legal basis</h2><ul>
     <li><strong>To provide the service you asked for</strong> (contract): your account, profile, matching, agreements, hours, notifications and your impact CV.</li>
@@ -36,7 +36,8 @@ export function privacy() {
   <h2>Who can see what</h2><ul>
     <li><strong>Public:</strong> your professional profile once you publish it and we approve it, including to search engines; approved organisations and their open needs; contributions you choose to publish on your impact CV.</li>
     <li><strong>Only the people involved:</strong> applications, invitations, messages, agreements and logged hours are visible to you and the members of the organisation concerned.</li>
-    <li><strong>Only you and the organisation that gave it:</strong> the private rating an organisation gives your work.</li>
+    <li><strong>Only you:</strong> the private note an organisation may write to you when it completes your contribution.</li>
+    <li><strong>Only Handova:</strong> whether the organisation would welcome you on another need, and any note it adds. We use it to make better matches, and we talk to both sides before acting on a “No”.</li>
     <li><strong>Our administrators:</strong> profiles and organisations waiting for review, identity-check results, signed agreements, who is matched with whom, and reports. They read a conversation only when someone in it reports a concern.</li></ul>
   <h2>Service providers</h2><ul>
     <li><strong>Supabase</strong> stores data and manages sign-in, hosted in the European Union (Frankfurt).</li>
