@@ -1203,3 +1203,4 @@ a.need-org-id:hover strong { color: var(--teal); text-decoration: underline; }
 .work-foot .link-btn { min-height: 44px; padding: 0 2px; font-size: inherit; text-decoration: underline; }
 .danger-link { color: var(--clay-ink) !important; }
 @media (max-width: 640px) { .next-actions, .next-list { padding-left: 0; } .next-actions .btn { flex: 1 1 auto; justify-content: center; } .finish-block .btn { width: 100%; justify-content: center; } }
+.agreement-doc section p + p { margin-top: 10px; }
