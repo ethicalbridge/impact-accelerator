@@ -6,7 +6,7 @@ import { filterRecords, professionalAreas, date, plural, today, safeURL } from "
 import { config } from "../config.js";
 import { workingResponsibly } from "./legal.js";
 
-const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url)";
+const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
 async function openNeeds(limit) {
   let q = db.from("needs").select(NEED_SELECT).eq("status", "open").order("created_at", { ascending: false });
@@ -330,18 +330,20 @@ export async function need(id) {
   let cta;
   if (n.handed) cta = `<p class="small muted">This need was delivered and handed over by <a href="#profile/${e(n.contributor.id)}">${e(n.contributor.name)}</a>. ${n.pending ? "The organisation’s endorsement is pending." : ""}</p>${btn("See open needs", "#needs", "lg")}`;
   else if (n.example) cta = `<p class="small muted">This is an example need, so you can’t apply to it.</p>${btn("See real needs", "#needs", "lg")}`;
-  else if (isMember) cta = `${btn("Manage in your workspace", "#org", "lg")}`;
+  else if (isMember) cta = `${btn("Manage this need", `#org/needs/${e(n.id)}`, "lg")}`;
+  else if (state.isAdmin && n.status === "pending") cta = `${btn("Review it in Admin", "#admin", "lg")}`;
   else if (app) cta = `<p>Your application: ${status(app.status)}</p>${btn("Go to your workspace", "#workspace", "secondary")}`;
   else if (open) cta = `<button class="btn lg" type="button" data-action="apply" data-id="${e(n.id)}">Apply to this need</button>`;
   else cta = `<p class="muted">This need is no longer accepting applications.</p>`;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:60px">
     ${back("All needs", "#needs")}
+    ${n.status === "draft" || n.status === "pending" ? `<div class="notice" role="note">${pill(n.status === "draft" ? "Draft" : "Waiting for review", n.status === "draft" ? "grey" : "ochre")}<span>Not public yet: only your organisation and Handova can see this need.</span></div>` : ""}
     ${n.handed ? `<div class="notice" role="note">${handedPill()}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
     ${((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title))}
     <div class="split">
       <div class="stack" style="--gap:36px">
         <div class="stack">
-          <div class="row">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="44" height="44" alt="">` : avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed ? "" : pill("Approved organisation")}</div>
+          <div class="row">${(org.logo || org.logo_url) ? `<img class="avatar org-av" src="${e(org.logo || org.logo_url)}" width="44" height="44" alt="">` : avatar(org.name || "Organisation", 44)}<strong>${e(org.name || "Organisation")}</strong><span class="muted">${e([org.city, org.country].filter(Boolean).join(", "))}</span>${n.example || n.handed || (org.status && org.status !== "approved") ? "" : pill("Approved organisation")}</div>
           <h1 style="font-size:clamp(2.2rem,4.4vw,3.8rem)">${e(n.title)}</h1>
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </div>
@@ -352,7 +354,7 @@ export async function need(id) {
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">
-          <div class="row between">${n.handed ? handedPill() : open ? pill("Open for applications") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
+          <div class="row between">${n.handed ? handedPill() : open ? pill("Open for applications") : n.status === "draft" ? pill("Draft", "grey") : n.status === "pending" ? pill("Waiting for review", "ochre") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
           <div class="stack" style="--gap:12px">
             <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} ${n.hours === 1 ? "hour" : "hours"}</strong> ${n.handed ? "delivered" : "estimated"}</span></span>
             <span class="row">${icon("globe", 22, "#0f6f63")}Remote${n.location ? " · " + e(n.location) : ""}</span>

@@ -141,13 +141,14 @@ const actions = {
   withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),
   "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
   "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
-  "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need closes to new applications.", "app-accept", el.dataset.id, "", "Accept"),
+  "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", el.dataset.id, "", "Accept"),
   "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Request changes", "Explain what needs to change. The professional can submit a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
   complete: (el) => ws.completeDialog(el.dataset.id),
   "end-engagement": (el) => ws.decisionDialog("End this contribution?", "Use this if the work can’t go ahead. Both of you will be notified and the conversation will close.", "end-engagement", el.dataset.id, "", "End contribution", true),
-  "close-need": (el) => ws.decisionDialog("Close this need?", "It will stop accepting applications. Existing applications and contributions are kept.", "close-need", el.dataset.id, "", "Close need"),
+  "close-need": (el) => ws.decisionDialog("Stop applications?", "The need stops taking applications. Anyone still waiting for an answer is told it has closed. People already working on it are not affected.", "close-need", el.dataset.id, "", "Stop applications"),
+  "need-submit": (el) => ws.submitForReview(el.dataset.id),
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
   followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this contribution was completed. Your answer helps show what lasts. It is not shown publicly.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
   "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your impact CV." : "Removed from your impact CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
@@ -157,6 +158,7 @@ const actions = {
   "read-all": async () => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", state.user.id).is("read_at", null); state.unread = 0; render(); },
   "admin-org": (el) => adm.adminDecision("org", el.dataset.id, el.dataset.decision),
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
+  "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   "delete-account": () => acc.deleteAccount(),
   "cookie-settings": () => initConsent(true),
@@ -169,7 +171,7 @@ const forms = {
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -202,6 +204,8 @@ document.addEventListener("click", async (ev) => {
   el.setAttribute("aria-disabled", "true");
   try { await fn(el); } catch (err) { toast(errorMessage(err)); } finally { el.removeAttribute("aria-disabled"); }
 });
+// Forms with several submit buttons (e.g. "Send for review" / "Save as draft") say which one was used.
+document.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-set-status]"); if (b?.form?.elements.status) b.form.elements.status.value = b.dataset.setStatus; });
 document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) actions[ev.target.dataset.action]?.(ev.target); });
 document.addEventListener("submit", async (ev) => {
   const f = ev.target;
@@ -216,7 +220,7 @@ document.addEventListener("submit", async (ev) => {
   }
   if (kind === "close-need") {
     const { withForm } = await import("./core.js");
-    return withForm(f, async () => { await result(db.from("needs").update({ status: "closed" }).eq("id", f.dataset.id)); closeDialog(); toast("Need closed."); render(); });
+    return withForm(f, async () => { await result(db.from("needs").update({ status: "closed" }).eq("id", f.dataset.id)); closeDialog(); toast("Applications stopped."); render(); });
   }
 });
 
