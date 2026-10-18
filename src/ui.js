@@ -464,12 +464,18 @@ export function handoverStrip(n, size = 56) {
   </div>`;
 }
 
+// Real needs show the organisation's own logo (or its initials) instead of an illustration.
+export function orgCover(org = {}, { banner = false } = {}) {
+  const logo = org.logo || org.logo_url;
+  const mark = logo ? `<span class="org-cover-tile"><img src="${e(logo)}" alt="" loading="lazy"></span>` : `<span class="org-cover-initials">${avatar(org.name || "Organisation", banner ? 120 : 96)}</span>`;
+  return `<div class="org-cover${banner ? " banner" : ""}" aria-hidden="true">${mark}</div>`;
+}
 export function needCard(n) {
   const org = n.organisation || {};
   const kind = coverKind(n.skills, n.title);
   const place = [org.city || n.location, org.country || n.country].filter(Boolean).join(", ");
   return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
-  ${n.handed ? handoverStrip(n) : cover(kind)}
+  ${n.handed ? handoverStrip(n) : n.example && !(org.logo || org.logo_url) ? cover(kind) : orgCover(org)}
   <div class="card-body">
     <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? "" : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>

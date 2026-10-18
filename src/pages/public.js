@@ -1,6 +1,6 @@
 import { locale, t } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
+import { icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -339,7 +339,7 @@ export async function need(id) {
     ${back("All needs", "#needs")}
     ${n.status === "draft" || n.status === "pending" ? `<div class="notice" role="note">${pill(n.status === "draft" ? "Draft" : "Waiting for review", n.status === "draft" ? "grey" : "ochre")}<span>Not public yet: only your organisation and Handova can see this need.</span></div>` : ""}
     ${n.handed ? `<div class="notice" role="note">${handedPill()}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
-    ${((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title))}
+    ${n.example && !(org.logo || org.logo_url) ? ((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title)) : `<div class="card flush">${orgCover(org, { banner: true })}</div>`}
     <div class="split">
       <div class="stack" style="--gap:36px">
         <div class="stack">
