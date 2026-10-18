@@ -1,7 +1,7 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldProblem, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard } from "./account.js";
-import { list, languages, date, plural, today } from "../utils.js";
+import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</a>`).join("")}</nav>`;
 const card = (title, inner, extra = "") => `<section class="card stack" style="--gap:6px"><div class="row between" style="margin-bottom:8px"><h2 style="font-size:1.7rem">${title}</h2>${extra}</div>${inner}</section>`;
@@ -42,7 +42,18 @@ export async function workspace(sub) {
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
   const appRows = apps.map((a) => `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || "Need")}</a><span class="small muted">${parts([e(a.need?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`);
-  const cvRows = completed.map((x) => `<div class="todo-row" style="align-items:flex-start"><div class="stack" style="--gap:4px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>${x.endorsement ? `<p class="small" data-no-i18n>“${e(x.endorsement)}”</p>` : ""}<span class="small muted">Private rating from the organisation: ${x.rating ? `${x.rating} out of 5` : "none"}. Only you can see this.</span></div><label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label></div>`);
+  const cvRows = completed.map((x) => {
+    const corr = x.correction_requested_at;
+    const corrLine = corr ? (x.endorsement_edited_at ? `<span class="small" style="color:var(--teal);font-weight:600">Corrected by the organisation on ${date(x.endorsement_edited_at)}.</span>` : `<span class="small muted">You asked for a correction on ${date(corr)}. The organisation can edit it within 14 days.</span>`) : "";
+    return `<div class="todo-row" style="flex-direction:column;align-items:stretch;gap:12px"><div class="stack" style="--gap:6px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>
+      ${x.endorsement ? `<blockquote class="small endorse-quote" data-no-i18n>“${e(x.endorsement)}”</blockquote><span class="small muted">— ${e([x.show_endorser_name ? x.endorser_name : "", x.endorsed_by_role, x.organisation?.name].filter(Boolean).join(", "))}</span>` : `<span class="small muted">No written endorsement.</span>`}
+      ${(x.confirmed_skills || []).length ? `<div class="row" style="--gap:6px"><span class="small muted">Skills confirmed:</span>${tags(x.confirmed_skills)}</div>` : ""}
+      ${x.note_to_professional ? `<div class="private-note"><span class="small" style="font-weight:700">A note just for you</span><p class="small" data-no-i18n>${e(x.note_to_professional)}</p></div>` : ""}
+      ${x.rating && !x.delivered_as_agreed ? `<span class="small muted">Private rating from the organisation: ${x.rating} out of 5. Only you can see this.</span>` : ""}
+      ${corrLine}</div>
+      <div class="row" style="--gap:8px 20px;flex-wrap:wrap;align-items:center"><label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label>
+      ${!corr ? `<button class="link-btn" type="button" data-action="endorse-correction" data-id="${x.id}">Ask for a correction</button>` : ""}<button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${x.id}" style="color:var(--muted)">Report a concern</button></div></div>`;
+  });
   const first = e(p.name.split(" ")[0]);
 
   const html = `<div class="stack" style="--gap:22px">
@@ -212,6 +223,7 @@ function todoItems(o, { needs, apps, engs, hours }) {
     if (waiting.length) out.push({ html: todoRow(waiting.length === 1 ? `${e(waiting[0].person?.name || "Someone")} applied to ${quoted(n.title)}` : `${waiting.length} people applied to ${quoted(n.title)}`, "Review their messages, then accept or decline.", btn("See applicants", `#org/needs/${n.id}`, "sm")) });
   }
   for (const h of hours.filter((y) => y.status === "pending")) { const x = engs.find((y) => y.id === h.engagement_id); out.push({ html: hoursRow(h, x, need(x?.need_id)) }); }
+  for (const x of engs.filter((y) => y.status === "completed" && y.correction_requested_at && !y.endorsement_edited_at && Date.now() - Date.parse(y.correction_requested_at) < 14 * 864e5)) out.push({ html: todoRow(`${personName(x)} asked for a correction to your endorsement`, `<span data-no-i18n>${e(x.correction_note || "")}</span>`, `<button class="btn sm" type="button" data-action="endorse-edit" data-id="${x.id}">Correct the endorsement</button>`) });
   for (const x of engs.filter((y) => y.status === "completed" && y.followup_due && y.followup_due <= today() && !y.followup_answered_at)) out.push({ html: todoRow(`Six months on: are you still using what ${personName(x)} delivered?`, quoted(x.scope?.need_title || ""), `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`) });
   for (const n of needs.filter((y) => y.status === "draft" && !y.review_note)) out.push({ html: todoRow(`${quoted(n.title)} is still a draft`, "Send it to Handova for review when it is ready.", btn("Open draft", `#org/needs/${n.id}`, "secondary sm")) });
   return out;
@@ -289,7 +301,8 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   }
   if (st === "done") {
     for (const x of mine.filter((y) => y.status === "completed")) {
-      if (x.followup_due && x.followup_due <= today() && !x.followup_answered_at) boxes.push(box("", "check", `Six months on: are you still using what ${first(x)} delivered?`, "Your answer helps show what lasts. It is not shown publicly.", `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`));
+      if (x.correction_requested_at && !x.endorsement_edited_at && Date.now() - Date.parse(x.correction_requested_at) < 14 * 864e5) boxes.push(box("", "pen", `${first(x)} asked for a correction`, `<span data-no-i18n>${quoted(x.correction_note || "")}</span> <span>You can correct the endorsement once, within 14 days.</span>`, `<button class="btn sm" type="button" data-action="endorse-edit" data-id="${x.id}">Correct the endorsement</button>`));
+      if (x.followup_due && x.followup_due <= today() && !x.followup_answered_at) boxes.push(box("", "check", `Six months on: are you still using what ${first(x)} delivered?`, `If you answer yes, “Still in use after 6 months” appears on ${first(x)}’s impact CV when they publish this contribution. A no is never shown publicly.`, `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`));
       else boxes.push(box("ok", "check", `Finished on ${date(x.completed_at)}. Thank you.`, x.followup_answered_at ? `Six-month check answered: ${x.followup_in_use ? "still in use" : "no longer in use"}.` : x.followup_due ? `We’ll ask you on ${date(x.followup_due)} whether the work is still in use.` : ""));
     }
   }
@@ -305,7 +318,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
     const finishSub = x.status === "completed" ? `Finished ${date(x.completed_at)}` : x.status === "ended" ? "Ended early" : "When everything is delivered";
     const bar = signed ? `<div class="hours-bar" role="img" aria-label="${appr} of ${total} hours approved"><span style="width:${Math.min(100, Math.round((appr / total) * 100))}%"></span></div>` : "";
     const live = x.status === "active" || x.status === "awaiting_signatures";
-    const finish = x.status === "active" ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. Your rating is only seen by ${first(x)}.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
+    const finish = x.status === "active" ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. ${first(x)} reads it first and decides whether to publish it.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
     const endorsement = x.status === "completed" && x.endorsement ? `<blockquote class="small" data-no-i18n>“${e(x.endorsement.slice(0, 400))}${x.endorsement.length > 400 ? "…" : ""}”</blockquote>` : "";
     return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span><a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a></div></div>
       <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(!!x.first_call_at || x.status === "completed", "First call", x.first_call_at ? `${x.first_call_written ? "Agreed in writing" : "Held"} ${date(x.first_call_at)}` : signed ? "Not recorded yet" : "After you have both signed")}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
@@ -493,7 +506,104 @@ export function decisionDialog(title, text, formName, id, fields = "", confirm =
   openDialog(title, `<form class="form" data-form="${formName}" data-id="${e(id)}"><p>${text}</p>${fields}${formEnd(confirm, `<button class="btn secondary" type="button" data-action="close">Cancel</button>`).replace('class="btn"', `class="btn${danger ? " danger" : ""}"`)}</form>`);
 }
 
-export function completeDialog(id) {
-  decisionDialog("Mark this contribution complete", "Confirm what was delivered and write an endorsement. The professional chooses whether it appears on their impact CV. The rating is private to them.", "complete", id,
-    `${field("deliverables", "What was delivered", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="3000" autofocus' })}${field("endorsement", "Endorsement", { type: "textarea", required: true, attrs: 'minlength="20" maxlength="3000"', hint: "Specific and fair: what changed for your team?" })}${field("role", "Your role", { value: state.user?.user_metadata?.org_role || "", attrs: 'maxlength="120" placeholder="e.g. Director"' })}${select("rating", "Private rating (only the professional sees this)", [["", "Choose a rating"], ["5", "5: Excellent"], ["4", "4: Very good"], ["3", "3: Good"], ["2", "2: Needs improvement"], ["1", "1: Unsatisfactory"]], "", { required: true })}`, "Mark complete");
+// ---- Finish and endorse: the evidence the organisation leaves the professional ----
+const ENDORSE_LANGS = [["English", "English"], ["Spanish", "Español"], ["Portuguese", "Português"], ["French", "Français"], ["Indonesian", "Bahasa Indonesia"], ["Other", "Other"]];
+const LANG_BY_CODE = { en: "English", es: "Spanish", pt: "Portuguese", fr: "French" };
+const STARTERS = ["Before this work, we…", "Now our team can…", "{name} was especially good at…", "We still use…"];
+const who = (txt) => `<span class="who-sees">${icon("eye", 14)}${txt}</span>`;
+export async function completeDialog(id) {
+  const x = await result(db.from("engagements").select("id,scope").eq("id", id).single());
+  const s = x.scope || {}, first = e(String(s.talent || "the professional").split(" ")[0]);
+  const needSkills = (s.skills || []).slice(0, 12);
+  const allSkills = SKILL_GROUPS.flatMap(([, list]) => list).filter((k) => !needSkills.includes(k));
+  const lang = LANG_BY_CODE[(document.documentElement.lang || "en").slice(0, 2)] || "English";
+  openDialog(`Finish and endorse ${first}’s work`, `<form class="form endorse-form" data-form="complete" data-id="${e(id)}" novalidate>
+    <p class="muted">This is what ${first} keeps from this contribution. Be specific and honest. ${first} reads it first and decides whether it appears on their public impact CV. Each question says who can see your answer.</p>
+    <fieldset class="field full"><legend>Was the agreed work delivered? <span class="req" aria-hidden="true">*</span></legend>
+      <label class="check"><input type="radio" name="delivered" value="all" required checked><span>Yes, everything we agreed</span></label>
+      <label class="check"><input type="radio" name="delivered" value="partly"><span>Partly</span></label>
+      <span class="hint">If it was only partly delivered, the endorsement is optional. Nothing usable delivered? End the contribution instead.</span>${who(`${first} and Handova`)}</fieldset>
+    ${field("deliverables", "What was handed over", { type: "textarea", required: true, value: s.output || "", attrs: 'minlength="10" maxlength="1500"', hint: "One item per line, for example: Brand manual (PDF, 24 pages). Each line becomes a bullet on the impact CV." })}${who(`${first}, and the public if ${first} publishes it`)}
+    <fieldset class="field full skill-pick"><legend>Skills ${first} showed in this work</legend>
+      <span class="hint">Choose 1 to 3. Only tick what you saw in the work itself.</span>
+      <div class="chip-checks">${needSkills.map((k) => `<label class="chip-check"><input type="checkbox" name="skill" value="${e(k)}"><span>${e(k)}</span></label>`).join("")}</div>
+      <label class="field" style="margin-top:6px"><span>Add another skill</span><select name="skill_extra"><option value="">Choose a skill</option>${allSkills.map((k) => `<option value="${e(k)}">${e(k)}</option>`).join("")}</select></label>
+      ${who(`Public as “Skills confirmed by your organisation”, if ${first} publishes`)}</fieldset>
+    <div class="field full"><label for="f-endorsement"><span>Your endorsement of ${first}</span></label>
+      <div class="starters" role="group" aria-label="Sentence starters">${STARTERS.map((t) => `<button type="button" class="chip-btn" data-action="insert-starter" data-text="${e(t.replace("{name}", first))}">${e(t.replace("{name}", first))}</button>`).join("")}</div>
+      <textarea id="f-endorsement" name="endorsement" maxlength="1200" data-min="100" rows="6"></textarea>
+      <span class="hint">In 2 to 5 sentences: what ${first} did, how they worked with your team, and what you can do now that you could not before. At least 100 characters. Write in the language you are most comfortable with; short, simple sentences are perfect. Describe the work and its effect, not personal qualities such as age, nationality, accent or appearance, and never name the people you support.</span>
+      <span class="small muted" data-counter-for="f-endorsement">0 / 1200</span>
+      <details class="fold"><summary>See an example</summary><p class="small">“Before, we kept our visit records in three notebooks. Ana made one simple spreadsheet and trained two of us. Now our monthly report takes a day instead of a week. She listened well and explained things clearly.” (example)</p></details>
+      ${who(`${first}, and the public if ${first} publishes it`)}</div>
+    ${select("language", "Language of your endorsement", ENDORSE_LANGS, lang)}
+    <div class="form-grid">${field("name", "Your name", { value: state.user?.user_metadata?.full_name || "", attrs: 'maxlength="120"' })}${field("role", "Your role", { required: true, value: state.user?.user_metadata?.org_role || "", attrs: 'minlength="2" maxlength="120" placeholder="e.g. Director"' })}</div>
+    ${check("show_name", "Show my name with the endorsement", true)}${who("Your role and organisation are always shown with the endorsement; your name only if ticked")}
+    ${field("note", `A note just for ${first} (optional)`, { type: "textarea", attrs: 'maxlength="600"', hint: "One thing that went well and one thing to do differently next time." })}${who(`Only ${first} sees this`)}
+    <fieldset class="field full private-q"><legend>For Handova only: would you welcome ${first} on another need? <span class="req" aria-hidden="true">*</span></legend>
+      <label class="check"><input type="radio" name="work_again" value="yes" required><span>Yes</span></label>
+      <label class="check"><input type="radio" name="work_again" value="right_need"><span>Yes, for the right kind of need</span></label>
+      <label class="check"><input type="radio" name="work_again" value="no"><span>No</span></label>
+      ${field("work_again_note", "Anything Handova should know? (optional)", { type: "textarea", attrs: 'maxlength="600"' })}
+      <span class="hint">${first} never sees this. We use it to make better matches, and we always talk to both sides before acting on a “No”.</span></fieldset>
+    ${check("confirm", "This is accurate and in our own words. It names no one we serve, includes no personal details about them, and nothing confidential.", false, true)}
+    ${formEnd(`Complete and send to ${first}`, `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  const ta = document.getElementById("f-endorsement"), ctr = document.querySelector('[data-counter-for="f-endorsement"]');
+  ta?.addEventListener("input", () => { if (ctr) ctr.textContent = `${ta.value.length} / 1200`; });
+}
+export async function submitComplete(form) {
+  await withForm(form, async (fd) => {
+    const delivered = fd.get("delivered") || "";
+    const skills = [...new Set([...fd.getAll("skill"), fd.get("skill_extra")].map((v) => String(v || "").trim()).filter(Boolean))];
+    const endorsement = val(fd, "endorsement");
+    const deliverables = form.querySelector('[name="deliverables"]'), ta = form.querySelector('[name="endorsement"]');
+    if (val(fd, "deliverables").length < 10) throw fieldError(deliverables, "Describe what was handed over, at least 10 characters.");
+    if (skills.length > 3) throw fieldError(form.querySelector(".skill-pick input"), "Choose up to 3 skills.");
+    if (delivered === "all" && !skills.length) throw fieldError(form.querySelector(".skill-pick select"), "Choose at least one skill you saw in this work.");
+    if ((delivered === "all" || endorsement) && endorsement.length < 100) throw fieldError(ta, `Please write at least 100 characters (you have ${endorsement.length}).`);
+    if (val(fd, "role").length < 2) throw fieldError(form.querySelector('[name="role"]'), "Add your role.");
+    if (!fd.get("work_again")) throw fieldError(form.querySelector('[name="work_again"]'), "Please answer this question for Handova.");
+    if (!fd.has("confirm")) throw fieldError(form.querySelector('[name="confirm"]'), "Please tick this box to continue.");
+    await result(db.rpc("complete_engagement", { p_id: form.dataset.id, p_delivered: delivered, p_deliverables: val(fd, "deliverables"), p_skills: skills, p_endorsement: endorsement, p_language: val(fd, "language"), p_role: val(fd, "role"), p_name: val(fd, "name"), p_show_name: fd.has("show_name"), p_note: val(fd, "note"), p_work_again: String(fd.get("work_again")), p_work_again_note: val(fd, "work_again_note"), p_confirm: true }));
+    closeDialog();
+    toast("Thank you. Your endorsement has been sent.");
+    go(location.hash);
+  });
+}
+// The professional can ask for one correction.
+export function correctionDialog(id) {
+  openDialog("Ask for a correction", `<form class="form" data-form="endorse-correction" data-id="${e(id)}">
+    <p class="muted">You can ask once. The organisation can edit the endorsement within 14 days. It stays off your public impact CV until you publish it again.</p>
+    ${select("reason", "What needs correcting?", [["fact", "A fact is wrong (hours, items, dates)"], ["spelling", "Spelling or wording mistake"], ["private", "It includes private or confidential details"], ["other", "Something else"]], "fact")}
+    ${field("note", "What should be corrected?", { type: "textarea", required: true, attrs: 'minlength="5" maxlength="300"' })}
+    <p class="small muted">Feels unfair or retaliatory? Use Report a concern instead, and Handova will look at it.</p>
+    ${formEnd("Send request", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitCorrection(form) {
+  await withForm(form, async (fd) => {
+    if (!form.checkValidity()) { form.reportValidity(); throw Error("Say what should be corrected."); }
+    await result(db.rpc("request_endorsement_correction", { p_id: form.dataset.id, p_reason: val(fd, "reason"), p_note: val(fd, "note") }));
+    closeDialog(); toast("Request sent to the organisation."); go(location.hash);
+  });
+}
+// The organisation corrects the endorsement once, within 14 days of the request.
+export async function editEndorsementDialog(id) {
+  const x = await result(db.from("engagements").select("id,scope,deliverables,endorsement,confirmed_skills,correction_reason,correction_note").eq("id", id).single());
+  const s = x.scope || {}, chosen = x.confirmed_skills || [];
+  const opts = [...new Set([...(s.skills || []), ...chosen])];
+  openDialog("Correct the endorsement", `<form class="form" data-form="endorse-edit" data-id="${e(id)}">
+    <div class="banner warn">${icon("alert", 22, "#7a4f0e")}<p><strong>${e(String(s.talent || "The professional").split(" ")[0])} asked:</strong> <span data-no-i18n>${e(x.correction_note || "")}</span></p></div>
+    ${field("deliverables", "What was handed over", { type: "textarea", required: true, value: x.deliverables || "", attrs: 'minlength="10" maxlength="1500"' })}
+    <fieldset class="field full"><legend>Skills confirmed (up to 3)</legend><div class="chip-checks">${opts.map((k) => `<label class="chip-check"><input type="checkbox" name="skill" value="${e(k)}" ${chosen.includes(k) ? "checked" : ""}><span>${e(k)}</span></label>`).join("")}</div></fieldset>
+    ${field("endorsement", "Your endorsement", { type: "textarea", value: x.endorsement || "", attrs: 'maxlength="1200"' })}
+    <p class="small muted">You can correct it once. The professional is told and decides again whether to publish it.</p>
+    ${formEnd("Save correction", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitEditEndorsement(form) {
+  await withForm(form, async (fd) => {
+    const skills = fd.getAll("skill").map(String);
+    if (skills.length > 3) throw Error("Choose up to 3 skills.");
+    await result(db.rpc("edit_endorsement", { p_id: form.dataset.id, p_deliverables: val(fd, "deliverables"), p_endorsement: val(fd, "endorsement"), p_skills: skills }));
+    closeDialog(); toast("Correction saved. The professional has been told."); go(location.hash);
+  });
 }
