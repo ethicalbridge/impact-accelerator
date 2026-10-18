@@ -176,6 +176,7 @@ function updateRow(t, r, v) {
   } else if (t === "needs") {
     if (!isMember(r.organisation_id)) fail("permission", "42501");
     if (["open", "closed"].includes(r.status) && ["draft", "pending"].includes(v.status)) fail("Close a published need instead of returning it to draft.");
+    if (["open", "closed"].includes(r.status) && ["title", "description", "output", "skills", "languages", "hours", "location", "deadline", "places"].some((k) => k in v && JSON.stringify(v[k]) !== JSON.stringify(r[k]))) fail("A live need can’t be edited. Stop applications and send a corrected copy for review.");
     if (v.status === "open" && r.status !== "open" && !(r.status === "closed" && r.approved_at)) fail("Send your need for review. Handova checks every need and opens it once it is approved.");
     if (v.status === "pending" && r.status !== "pending") { v = { ...v, review_note: null }; notifyAdmins("need_submitted", "A need is waiting for review", r.title, "#admin"); }
     if (v.status === "closed" && r.status === "open") closeNeedApps(r);

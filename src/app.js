@@ -149,6 +149,7 @@ const actions = {
   "end-engagement": (el) => ws.decisionDialog("End this contribution?", "Use this if the work can’t go ahead. Both of you will be notified and the conversation will close.", "end-engagement", el.dataset.id, "", "End contribution", true),
   "close-need": (el) => ws.decisionDialog("Stop applications?", "The need stops taking applications. Anyone still waiting for an answer is told it has closed. People already working on it are not affected.", "close-need", el.dataset.id, "", "Stop applications"),
   "need-submit": (el) => ws.submitForReview(el.dataset.id),
+  "need-revise": (el) => ws.reviseDialog(el.dataset.id),
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
   followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this contribution was completed. Your answer helps show what lasts. It is not shown publicly.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
   "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your impact CV." : "Removed from your impact CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
@@ -169,7 +170,7 @@ const forms = {
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
   "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
   "confirm-delete": (f) => acc.confirmDelete(f),
-  apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f),
+  apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };

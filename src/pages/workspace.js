@@ -131,6 +131,8 @@ export async function org(sub, id) {
 
   if (sub === "need") {
     const n = id ? await result(db.from("needs").select("*").eq("id", id).maybeSingle()) : null;
+    // A need Handova has approved can't be edited: what people applied to must stay the same.
+    if (n && (n.status === "open" || n.status === "closed")) return { redirect: `#org/needs/${n.id}` };
     const note = n?.review_note && n.status === "draft" ? `<div class="banner alert">${icon("alert", 22)}<p><strong>Handova asked for changes:</strong> <span data-no-i18n>${quoted(n.review_note)}</span> Update the need and send it again.</p></div>` : "";
     const info = n && (n.status === "open" || n.status === "closed") ? "" : `<div class="banner">${icon("check", 22, "#0f6f63")}<p>${approved ? "Handova checks every need before it goes live. We usually reply within two working days." : "You can write your need and send it for review now. It goes live once Handova has approved your organisation and the need."}</p></div>`;
     return shell(`<div class="stack" style="--gap:20px">${back(n ? "Back to the need" : "All needs", n ? `#org/needs/${n.id}` : "#org/needs")}${head(n ? "Edit need" : "Post a need")}${note}${info}${needForm(n, o, approved, await talentLanguages())}</div>`);
@@ -226,7 +228,8 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   const buttons = [
     st === "draft" ? `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>` : "",
     st === "open" ? btn("Invite a professional", "#talent", "sm") : "",
-    ["draft", "pending", "open"].includes(st) ? btn("Edit", `#org/need/${n.id}`, "secondary sm") : "",
+    ["draft", "pending"].includes(st) ? btn("Edit", `#org/need/${n.id}`, "secondary sm") : "",
+    st === "open" ? `<button class="btn secondary sm" type="button" data-action="need-revise" data-id="${n.id}">Change this need</button>` : "",
     n.status === "open" || n.status === "closed" ? btn("View public page", `#need/${n.id}`, "secondary sm") : "",
     st === "open" ? `<button class="btn secondary sm" type="button" data-action="close-need" data-id="${n.id}">Stop applications</button>` : "",
   ].join("");
@@ -263,6 +266,23 @@ function orgBanner(o) {
   if (o.status === "pending") return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>Your organisation is awaiting review.</strong> We usually respond within two working days. You can write your needs now and send them for review; they go live once your organisation is approved.</p></div>`;
   if (o.status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1">We need a few more details. Check your notifications and update your organisation details.</p>${btn("Update details", "#org/details", "sm")}</div>`;
   return `<div class="banner alert">${icon("alert", 22)}<p>This organisation is ${o.status === "suspended" ? "suspended" : "not approved"}. Write to us if you think this is a mistake.</p></div>`;
+}
+
+// Live needs can't be edited. To change one: stop applications on it and copy it into a new draft,
+// which Handova reviews like any other need.
+export function reviseDialog(id) {
+  decisionDialog("Change this need?", "A need that is live can’t be edited, so what professionals applied to stays the same. We’ll stop applications on this need (anyone waiting is told) and copy it into a new draft. Edit the draft and send it for review; it goes live once Handova approves it.", "need-revise", id, "", "Stop applications and make a copy");
+}
+export async function submitRevise(form) {
+  await withForm(form, async () => {
+    const n = await result(db.from("needs").select("*").eq("id", form.dataset.id).single());
+    const copy = { organisation_id: n.organisation_id, title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline && n.deadline >= today() ? n.deadline : null, places: n.places, status: "draft", no_vulnerable_contact: true };
+    const made = await result(db.from("needs").insert(copy).select("id").single());
+    if (n.status === "open") await result(db.from("needs").update({ status: "closed" }).eq("id", n.id));
+    closeDialog();
+    toast("Applications stopped. Edit your copy and send it for review.");
+    go(`#org/need/${made.id}`);
+  });
 }
 
 // Send a draft to Handova for review.
@@ -304,8 +324,7 @@ function needButtons(n) {
   let btns;
   if (!n.id || n.status === "draft") btns = b("Send for review", "pending") + b("Save as draft", "draft", "secondary");
   else if (n.status === "pending") btns = b("Save changes", "pending");
-  else if (n.status === "closed") btns = b("Save changes", "closed") + (n.approved_at ? b("Open it again", "open", "secondary") : "");
-  else btns = b("Save changes", "open");
+  else btns = b("Save changes", n.status);
   return `<p class="form-error" role="alert"></p><div class="row">${btns}</div>`;
 }
 
