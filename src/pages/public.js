@@ -194,11 +194,12 @@ export async function about(sub = "mission") {
 // ---------- Organisation page ----------
 // The single home of an organisation's needs on Handova: open needs and needs already handed over.
 // The impact CV and the Needs list only link here; nothing is stored twice.
+const STAFF_LABEL = { "1-5": "1–5", "6-20": "6–20", "21-50": "21–50", "50+": "More than 50" };
 export async function orgPage(id) {
   let o = handovaOrgs.find((x) => x.id === id), open = [], handed = [];
   if (o) handed = solvedNeeds.filter((n) => n.org_id === id);
   else {
-    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status,logo_url").eq("id", id).maybeSingle()).catch(() => null);
+    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status,logo_url,staff_size").eq("id", id).maybeSingle()).catch(() => null);
     if (o) open = await result(db.from("needs").select(NEED_SELECT).eq("organisation_id", id).eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
   }
   if (!o) return notFound("This organisation isn’t on Handova", "It may not be approved yet, or the link may be wrong.");
@@ -215,7 +216,7 @@ export async function orgPage(id) {
     ${back("All needs", "#needs")}
     <section class="org-head">
       ${logo}
-      <div class="stack" style="--gap:10px">${eyebrow("Organisation on Handova")}<h1 style="font-size:clamp(2.4rem,4.6vw,4rem)">${e(o.name)}</h1>${o.city || o.country ? `<p class="muted">${icon("map", 18, "#0f6f63")} ${e([o.city, o.country].filter(Boolean).join(", "))}</p>` : ""}${o.summary ? `<p class="lead" style="max-width:760px">${e(o.summary)}</p>` : ""}
+      <div class="stack" style="--gap:10px">${eyebrow("Organisation on Handova")}<h1 style="font-size:clamp(2.4rem,4.6vw,4rem)">${e(o.name)}</h1>${o.city || o.country || o.staff_size ? `<p class="muted org-facts">${o.city || o.country ? `<span>${icon("map", 18, "#0f6f63")} <span data-no-i18n>${e([o.city, o.country].filter(Boolean).join(", "))}</span></span>` : ""}${o.staff_size ? `<span>${icon("people", 18, "#0f6f63")} <span>${o.staff_size === "none" ? "Run by volunteers" : `${STAFF_LABEL[o.staff_size] || e(o.staff_size)} paid staff`}</span></span>` : ""}</p>` : ""}${o.summary ? `<p class="lead" style="max-width:760px">${e(o.summary)}</p>` : ""}
         <div class="row">${safeURL(o.ethical_bridge_url) ? `<a class="btn secondary" href="${e(safeURL(o.ethical_bridge_url))}" target="_blank" rel="noopener">Full profile on Ethical Bridge ${icon("arrow", 18)}<span class="visually-hidden">(opens in a new tab)</span></a>` : `<span class="small muted">Not yet in the Ethical Bridge directory.</span>`}</div></div>
     </section>
     ${handed.length ? `<section class="stats-dark"><div><strong data-counter="${hours}">${hours}</strong><span>hours handed over</span></div><div><strong data-counter="${handed.length}">${handed.length}</strong><span>${handed.length === 1 ? "need solved" : "needs solved"}</span></div><div><strong data-counter="${open.length}">${open.length}</strong><span>open needs</span></div><div><strong data-counter="${new Set(handed.map((n) => n.contributor.id)).size}">${new Set(handed.map((n) => n.contributor.id)).size}</strong><span>${new Set(handed.map((n) => n.contributor.id)).size === 1 ? "professional" : "professionals"}</span></div></section>` : ""}

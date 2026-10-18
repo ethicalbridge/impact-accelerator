@@ -8,6 +8,7 @@ import * as pub from "./pages/public.js";
 import * as acc from "./pages/account.js";
 import * as ws from "./pages/workspace.js";
 import * as eng from "./pages/engagement.js";
+import * as rsp from "./pages/responses.js";
 import * as adm from "./pages/admin.js";
 import * as legal from "./pages/legal.js";
 
@@ -46,6 +47,7 @@ async function page(r) {
     case "conversation-for": return eng.conversationFor(r.a, r.b);
     case "notifications": return adm.notifications();
     case "admin": return adm.admin();
+    case "admin-responses": return rsp.responses(r.params);
     case "verify-done": return acc.verifyDone();
     case "email-confirmed": return acc.emailConfirmed(r.params);
     case "privacy": return legal.privacy();
@@ -156,7 +158,13 @@ const actions = {
   "endorse-edit": (el) => ws.editEndorsementDialog(el.dataset.id),
   "insert-starter": (el) => { const ta = el.closest("form")?.querySelector("textarea[name=endorsement]"); if (!ta) return; const add = (el.textContent.trim() || el.dataset.text).replace(/…$/, " "); const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos); ta.value = pre + (pre && !/\s$/.test(pre) ? " " : "") + add + ta.value.slice(pos); ta.focus(); ta.dispatchEvent(new Event("input")); },
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
-  followup: (el) => ws.decisionDialog("Is the work still in use?", "Six months ago this contribution was completed. If you answer yes, “Still in use after 6 months” appears on the professional’s impact CV when they publish it. A no is never shown publicly, and your note stays private.", "followup", el.dataset.id, `<fieldset><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset><label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer"),
+  survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
+  "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
+  "staff-size": (el) => ws.staffSizeDialog(el.dataset.id),
+  "rs-export": (el) => rsp.exportCsv(el.dataset.tab),
+  "rs-codebook": () => rsp.exportCodebook(),
+  "career-stage": () => ws.careerStageDialog(),
+  followup: (el) => ws.followupDialog(el.dataset.id),
   "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your impact CV." : "Removed from your impact CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
   "switch-org": (el) => { sessionStorage.setItem("ia-org", el.value); render(); },
   "switch-role": async (el) => { await db.auth.updateUser({ data: { role: el.dataset.id } }); await loadSession(); render(); },
@@ -177,6 +185,7 @@ const forms = {
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
+  survey: (f) => ws.submitSurvey(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
@@ -189,7 +198,6 @@ const confirmRpc = {
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
-  followup: ["answer_followup", (id, fd) => ({ p_id: id, p_in_use: fd.get("in_use") === "yes", p_note: String(fd.get("note") || "") }), "Thank you. Your answer is saved."],
 };
 
 // Keyboard: Escape closes an open menu and returns focus to its button; tabbing out of a menu closes it.

@@ -2,6 +2,8 @@ import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, inv
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard } from "./account.js";
 import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
+import { getLang } from "../i18n.js";
+import { QUESTIONS, SURVEY_VERSION, questionHtml, readAnswers, wireExclusive, STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</a>`).join("")}</nav>`;
 const card = (title, inner, extra = "") => `<section class="card stack" style="--gap:6px"><div class="row between" style="margin-bottom:8px"><h2 style="font-size:1.7rem">${title}</h2>${extra}</div>${inner}</section>`;
@@ -13,8 +15,9 @@ export async function workspace(sub) {
   if (!state.user) return { redirect: "#signin?next=%23workspace" };
   if (!state.profile) return { redirect: state.memberships.length ? "#org" : "#onboarding" };
   const p = state.profile, uid = state.user.id;
+  const priv = await result(db.from("user_private").select("career_stage,research_contact").eq("user_id", uid).maybeSingle()).catch(() => null);
   if (sub === "profile") {
-    return wsShell("Edit profile", `<div class="stack" style="--gap:20px">${back("Back to workspace", "#workspace")}${eyebrow("Your profile")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">Edit your profile</h1>${reviewBanner(p)}${profileForm(p)}</div>`, "#workspace/profile");
+    return wsShell("Edit profile", `<div class="stack" style="--gap:20px">${back("Back to workspace", "#workspace")}${eyebrow("Your profile")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">Edit your profile</h1>${reviewBanner(p)}${profileForm({ ...p, career_stage: priv?.career_stage || "" })}</div>`, "#workspace/profile");
   }
   const [apps, invites, engagements, saved] = await Promise.all([
     result(db.from("applications").select("*, need:needs(id,title,organisation:organisations(name))").eq("user_id", uid).order("created_at", { ascending: false })),
@@ -24,6 +27,7 @@ export async function workspace(sub) {
   ]);
   const engIds = engagements.map((x) => x.id);
   const hours = engIds.length ? await result(db.from("hours").select("*").in("engagement_id", engIds).order("work_date", { ascending: false })) : [];
+  const surveys = (await result(db.rpc("survey_pending")).catch(() => [])).filter((x) => x.kind === "professional");
   const toSign = engagements.filter((x) => x.status === "awaiting_signatures" && !x.talent_signed_at);
   const active = engagements.filter((x) => x.status === "active");
   const completed = engagements.filter((x) => x.status === "completed");
@@ -41,6 +45,8 @@ export async function workspace(sub) {
     ...active.map((x) => (x.talent_delivered_at || hoursReadyAt(x, hours))
       ? todoRow(`Waiting for ${e(x.organisation?.name || "the organisation")} to finish and endorse your work`, `${quoted(x.scope?.need_title || "")} · <span>${x.talent_delivered_at ? `you told them on ${date(x.talent_delivered_at)}` : "all agreed hours are approved"}</span> · <span>they’re reminded after 7 and 14 days</span>`, btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm"))
       : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
+    ...surveys.map((x) => todoRow(`Two minutes: how did your contribution with ${e(x.other_name || "the organisation")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the organisation</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="professional">Answer</button>`)),
+    ...(priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
   const appRows = apps.map((a) => `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || "Need")}</a><span class="small muted">${parts([e(a.need?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`);
@@ -163,7 +169,8 @@ async function loadOrg(o) {
   ]) : [[], [], []];
   const engIds = engs.map((x) => x.id);
   const hours = engIds.length ? await result(db.from("hours").select("*").in("engagement_id", engIds).order("work_date")) : [];
-  return { needs, apps, invites, engs, hours };
+  const surveys = (await result(db.rpc("survey_pending")).catch(() => [])).filter((x) => x.kind === "organisation");
+  return { needs, apps, invites, engs, hours, surveys };
 }
 
 const hoursRow = (h, x, n) => `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${personName(x)} logged ${Number(h.hours)} ${Number(h.hours) === 1 ? "hour" : "hours"} on ${quoted(n?.title || x?.scope?.need_title || "")}</strong><span class="small muted">${parts([date(h.work_date), `please review by ${date(addDays(h.created_at, 14))}`])}</span><p class="small" data-no-i18n>${e(h.description)}</p></div><div class="todo-actions"><button class="btn sm" type="button" data-action="hours-approve" data-id="${h.id}">Approve</button><button class="btn secondary sm" type="button" data-action="hours-changes" data-id="${h.id}">Ask for changes</button></div></div>`;
@@ -232,7 +239,7 @@ export async function org(sub, id) {
 }
 
 // Everything the organisation needs to act on, most urgent first.
-function todoItems(o, { needs, apps, engs, hours }) {
+function todoItems(o, { needs, apps, engs, hours, surveys = [] }) {
   const need = (nid) => needs.find((n) => n.id === nid);
   const out = [];
   for (const x of engs.filter((y) => dueSince(y, hours))) {
@@ -249,6 +256,8 @@ function todoItems(o, { needs, apps, engs, hours }) {
   for (const x of engs.filter((y) => y.status === "completed" && y.correction_requested_at && !y.endorsement_edited_at && Date.now() - Date.parse(y.correction_requested_at) < 14 * 864e5)) out.push({ html: todoRow(`${personName(x)} asked for a correction to your endorsement`, `<span data-no-i18n>${e(x.correction_note || "")}</span>`, `<button class="btn sm" type="button" data-action="endorse-edit" data-id="${x.id}">Correct the endorsement</button>`) });
   for (const x of engs.filter((y) => y.status === "completed" && y.followup_due && y.followup_due <= today() && !y.followup_answered_at)) out.push({ html: todoRow(`Six months on: are you still using what ${personName(x)} delivered?`, quoted(x.scope?.need_title || ""), `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`) });
   for (const n of needs.filter((y) => y.status === "draft" && !y.review_note)) out.push({ html: todoRow(`${quoted(n.title)} is still a draft`, "Send it to Handova for review when it is ready.", btn("Open draft", `#org/needs/${n.id}`, "secondary sm")) });
+  for (const x of surveys) out.push({ html: todoRow(`Two minutes: how did working with ${e(x.other_name || "the professional")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the professional</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="organisation" data-short="${x.short_form ? 1 : ""}">Answer</button>`) });
+  if (!o.staff_size) out.push({ html: todoRow("Add your team size", "One question. It appears on your public page and helps us report, without names, which organisations Handova supports.", `<button class="btn secondary sm" type="button" data-action="staff-size" data-id="${o.id}">Answer</button>`) });
   return out;
 }
 
@@ -608,6 +617,8 @@ export async function submitComplete(form) {
     closeDialog();
     toast("Thank you. Your endorsement has been sent.");
     go(location.hash);
+    const pend = (await result(db.rpc("survey_pending")).catch(() => [])).find((y) => y.engagement_id === form.dataset.id && y.kind === "organisation");
+    if (pend) setTimeout(() => surveyDialog(pend.engagement_id, "organisation", pend.short_form).catch(() => {}), 700);
   });
 }
 // The professional can ask for one correction.
@@ -645,5 +656,96 @@ export async function submitEditEndorsement(form) {
     if (skills.length > 3) throw Error("Choose up to 3 skills.");
     await result(db.rpc("edit_endorsement", { p_id: form.dataset.id, p_deliverables: val(fd, "deliverables"), p_endorsement: val(fd, "endorsement"), p_skills: skills }));
     closeDialog(); toast("Correction saved. The professional has been told."); go(location.hash);
+  });
+}
+
+// ---- Questionnaires after a contribution (and the two profile questions) ----
+const surveyQs = (kind, short) => (short ? QUESTIONS[kind].filter((q) => q.core) : QUESTIONS[kind]);
+export async function surveyDialog(id, kind, short = false) {
+  short = !!short && short !== "0";
+  const [priv, x] = await Promise.all([
+    result(db.from("user_private").select("career_stage,research_contact").eq("user_id", state.user.id).maybeSingle()).catch(() => null),
+    result(db.from("engagements").select("id,scope,organisation_id").eq("id", id).single()),
+  ]);
+  const org = kind === "organisation" ? state.memberships.find((m) => m.organisation_id === x.organisation_id)?.organisation : null;
+  const other = kind === "organisation" ? e(String(x.scope?.talent || "the professional").split(" ")[0]) : e(x.scope?.organisation || "the organisation");
+  const extra = [];
+  if (kind === "organisation" && org && !org.staff_size) extra.push(questionHtml({ id: "x_staff", type: "single", q: "How many paid staff does your organisation have?", hint: "Asked once. It appears on your public page.", options: STAFF_SIZES }));
+  if (kind === "professional" && !priv?.career_stage) extra.push(questionHtml({ id: "x_stage", type: "single", q: "Which best describes you now?", hint: "Asked once. Private: only Handova sees it.", options: CAREER_STAGES }));
+  if (priv?.research_contact == null) extra.push(questionHtml({ id: "x_contact", type: "single", q: "May someone independent of Handova contact you later about your experience?", hint: "Asked once. It helps us check our results honestly. You can say no.", options: [["yes", "Yes"], ["no", "No"]] }));
+  openDialog("Two minutes: how did it go?", `<form class="form survey-form" data-form="survey" data-id="${e(id)}" data-kind="${e(kind)}" data-short="${short ? 1 : ""}" novalidate>
+    <p class="muted"><span>Your answers are never shown to ${other} and don’t affect the endorsement.</span> <span>Handova only reports totals. Every question is optional.</span></p>
+    ${surveyQs(kind, short).map(questionHtml).join("")}
+    <div class="banner warn sv-concern" hidden>${icon("shield", 22, "#7a4f0e")}<p><span>Thank you for telling us.</span> <span>If you’d like Handova to follow up, report it now. Only Handova’s safeguarding lead sees reports.</span> <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${e(id)}">Report a concern</button></p></div>
+    ${extra.join("")}
+    ${formEnd("Send answers", `<button class="btn secondary" type="button" data-action="survey-skip" data-id="${e(id)}" data-kind="${e(kind)}">Skip</button>`)}</form>`);
+  const f = document.querySelector(".survey-form");
+  if (!f) return;
+  wireExclusive(f);
+  f.addEventListener("change", (ev) => { if (ev.target.name === "o_concern" || ev.target.name === "p_concern") f.querySelector(".sv-concern").hidden = ev.target.value !== "yes"; });
+}
+export async function submitSurvey(form) {
+  await withForm(form, async (fd) => {
+    const kind = form.dataset.kind, short = !!form.dataset.short;
+    const answers = readAnswers(form, surveyQs(kind, short));
+    const staff = fd.get("x_staff"), stage = fd.get("x_stage"), contact = fd.get("x_contact");
+    await result(db.rpc("submit_survey", { p_engagement: form.dataset.id, p_kind: kind, p_status: "submitted", p_answers: answers, p_short: short, p_version: SURVEY_VERSION, p_lang: getLang() }));
+    if (stage) await result(db.rpc("set_career_stage", { p_stage: String(stage) })).catch(() => {});
+    if (contact) await result(db.rpc("set_research_contact", { p_yes: contact === "yes" })).catch(() => {});
+    if (staff) {
+      const x = await result(db.from("engagements").select("organisation_id").eq("id", form.dataset.id).single());
+      await result(db.from("organisations").update({ staff_size: String(staff) }).eq("id", x.organisation_id)).catch(() => {});
+      await loadSession();
+    }
+    closeDialog();
+    toast("Thank you. Your answers help us improve Handova.");
+    go(location.hash);
+  });
+}
+export async function skipSurvey(id, kind) {
+  await result(db.rpc("submit_survey", { p_engagement: id, p_kind: kind, p_status: "skipped", p_answers: {}, p_short: false, p_version: SURVEY_VERSION, p_lang: getLang() }));
+  closeDialog();
+  go(location.hash);
+}
+export function staffSizeDialog(orgId) {
+  openDialog("Your team size", `<form class="form" data-form="staff-size" data-id="${e(orgId)}">${questionHtml({ id: "staff_size", type: "single", q: "How many paid staff does your organisation have?", hint: "It appears on your public page, so professionals understand your context.", options: STAFF_SIZES })}${formEnd("Save", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitStaffSize(form) {
+  await withForm(form, async (fd) => {
+    const v = String(fd.get("staff_size") || "");
+    if (!v) throw Error("Choose one option.");
+    await result(db.from("organisations").update({ staff_size: v }).eq("id", form.dataset.id));
+    await loadSession(); closeDialog(); toast("Saved."); go(location.hash);
+  });
+}
+export function careerStageDialog() {
+  openDialog("Your career stage", `<form class="form" data-form="career-stage">${questionHtml({ id: "career_stage", type: "single", q: "Which best describes you now?", hint: "Private: only Handova sees it. It helps us show who contributes, without names.", options: CAREER_STAGES })}${formEnd("Save", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitCareerStage(form) {
+  await withForm(form, async (fd) => {
+    const v = String(fd.get("career_stage") || "");
+    if (!v) throw Error("Choose one option.");
+    await result(db.rpc("set_career_stage", { p_stage: v }));
+    closeDialog(); toast("Saved."); go(location.hash);
+  });
+}
+// Six months on: still in use? Then one follow-up question, depending on the answer.
+export function followupDialog(id) {
+  const [why, helped] = QUESTIONS.six_months;
+  decisionDialog("Is the work still in use?", "Six months ago this contribution was completed. If you answer yes, “Still in use after 6 months” appears on the professional’s impact CV when they publish it. A no is never shown publicly, and your note stays private.", "followup", id,
+    `<fieldset class="field full"><legend>Are you still using what was delivered?</legend><label class="check"><input type="radio" name="in_use" value="yes" required><span>Yes</span></label><label class="check"><input type="radio" name="in_use" value="no"><span>No</span></label></fieldset>
+    <div class="sv-when" data-when="no" hidden>${questionHtml(why)}</div><div class="sv-when" data-when="yes" hidden>${questionHtml(helped)}</div>
+    <label class="field" for="f-fnote">Anything to add? (optional)<textarea id="f-fnote" name="note" maxlength="1000"></textarea></label>`, "Save answer");
+  const f = document.querySelector('form[data-form="followup"]');
+  f?.addEventListener("change", (ev) => { if (ev.target.name === "in_use") f.querySelectorAll(".sv-when").forEach((d) => { d.hidden = d.dataset.when !== ev.target.value; }); });
+}
+export async function submitFollowup(form) {
+  await withForm(form, async (fd) => {
+    const inUse = fd.get("in_use");
+    if (!inUse) throw fieldError(form.querySelector("[name=in_use]"), "Choose yes or no.");
+    await result(db.rpc("answer_followup", { p_id: form.dataset.id, p_in_use: inUse === "yes", p_note: val(fd, "note") }));
+    const q = QUESTIONS.six_months.find((x) => x.when === inUse), v = q && fd.get(q.id);
+    if (v) await result(db.rpc("submit_survey", { p_engagement: form.dataset.id, p_kind: "six_months", p_status: "submitted", p_answers: { [q.id]: String(v) }, p_short: false, p_version: SURVEY_VERSION, p_lang: getLang() })).catch(() => {});
+    closeDialog(); toast("Thank you. Your answer is saved."); go(location.hash);
   });
 }
