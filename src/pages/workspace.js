@@ -147,8 +147,11 @@ export async function org(sub, id) {
       const rows = list.map((n) => { const st = needStage(n, engs); return needRow(n, st, apps, engs, hours, approved); }).join("");
       return key === "past" ? `<details class="need-group"><summary><h2>${label}</h2><span class="muted">(${list.length})</span></summary>${rows}</details>` : `<section class="need-group"><h2>${label}</h2>${rows}</section>`;
     }).join("");
-    const line = approved ? `You have ${plural(openCount, "open need")}. You can have up to 3 open at a time.` : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
-    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
+    const count = (st) => needs.filter((n) => n.status === st).length;
+    const tile = (num, label) => `<div class="stat"><strong>${num}</strong><span>${label}</span></div>`;
+    const stats = `<div class="grid-4 need-stats">${tile(approved ? `${Math.max(0, 3 - openCount)} of 3` : "3", approved ? "available to open" : "available once your organisation is approved")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "public, open for applications")}</div>`;
+    const line = approved ? "You can have up to 3 needs open at a time. When one closes, its place becomes available again." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
+    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
   }
 
   // To do

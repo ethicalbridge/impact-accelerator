@@ -1128,3 +1128,4 @@ details.need-group[open] > summary::after { content: "Hide"; }
   .ws-head { align-items: flex-start !important; }
 }
 .admin-stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+@media (max-width: 640px) { .need-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .need-stats .stat strong { font-size: 2rem; } }
