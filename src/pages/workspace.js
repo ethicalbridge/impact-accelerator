@@ -37,6 +37,7 @@ export async function workspace(sub) {
     ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
     ...pendingInv.map((i) => `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${i.message ? `<p class="small invite-msg" data-no-i18n>“${e(i.message)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`),
     ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Open agreement", `#agreement/${h.engagement_id}`, "sm")); }),
+    ...active.filter((x) => !x.first_call_at).map((x) => todoRow(`Plan your first call with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · 30–45 minutes to meet and agree how you’ll work`, `${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`)),
     ...active.map((x) => todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}`)),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
@@ -282,6 +283,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
       if (x.status === "awaiting_signatures" && !x.org_signed_at) boxes.push(box("", "pen", "Next step: sign the agreement", `<span>Work and hours start when you and ${first(x)} have both signed.</span> <span>${x.talent_signed_at ? `${first(x)} has already signed.` : `${first(x)} hasn’t signed yet either.`}</span>`, btn("Review and sign", `#agreement/${x.id}`, "sm")));
       else if (x.status === "awaiting_signatures") boxes.push(box("wait", "clock", `Waiting for ${first(x)} to sign`, `You signed on ${date(x.org_signed_at)}. We’ll notify you when ${first(x)} signs. Nothing to do for now.`, msgBtn(x)));
       else if (wh.length) { const due = wh.map((h) => addDays(h.created_at, 14)).sort()[0]; boxes.push(box("", "clock", `Next step: review ${sumH(wh)} ${sumH(wh) === 1 ? "hour" : "hours"} from ${first(x)}`, `Please review by ${date(due)}.`, "", `<div class="next-list">${wh.map((h) => hoursRow(h, x, n)).join("")}</div>`)); }
+      else if (!x.first_call_at) boxes.push(box("", "chat", `Next step: meet ${first(x)}`, `<span>Arrange a short first call (30–45 minutes) to get to know each other and plan the work. We’ve put a suggested agenda in your Messages.</span> <span class="small muted">Already agreed everything in writing? You can record that instead.</span>`, `${btn("Plan the call in Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`));
       else boxes.push(box("ok", "check", "Nothing to do right now", `${first(x)} logs time as they work. We’ll notify you when there are hours to review; please review them within 14 days.`, msgBtn(x)));
     }
   }
@@ -306,7 +308,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
     const finish = x.status === "active" ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. Your rating is only seen by ${first(x)}.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
     const endorsement = x.status === "completed" && x.endorsement ? `<blockquote class="small" data-no-i18n>“${e(x.endorsement.slice(0, 400))}${x.endorsement.length > 400 ? "…" : ""}”</blockquote>` : "";
     return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span><a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a></div></div>
-      <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
+      <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(!!x.first_call_at || x.status === "completed", "First call", x.first_call_at ? `${x.first_call_written ? "Agreed in writing" : "Held"} ${date(x.first_call_at)}` : signed ? "Not recorded yet" : "After you have both signed")}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
       <div class="row" style="--gap:8px">${live ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm") : ""}${btn("Agreement and time log", `#agreement/${x.id}`, "secondary sm")}</div>
       ${finish}
       ${live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button></p>` : ""}
@@ -354,6 +356,38 @@ export async function submitRevise(form) {
     closeDialog();
     toast("Applications stopped. Edit your copy and send it for review.");
     go(`#org/need/${made.id}`);
+  });
+}
+
+// After the first call (or agreeing in writing): post a summary to Messages so both have the same record.
+export function firstCallDialog(id) {
+  const keep = [["Handova Messages only", "Handova Messages only"], ["Messages, plus email", "Messages, plus email"], ["Messages, plus another app", "Messages, plus another app"]];
+  openDialog("Record what we agreed", `<form class="form" data-form="first-call" data-id="${e(id)}" novalidate>
+    <p class="muted">This posts a short summary to your Messages, so you both have the same written record. The other person can reply to confirm or correct it.</p>
+    ${field("call_date", "Date of your first call", { type: "date", value: today(), attrs: `max="${today()}"` })}
+    ${check("written", "We agreed everything in writing, without a call")}
+    ${field("delivery", "Delivery date", { type: "date", required: true })}
+    ${field("contact", "Contact person at the organisation", { required: true, attrs: 'maxlength="120"', hint: "Name and role only." })}
+    ${field("review", "How drafts will be reviewed", { type: "textarea", required: true, attrs: 'maxlength="600"' })}
+    ${field("out", "Out of scope", { type: "textarea", attrs: 'maxlength="600"', hint: "What this contribution will not cover. Optional." })}
+    ${select("keep", "How you’ll keep in touch", keep, "Handova Messages only")}
+    ${field("other", "Anything else", { type: "textarea", attrs: 'maxlength="800"', hint: "Optional." })}
+    <p class="small muted">Sharing phone numbers or personal emails is optional, and either of you can say no. Write decisions and changes in Messages.</p>
+    ${formEnd("Post summary to Messages", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitFirstCall(form) {
+  await withForm(form, async (fd) => {
+    const bad = form.querySelector("input:invalid, textarea:invalid, select:invalid");
+    if (bad) throw fieldError(bad, fieldProblem(bad));
+    const written = fd.has("written");
+    const lines = [written ? "Summary of what we agreed in writing" : `Summary of our first call (${val(fd, "call_date") || today()})`, "",
+      `Delivery date: ${val(fd, "delivery")}`, `Contact person: ${val(fd, "contact")}`, `How drafts will be reviewed: ${val(fd, "review")}`,
+      val(fd, "out") ? `Out of scope: ${val(fd, "out")}` : "", `How we’ll keep in touch: ${val(fd, "keep")}`, val(fd, "other") ? `Anything else: ${val(fd, "other")}` : "",
+      "", "Please reply to confirm or correct this summary."].filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""));
+    await result(db.rpc("record_first_call", { p_id: form.dataset.id, p_date: written ? null : val(fd, "call_date") || today(), p_written: written, p_summary: lines.join("\n") }));
+    closeDialog();
+    toast("Summary posted to Messages.");
+    go(location.hash);
   });
 }
 

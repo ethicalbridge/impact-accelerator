@@ -1204,3 +1204,5 @@ a.need-org-id:hover strong { color: var(--teal); text-decoration: underline; }
 .danger-link { color: var(--clay-ink) !important; }
 @media (max-width: 640px) { .next-actions, .next-list { padding-left: 0; } .next-actions .btn { flex: 1 1 auto; justify-content: center; } .finish-block .btn { width: 100%; justify-content: center; } }
 .agreement-doc section p + p { margin-top: 10px; }
+.message.system { background: var(--mint-2); border: 1px solid var(--mint); border-radius: 14px; padding: 12px 14px; }
+.message.system small { color: var(--teal); font-weight: 700; }

@@ -516,7 +516,7 @@ export async function how(focus = "") {
     ["home", "Join", ["Get listed, then join", "Be listed in the Ethical Bridge directory, then create your Handova account. We check you are locally led and registered, or fiscally hosted."], ["Create your profile", "Experience, skills, working languages and realistic monthly hours. Approved before it is public; 18+."]],
     ["doc", "Need", ["Publish a need", "The challenge, the output, skills, languages and hours. Up to three open at a time."], ["Apply with a plan", "Say how you would approach the output and when you can do it."]],
     ["people", "Match", ["Choose who to work with", "Review applications, message candidates or invite approved professionals."], ["Hear back or get invited", "Accept an invitation, or wait for the organisation’s decision."]],
-    ["pen", "Agree", null, null, ["Both sign the agreement", "Scope, hours, access and confidentiality, built from the need. Nothing confidential is shared before both signatures."]],
+    ["pen", "Agree", null, null, ["Both sign the agreement", "Scope, hours, access and confidentiality, built from the need. Nothing confidential is shared before both signatures. Then a short first call to plan the work."]],
     ["check", "Deliver", ["Review and complete", "Approve logged hours, write an endorsement and mark the work complete."], ["Do the work, log your hours", "Then choose which reviewed contributions appear on your impact CV."]],
     ["handover", "Gain", ["Capability that stays", "A tool, a process or a trained team you keep using, and evidence of what changed."], ["A reviewed record on your impact CV", "Real experience and a reviewed record in the organisation’s own words."]],
   ];
