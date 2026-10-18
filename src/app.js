@@ -31,7 +31,7 @@ async function page(r) {
     case "professionals": return pub.professionals();
     case "needs": return pub.needs();
     case "need": return r.a ? pub.need(r.a) : { redirect: "#needs" };
-    case "talent": return pub.talent();
+    case "talent": return pub.talent(r.params);
     case "profile": return r.a ? pub.profile(r.a) : { redirect: "#talent" };
     case "how": return pub.how();
     case "join": return acc.join(r.params);

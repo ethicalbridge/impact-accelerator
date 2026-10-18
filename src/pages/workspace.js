@@ -106,6 +106,8 @@ function needStage(n, engs) {
   if (mine.some((x) => x.status === "active" || x.status === "awaiting_signatures")) return "progress";
   return mine.some((x) => x.status === "completed") ? "done" : "closed";
 }
+// A need uses one of the 3 places while it waits for review, is open, or someone is working on it.
+const placesInUse = (needs, engs) => needs.filter((n) => n.status === "pending" || n.status === "open" || needStage(n, engs) === "progress").length;
 const stagePill = (n, st) => { const [t, tone] = STAGE_PILL[st === "draft" && n.review_note ? "changes" : st]; return pill(t, tone); };
 // Separate text pieces so each one can be translated on its own.
 const parts = (list) => list.filter(Boolean).map((x) => `<span>${x}</span>`).join(" · ");
@@ -147,7 +149,7 @@ export async function org(sub, id) {
   const approved = o.status === "approved";
   const data = sub === "details" || sub === "need" ? null : await loadOrg(o);
   const todoCount = data ? todoItems(o, data).length : 0;
-  const items = [["home", "To do", "#org", todoCount || ""], ["doc", "Needs", "#org/needs"], ["people", `<span class="nav-long">Find talent</span><span class="nav-short">Talent</span>`, "#talent"], ["settings", `<span class="nav-long">Organisation profile</span><span class="nav-short">Profile</span>`, "#org/details"]];
+  const items = [["home", "To do", "#org", todoCount || ""], ["doc", "Needs", "#org/needs"], ["people", `<span class="nav-long">Find talent</span><span class="nav-short">Talent</span>`, "#talent?from=org"], ["settings", `<span class="nav-long">Organisation profile</span><span class="nav-short">Profile</span>`, "#org/details"]];
   const active = sub === "details" ? "#org/details" : sub === "needs" || sub === "need" ? "#org/needs" : "#org";
   const head = (title, action = "") => `<div class="row between ws-head" style="align-items:flex-end"><div class="stack" style="--gap:18px"><div class="row" style="--gap:10px">${o.logo_url ? `<img class="ws-logo" src="${e(o.logo_url)}" width="40" height="40" alt="">` : ""}${eyebrow(e(o.name))}${ORG_STATUS[o.status] ? pill(...ORG_STATUS[o.status]) : ""}</div><h1 class="ws-title">${title}</h1></div>${action}</div>`;
   const switcher = state.memberships.length > 1 ? `<label class="field" style="max-width:360px">Organisation<select data-action="switch-org">${state.memberships.map((x) => `<option value="${x.organisation_id}" ${x.organisation_id === o.id ? "selected" : ""}>${e(x.organisation.name)}</option>`).join("")}</select></label>` : "";
@@ -171,6 +173,8 @@ export async function org(sub, id) {
   if (sub === "needs") {
     const { needs, apps, engs, hours } = data;
     const openCount = needs.filter((n) => n.status === "open").length;
+    const progressCount = needs.filter((n) => needStage(n, engs) === "progress").length;
+    const inUse = placesInUse(needs, engs);
     const groups = STAGES.map(([key, label]) => {
       const list = needs.filter((n) => { const st = needStage(n, engs); return key === "past" ? st === "done" || st === "closed" : st === key; });
       if (!list.length) return "";
@@ -179,8 +183,8 @@ export async function org(sub, id) {
     }).join("");
     const count = (st) => needs.filter((n) => n.status === st).length;
     const tile = (num, label) => `<div class="stat"><strong>${num}</strong><span>${label}</span></div>`;
-    const stats = `<div class="grid-4 need-stats">${tile(approved ? `${Math.max(0, 3 - openCount)} of 3` : "3", approved ? "available to open" : "available once your organisation is approved")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "public, open for applications")}</div>`;
-    const line = approved ? "You can have up to 3 needs open at a time. When one closes, its place becomes available again." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
+    const stats = `<div class="need-stats">${tile(`${Math.max(0, 3 - inUse)} of 3`, approved ? "places available" : "places available once your organisation is approved")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "open for applications")}${tile(progressCount, "in progress")}</div>`;
+    const line = approved ? "Up to 3 needs can be waiting for review, open or in progress at a time. When one is finished or closed, its place becomes available again. Drafts don’t use a place." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
     return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
   }
 
@@ -254,8 +258,8 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
     closed: "This need is closed and no longer takes applications.",
   }[st];
   const buttons = [
-    st === "draft" ? `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>` : "",
-    st === "open" ? btn("Invite a professional", "#talent", "sm") : "",
+    st === "draft" ? (placesInUse(needs, engs) >= 3 ? `<span class="small muted">All 3 places are in use. You can send this for review when another need is finished or closed.</span>` : `<button class="btn sm" type="button" data-action="need-submit" data-id="${n.id}">Send for review</button>`) : "",
+    st === "open" ? btn("Invite a professional", "#talent?from=org", "sm") : "",
     ["draft", "pending"].includes(st) ? btn("Edit", `#org/need/${n.id}`, "secondary sm") : "",
     st === "open" ? `<button class="btn secondary sm" type="button" data-action="need-revise" data-id="${n.id}">Change this need</button>` : "",
     n.status === "open" || n.status === "closed" ? btn("View public page", `#need/${n.id}`, "secondary sm") : "",

@@ -133,6 +133,7 @@ function insertRow(t, v) {
     if (!["draft", "pending"].includes(v.status) && !orgApproved(v.organisation_id)) fail("new row violates row-level security policy", "42501");
     if (v.status === "open") fail("Send your need for review. Handova checks every need and opens it once it is approved.");
     if (!v.no_vulnerable_contact) fail("check", "23514");
+    if (v.status === "pending" && needsInUse(v.organisation_id, null, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
     if (v.status === "pending") notifyAdmins("need_submitted", "A need is waiting for review", v.title, "#admin");
     if (v.status === "open" && D.needs.filter((n) => n.organisation_id === v.organisation_id && n.status === "open").length >= 3) fail("An organisation can have up to 3 open needs at a time. Close one first.");
   }
@@ -178,6 +179,7 @@ function updateRow(t, r, v) {
     if (["open", "closed"].includes(r.status) && ["draft", "pending"].includes(v.status)) fail("Close a published need instead of returning it to draft.");
     if (["open", "closed"].includes(r.status) && ["title", "description", "output", "skills", "languages", "hours", "location", "deadline", "places"].some((k) => k in v && JSON.stringify(v[k]) !== JSON.stringify(r[k]))) fail("A live need can’t be edited. Stop applications and send a corrected copy for review.");
     if (v.status === "open" && r.status !== "open" && !(r.status === "closed" && r.approved_at)) fail("Send your need for review. Handova checks every need and opens it once it is approved.");
+    if (v.status === "pending" && r.status !== "pending" && needsInUse(r.organisation_id, r.id, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
     if (v.status === "pending" && r.status !== "pending") { v = { ...v, review_note: null }; notifyAdmins("need_submitted", "A need is waiting for review", r.title, "#admin"); }
     if (v.status === "closed" && r.status === "open") closeNeedApps(r);
     if (v.status === "open" && r.status !== "open" && D.needs.filter((n) => n.organisation_id === r.organisation_id && n.status === "open").length >= 3) fail("An organisation can have up to 3 open needs at a time. Close one first.");
@@ -226,6 +228,7 @@ const rpcs = {
   public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || e.user_id === me())).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: e.scope.skills, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, hours: D.hours.filter((h) => h.engagement_id === e.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0), started: e.created_at.slice(0, 10), completed: e.completed_at.slice(0, 10), still_in_use: e.followup_in_use ?? null, public: e.public })),
   delete_my_account: () => { const u = me(); D.engagements.filter((e) => e.user_id === u).forEach((e) => { e.scope.talent = "Former member"; e.user_id = null; e.public = false; }); D.messages = D.messages.filter((m) => m.sender_id !== u); for (const t of ["profiles", "applications", "invitations", "saved_needs", "notifications", "organisation_members"]) D[t] = D[t].filter((r) => r.user_id !== u); D.conversations = D.conversations.filter((c) => c.user_id !== u); D.users = D.users.filter((x) => x.id !== u); localStorage.removeItem(SKEY); },
 };
+function needsInUse(org, except, withPending) { return D.needs.filter((n) => n.organisation_id === org && n.id !== except && (n.status === "open" || (withPending && n.status === "pending") || (n.status === "closed" && D.engagements.some((e) => e.need_id === n.id && ["awaiting_signatures", "active"].includes(e.status))))).length; }
 function closeNeedApps(n) { for (const a of D.applications.filter((x) => x.need_id === n.id && x.status === "pending")) { Object.assign(a, { status: "declined", decided_at: now() }); closeConv(n.id, a.user_id, "Need closed"); notify(a.user_id, "application_decision", "The need you applied to is closed", n.title + ": it is no longer taking applications. Thank you for applying.", "#workspace"); } }
 function closeConv(need, user, reason) { const c = D.conversations.find((x) => x.need_id === need && x.user_id === user); if (c) Object.assign(c, { status: "closed", closed_reason: reason }); }
 function engage(needId, user) {
