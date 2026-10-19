@@ -465,7 +465,7 @@ export async function profile(id) {
   const wide = (title, inner) => `<div class="card stack xp-card" style="--gap:14px"><h2 style="font-size:2rem">${title}</h2>${inner}</div>`;
   const side = (title, inner) => `<div class="card stack" style="--gap:12px">${eyebrow(title)}${inner}</div>`;
   const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:60px">
-    ${back("All talent", "#talent")}
+    ${owner ? back("Back to workspace", "#workspace") : back("All talent", "#talent")}
     ${owner && !isPublic ? `<div class="banner warn">${icon("eye", 22)}<p>Only you can see this page. ${p.review_status === "pending" ? "Your profile is awaiting approval." : "Publish your profile from your workspace when you are ready."}</p></div>` : ""}
     <section class="profile-head">
       ${avatarFor(p, 150)}

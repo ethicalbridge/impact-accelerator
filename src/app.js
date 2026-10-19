@@ -163,6 +163,7 @@ const actions = {
   survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
   "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
   "staff-size": (el) => ws.staffSizeDialog(el.dataset.id),
+  "hours-change": () => ws.hoursDialog(),
   "pw-toggle": (el) => { const inp = document.getElementById(el.getAttribute("aria-controls")); if (!inp) return; const show = inp.type === "password"; inp.type = show ? "text" : "password"; el.setAttribute("aria-pressed", String(show)); const lab = t(show ? "Hide password" : "Show password"); el.setAttribute("aria-label", lab); el.title = lab; el.classList.toggle("on", show); inp.focus(); },
   "cv-hide": async (el) => {
     const hide = !!el.dataset.hide, id = el.dataset.id;
@@ -204,7 +205,7 @@ const forms = {
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
-  survey: (f) => ws.submitSurvey(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
+  survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
