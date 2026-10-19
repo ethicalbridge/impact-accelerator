@@ -82,5 +82,6 @@ export function initConsent(show = false) {
       if (window.__iaGa) location.reload();
     }
   });
-  if (!el.isConnected) document.body.appendChild(el);
+  // Early in the tab order, right after the skip link, so keyboard users meet it first.
+  if (!el.isConnected) { const skip = document.querySelector(".skip"); document.body.insertBefore(el, skip ? skip.nextSibling : document.body.firstChild); }
 }

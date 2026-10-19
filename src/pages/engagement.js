@@ -87,7 +87,7 @@ function chatHtml(msgs, c, orgName, personName) {
     last = day;
     if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${linkCalls(e(m.body))}</p></div>`; }
     const mine = m.sender_id === state.user.id;
-    const name = m.kind === "former" ? "Former member" : m.sender_id === c.user_id ? personName : orgName;
+    const name = m.kind === "former" ? t("Former member") : m.sender_id === c?.user_id ? personName : orgName;
     const cont = prevSender === (m.sender_id || m.kind);
     prevSender = m.sender_id || m.kind;
     return `${sep}<div class="chat-row ${mine ? "mine" : "theirs"}${cont ? " cont" : ""}">${mine ? "" : `<span class="chat-av">${cont ? "" : avatar(name, 32)}</span>`}<div class="chat-col">${!mine && !cont ? `<span class="chat-name" data-no-i18n>${e(name)}</span>` : ""}<div class="bubble"><p data-no-i18n>${linkCalls(e(m.body))}</p></div><time class="chat-time" datetime="${e(m.created_at)}">${e(timeOf(m.created_at))}</time></div></div>`;
@@ -101,7 +101,7 @@ export async function conversation(id) {
   const eng = await result(db.from("engagements").select("id,status,first_call_at").eq("need_id", c.need_id).eq("user_id", c.user_id).in("status", ["awaiting_signatures", "active"]).maybeSingle()).catch(() => null);
   const live = !!eng;
   const isTalent = c.user_id === state.user.id;
-  const other = isTalent ? c.need?.organisation?.name || "Organisation" : c.person?.name || "Professional";
+  const other = isTalent ? c.need?.organisation?.name || "Organisation" : c.person?.name || (c.user_id ? "Professional" : t("Former member"));
   const html = `<div class="wrap" style="max-width:860px;padding-block:40px 80px"><div class="stack" style="--gap:20px">
     ${isTalent ? back("Back to workspace", "#workspace") : back("Back to the need", `#org/needs/${e(c.need_id)}`)}
     <div class="row between"><div>${eyebrow("Conversation")}<h1 style="font-size:clamp(1.9rem,3.4vw,2.8rem)">${e(other)}</h1><p class="muted">About: <a href="#need/${e(c.need_id)}">${e(c.need?.title)}</a></p></div>${status(c.status)}</div>
@@ -110,7 +110,7 @@ export async function conversation(id) {
     ${eng?.status === "active" && !eng.first_call_at ? `<details class="card fold-card"><summary><h2 class="card-title">Tips for your first call</h2></summary><div class="stack" style="--gap:8px;margin-top:10px"><p>Use any video tool you both already use and post the link here. You don’t need to swap phone numbers to have a call. Audio only is fine if data is limited.</p><p>Talk anywhere, but write any decision or change to the output, hours or deadline here in Messages, so you both have it in writing.</p><p>Don’t record the call or use AI note-takers unless everyone agrees at the start. Introduce everyone who joins. Don’t show or discuss names, photos or files about the people the organisation supports, and close other windows before sharing your screen.</p><p>You can leave a call at any time if you feel uncomfortable. If something worrying happens on a call, by phone or on another app, you can still report it on Handova. If someone is in immediate danger, contact local emergency services first.</p><div class="row" style="--gap:8px">${btn("Record what we agreed", `#agreement/${e(eng.id)}`, "sm")}</div></div></details>` : ""}
     <section class="chat card">
       <div class="chat-head">${avatar(other, 40)}<div class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(other)}</strong><span class="small muted">${isTalent ? "" : `<span data-no-i18n>${e(c.need?.organisation?.name || "")}</span> · `}<span>${live ? (eng.status === "active" ? "Contribution in progress" : "Waiting for signatures") : c.status === "open" ? "Application" : "Closed"}</span></span></div></div>
-      <div class="chat-log" id="messages" aria-live="polite" data-count="${msgs.length}">${chatHtml(msgs, c, c.need?.organisation?.name || "Organisation", c.person?.name || "Professional")}</div>
+      <div class="chat-log" id="messages" role="log" aria-label="Messages" aria-live="off" data-count="${msgs.length}">${chatHtml(msgs, c, c.need?.organisation?.name || "Organisation", c.person?.name || (c.user_id ? "Professional" : t("Former member")))}</div><p class="visually-hidden" id="chat-announce" aria-live="polite"></p>
       ${c.status === "open" ? `<form class="chat-compose" data-form="message" data-id="${e(id)}"><label class="visually-hidden" for="f-body">Message</label><textarea id="f-body" name="body" rows="1" maxlength="4000" required placeholder="Write a message…"></textarea><button class="btn chat-send" type="submit" aria-label="Send message">${icon("send", 18)}<span>Send</span></button><p class="form-error small" role="alert"></p></form><p class="small muted chat-hint">Press Ctrl + Enter to send. Messages stay here for both of you.</p>` : `<p class="chat-closed muted">This conversation is closed${c.closed_reason ? ": " + e(c.closed_reason.toLowerCase()) : ""}.</p>`}
     </section>
     ${c.status === "open" ? (live ? `<p class="small muted">Messages stay open while the contribution is live. To stop the work, use End this contribution on the agreement. If you feel unsafe, Report a concern.</p>` : `<div class="row"><button class="btn secondary sm" type="button" data-action="close-conversation" data-id="${e(id)}">End conversation</button></div>`) : ""}
@@ -141,8 +141,14 @@ async function refreshChat(id) {
   if (String(msgs.length) === log.dataset.count) return;
   const c = await result(db.from("conversations").select("user_id, need:needs(organisation:organisations(name)), person:profiles(user_id,name)").eq("id", id).maybeSingle());
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-  log.innerHTML = chatHtml(msgs, c, c?.need?.organisation?.name || "Organisation", c?.person?.name || "Professional");
+  const orgName = c?.need?.organisation?.name || "Organisation", personName = c?.person?.name || (c?.user_id ? "Professional" : t("Former member"));
+  const before = Number(log.dataset.count) || 0;
+  log.innerHTML = chatHtml(msgs, c, orgName, personName);
   log.dataset.count = String(msgs.length);
+  // Screen readers hear only the new messages from the other side, not the whole conversation again.
+  const fresh = msgs.slice(before).filter((m) => m.sender_id !== state.user?.id);
+  const say = document.getElementById("chat-announce");
+  if (say && fresh.length) say.textContent = fresh.map((m) => `${m.kind === "system" ? "Handova" : m.kind === "former" ? "Former member" : m.sender_id === c?.user_id ? personName : orgName}: ${String(m.body || "").slice(0, 300)}`).join(" · ");
   if (atBottom) log.scrollTop = log.scrollHeight;
 }
 

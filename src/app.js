@@ -76,6 +76,7 @@ async function render() {
   const v = ++version;
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
+  document.documentElement.classList.toggle("signed-in", !!state.user);
   $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || r.name === "safety" ? "#about/faq" : ACTIVE[r.name]);
   const main = $("#main");
   const staticHome = r.name === "home" && main.dataset.staticHome === "1";

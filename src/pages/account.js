@@ -20,7 +20,7 @@ const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-heigh
 
 // Join and sign in, split by who you are: an organisation with needs, or a professional with skills.
 const SIDES = {
-  organisation: { join: ["Bring your needs.", "Publish the specific help your team needs and work with skilled professionals, free. We review every organisation before its needs go public."], signin: ["Welcome back.", "Your organisation workspace: needs, applications, agreements and hours to review."], points: ["Free, always", "Approved before your needs go public", "Up to three open needs at a time", "A signed agreement before any access"] },
+  organisation: { join: ["Bring your needs.", "Publish the specific help your team needs and work with skilled professionals, free. We review every organisation before its needs go public."], signin: ["Welcome back.", "Your organisation workspace: needs, applications, agreements and hours to review."], points: ["Free, always", "Approved before your needs go public", "Up to 3 needs at a time, including those in review or in progress", "A signed agreement before any access"] },
   professional: { join: ["Bring your skills.", "Give a few focused hours to the needs local organisations define, and build an impact CV from reviewed work."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Your profile stays private until approved", "Short, well-scoped contributions", "Endorsements in the organisation’s own words"] },
 };
 const roleTabs = (r, label) => `<div class="role-tabs" role="radiogroup" aria-label="${label}">
