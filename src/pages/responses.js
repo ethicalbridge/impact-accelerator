@@ -19,18 +19,26 @@ export async function responses(params) {
   const all = await result(db.rpc("admin_survey_data")).catch(() => []);
   cache = all;
   const tab = TABS.some(([k]) => k === params.get("tab")) ? params.get("tab") : "organisation";
-  const f = { period: params.get("period") || "all", country: params.get("country") || "", staff: params.get("staff") || "", stage: params.get("stage") || "", delivered: params.get("delivered") || "" };
-  const filtered = Object.values(f).some((v) => v && v !== "all");
+  // Each tab has its own filters: organisations by their country, size and type; professionals by theirs.
+  const pro = tab === "professional";
+  const keys = pro ? ["period", "country", "stage", "hours", "delivered"] : ["period", "country", "staff", "orgtype", "delivered"];
+  const f = Object.fromEntries(keys.map((k) => [k, params.get(k) || (k === "period" ? "all" : "")]));
+  const filtered = keys.some((k) => f[k] && f[k] !== "all");
 
-  // Countries with fewer than 3 organisations are grouped, everywhere.
-  const orgsBy = {};
-  all.forEach((r) => { (orgsBy[r.org_country || "Unknown"] ||= new Set()).add(r.organisation_id); });
-  const cGroup = (c) => (orgsBy[c || "Unknown"]?.size >= 3 ? c : "Other countries");
-  const countries = [...new Set(all.map((r) => cGroup(r.org_country)))].sort();
+  // Countries with fewer than 3 organisations (or professionals) are grouped, everywhere.
+  const whoBy = {};
+  all.forEach((r) => { const c = (pro ? r.pro_country : r.org_country) || "Unknown"; (whoBy[c] ||= new Set()).add(pro ? r.professional_id : r.organisation_id); });
+  const cGroup = (c) => (whoBy[c || "Unknown"]?.size >= 3 ? c : "Other countries");
+  const myCountry = (r) => cGroup(pro ? r.pro_country : r.org_country);
+  const countries = [...new Set(all.map(myCountry))].sort();
+  const orgTypes = [...new Set(all.map((r) => r.org_type).filter(Boolean))].sort();
+  const HOURS = [["6-8", "6–8 hours"], ["9-12", "9–12 hours"], ["13-16", "13–16 hours"]];
+  const hoursBand = (h) => (!h ? "" : h <= 8 ? "6-8" : h <= 12 ? "9-12" : "13-16");
 
   const since = f.period === "all" ? 0 : Date.now() - Number(f.period) * 864e5;
-  const rows = all.filter((r) => Date.parse(r.completed_at) >= since && (!f.country || cGroup(r.org_country) === f.country) && (!f.staff || r.staff_size === f.staff)
-    && (!f.stage || r.career_stage === f.stage) && (!f.delivered || r.delivered === f.delivered));
+  const rows = all.filter((r) => Date.parse(r.completed_at) >= since && (!f.country || myCountry(r) === f.country) && (!f.staff || r.staff_size === f.staff)
+    && (!f.orgtype || r.org_type === f.orgtype) && (!f.stage || r.career_stage === f.stage) && (!f.hours || hoursBand(Number(r.hours_planned)) === f.hours)
+    && (!f.delivered || r.delivered === (f.delivered === "everything" ? "all" : f.delivered)));
   const base = tab === "six_months" ? rows.filter((r) => r.followup_answered_at) : rows;
   const got = (r) => r[RESP[tab]];
   const answered = base.filter((r) => got(r)?.status === "submitted");
@@ -39,13 +47,19 @@ export async function responses(params) {
 
   // A share with the small-sample rule applied.
   const show = (k, n) => {
-    if (!n) return { big: "–", sub: "No answers yet" };
-    if (filtered && n < 5) return { big: "<5", sub: "Too few answers to show" };
-    if (n < 30) return { big: `${k} of ${n}`, sub: "" };
-    return { big: `${Math.round((k / n) * 100)}%`, sub: `of ${n} answers` };
+    if (!n) return { k, n, big: "–", sub: "No answers yet", ring: null };
+    if (filtered && n < 5) return { k, n, big: "<5", sub: "Too few answers to show", ring: null };
+    const ring = k / n;
+    if (n < 30) return { k, n, big: `${k} of ${n}`, sub: "", ring };
+    return { k, n, big: `${Math.round(ring * 100)}%`, sub: `of ${n} answers`, ring };
+  };
+  // A ring that fills to the share; the number in the middle follows the small-sample rule.
+  const ringSvg = (s) => {
+    const r = 38, c = 2 * Math.PI * r, f = s.ring == null ? 0 : Math.max(0, Math.min(1, s.ring));
+    return `<svg class="rs-ring" viewBox="0 0 96 96" role="img" aria-label="${e(s.big)}"><circle cx="48" cy="48" r="${r}" class="rs-ring-track"/>${f > 0 ? `<circle cx="48" cy="48" r="${r}" class="rs-ring-fill" stroke-dasharray="${(f * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 48 48)"/>` : ""}<text x="48" y="${s.big.length > 6 ? 52 : 55}" text-anchor="middle" class="rs-ring-num${s.big.length > 6 ? " sm" : ""}">${e(s.big)}</text></svg>`;
   };
   const share = (key, yes, valid = () => true) => { const list = answered.filter((r) => A(r)[key] != null && valid(A(r)[key])); return show(list.filter((r) => yes(A(r)[key])).length, list.length); };
-  const tile = (title, s, note) => `<div class="rs-tile"><span class="rs-tile-t">${title}</span><strong>${e(s.big)}</strong>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div>`;
+  const tile = (title, s, note) => `<div class="rs-tile" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s)}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
   let tiles = "";
@@ -88,14 +102,21 @@ export async function responses(params) {
       const texts = list.map((r) => ({ t: A(r)[q.id], r })).sort((a, b) => Date.parse(b.r.completed_at) - Date.parse(a.r.completed_at));
       return `<section class="card rs-q"><h3>${e(q.q)}</h3><p class="small muted">${texts.length} ${texts.length === 1 ? "answer" : "answers"} · shown in the language people wrote in</p>${texts.length ? `<ul class="rs-open">${texts.slice(0, 200).map(({ t, r }) => `<li><p data-no-i18n>${e(t)}</p><span class="small muted">${e(cGroup(r.org_country))} · ${e(date(r.completed_at, { month: "short", year: "numeric" }))}${r.delivered === "partly" ? " · <span>partly delivered</span>" : ""}</span></li>`).join("")}</ul>` : ""}</section>`;
     }
-    const n = list.length;
-    const opts = optionsOf(q).map(([v, lab]) => {
+    // Survey-report style: a bar per answer choice, then the table of numbers.
+    const n = list.length, hide = filtered && n > 0 && n < 5, many = n >= 30;
+    const rowsQ = optionsOf(q).map(([v, lab], i) => {
       const k = list.filter((r) => (q.type === "multi" ? A(r)[q.id].includes(v) : A(r)[q.id] === v)).length;
-      const pct = n ? Math.round((k / n) * 100) : 0;
-      const hide = filtered && n < 5;
-      return `<div class="rs-bar"><span class="rs-bar-l">${e(lab)}</span><span class="rs-bar-t"><span style="width:${hide ? 0 : pct}%"></span></span><span class="rs-bar-v">${hide ? "" : n < 30 ? k : `${pct}%`}</span></div>`;
-    }).join("");
-    return `<section class="card rs-q"><h3>${e(q.q)}</h3><p class="small muted">${n} ${n === 1 ? "answer" : "answers"}${q.type === "multi" ? " · people could choose several, so totals can pass 100%" : ""}${n && n < 30 ? " · counts shown until 30 answers" : ""}</p>${filtered && n < 5 && n ? `<p class="small muted">Too few answers to show with this filter.</p>` : opts}</section>`;
+      return { v, lab, k, pct: n ? (k / n) * 100 : 0, i };
+    });
+    const scale = q.type === "scale";
+    const steps = rowsQ.length;
+    const tone = (i) => (scale ? `rs-t${Math.round((i / Math.max(1, steps - 1)) * 4)}` : "rs-t4");
+    const bars = rowsQ.map((x) => `<div class="rs-bar" title="${e(`${x.lab}: ${x.k} of ${n}`)}"><span class="rs-bar-l">${e(x.lab)}</span><span class="rs-bar-t"><span class="${tone(x.i)}" style="width:${hide ? 0 : x.pct.toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round(x.pct)}%` : x.k}</span></div>`).join("");
+    const avg = scale && n && !hide ? (list.reduce((t, r) => t + Number(A(r)[q.id]), 0) / n) : null;
+    const table = `<table class="rs-table"><thead><tr><th scope="col">Answer choices</th>${many ? '<th scope="col">Responses</th>' : ""}<th scope="col">${many ? "" : "Responses"}</th></tr></thead><tbody>${rowsQ.map((x) => `<tr><td>${e(x.lab)}</td>${many ? `<td>${Math.round(x.pct)}%</td>` : ""}<td>${hide ? "–" : x.k}</td></tr>`).join("")}</tbody><tfoot><tr><td>Answered</td>${many ? "<td></td>" : ""}<td>${n}</td></tr></tfoot></table>`;
+    return `<section class="card rs-q"><div class="row between" style="align-items:flex-start;gap:12px"><h3>${e(q.q)}</h3>${avg != null ? `<span class="rs-avg">Average <strong>${avg.toFixed(1)}</strong> of ${steps}</span>` : ""}</div>
+      <p class="small muted">${n ? `${n} ${n === 1 ? "answer" : "answers"}` : "No answers yet"}${q.type === "multi" ? " · people could choose several, so totals can pass 100%" : ""}${n && !many ? " · counts until 30 answers, then percentages" : ""}</p>
+      ${hide ? `<p class="small muted">Too few answers to show with this filter.</p>` : `<div class="rs-chart">${bars}</div><details class="rs-numbers"><summary>Show the numbers</summary>${table}</details>`}</section>`;
   };
 
   const concerns = answered.filter((r) => A(r).o_concern === "yes" || A(r).p_concern === "yes");
@@ -106,18 +127,20 @@ export async function responses(params) {
     ${back("Admin", "#admin")}
     <div class="row between" style="align-items:flex-end"><div>${eyebrow("Questionnaires")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What people tell us</h1><p class="muted">Answers after each finished contribution. Only Handova sees this page. Wording version ${e(SURVEY_VERSION)}.</p></div>
       <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="rs-export" data-tab="${tab}">${icon("download", 16)} Download answers (CSV)</button><button class="btn secondary sm" type="button" data-action="rs-codebook">${icon("download", 16)} Codebook</button></div></div>
-    <nav class="rs-tabs" aria-label="Questionnaire">${TABS.map(([k, t]) => `<a href="${q({ tab: k })}" ${k === tab ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
+    <nav class="rs-tabs" aria-label="Questionnaire">${TABS.map(([k, t]) => `<a href="#admin-responses?${new URLSearchParams({ tab: k, ...(f.period !== "all" ? { period: f.period } : {}) })}" ${k === tab ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
     <form class="rs-filters" data-rs-filters>
       ${sel("period", "Period", PERIODS, f.period)}
-      ${sel("country", "Country", [["", "All countries"], ...countries.map((c) => [c, c])], f.country)}
-      ${sel("staff", "Paid staff", [["", "Any size"], ...STAFF_SIZES], f.staff)}
-      ${sel("stage", "Professional’s career stage", [["", "Any stage"], ...CAREER_STAGES], f.stage)}
-      ${sel("delivered", "Delivered", [["", "All"], ["all", "Everything agreed"], ["partly", "Partly"]], f.delivered)}
+      ${sel("country", pro ? "Professional’s country" : "Organisation’s country", [["", "All countries"], ...countries.map((c) => [c, c])], f.country)}
+      ${pro ? sel("stage", "Career stage", [["", "Any stage"], ...CAREER_STAGES], f.stage) : sel("staff", "Paid staff", [["", "Any size"], ...STAFF_SIZES], f.staff)}
+      ${pro ? sel("hours", "Size of the need", [["", "Any size"], ...HOURS], f.hours) : sel("orgtype", "Type of organisation", [["", "Any type"], ...orgTypes.map((x) => [x, x])], f.orgtype)}
+      ${sel("delivered", "Delivered", [["", "All"], ["everything", "Everything agreed"], ["partly", "Partly"]], f.delivered)}
     </form>
-    <p class="small muted">Under 30 answers we show counts, not percentages. With a filter applied, groups with fewer than 5 answers are hidden. Countries with fewer than 3 organisations are grouped as “Other countries”.</p>
+    <p class="small muted">Under 30 answers we show counts, not percentages. With a filter applied, groups with fewer than 5 answers are hidden. Countries with fewer than 3 ${pro ? "professionals" : "organisations"} are grouped as “Other countries”.</p>
     <div class="rs-tiles">${tiles}</div>
     ${concerns.length && tab !== "six_months" ? `<section class="card"><h2 class="card-title">${icon("shield", 20, "#7a4f0e")} Concerns raised in questionnaires</h2><p class="small muted">Follow up through safeguarding. These are not formal reports unless the person also reported it.</p>${concerns.map((r) => `<div class="list-row"><span class="stack" style="--gap:2px"><strong data-no-i18n>${e(r.need_title || "")}</strong><span class="small muted">${e(date(r.completed_at))} · <span>${A(r).o_concern === "yes" ? "the organisation" : "the professional"}</span></span></span>${pill("Concern", "clay")}</div>`).join("")}</section>` : ""}
-    ${answered.length ? `<div class="rs-grid">${qs.map(qBlock).join("")}</div>` : `<section class="card">${empty("No answers yet", tab === "six_months" ? "Answers appear here after six-month checks." : "Answers appear here after contributions are finished and people answer the questionnaire.")}</section>`}
+    ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
+    <div class="rs-grid">${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
+    ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
   </div></div>`;
   return {
     title: "Questionnaire answers", html,
