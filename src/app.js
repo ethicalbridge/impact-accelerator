@@ -163,6 +163,7 @@ const actions = {
   survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
   "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
   "staff-size": (el) => ws.staffSizeDialog(el.dataset.id),
+  "pw-toggle": (el) => { const inp = document.getElementById(el.getAttribute("aria-controls")); if (!inp) return; const show = inp.type === "password"; inp.type = show ? "text" : "password"; el.setAttribute("aria-pressed", String(show)); const lab = t(show ? "Hide password" : "Show password"); el.setAttribute("aria-label", lab); el.title = lab; el.classList.toggle("on", show); inp.focus(); },
   "cv-hide": async (el) => {
     const hide = !!el.dataset.hide, id = el.dataset.id;
     if (el.dataset.live) await result(db.rpc("set_contribution_visibility", { p_id: id, p_public: !hide }));

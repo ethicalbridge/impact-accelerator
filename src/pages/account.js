@@ -1,5 +1,5 @@
 import { locale, getLang } from "../i18n.js";
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, val, loadSession, homeFor } from "../core.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, val, loadSession, homeFor } from "../core.js";
 import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
@@ -65,7 +65,7 @@ export async function join(params) {
       ${field("headline", "Your professional title", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
     </div></fieldset>
     <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend>
-      <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}</div>
+      <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
       <div class="checkbox-box" style="margin-top:18px">
         ${check("adult", "I am 18 or older.", false, true)}
         ${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true)}
@@ -102,7 +102,7 @@ export async function reset() {
 }
 
 export function newPasswordDialog() {
-  openDialog("Choose a new password", `<form class="form" data-form="new-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128" autofocus', hint: "At least 12 characters." })}${formEnd("Save new password")}</form>`);
+  openDialog("Choose a new password", `<form class="form" data-form="new-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128" autofocus', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Save new password")}</form>`);
 }
 
 // ---------- onboarding ----------
@@ -447,7 +447,7 @@ export async function account() {
   const emailOn = pref ? pref.email_notifications !== false : true;
   const html = `<div class="wrap" style="max-width:820px;padding-block:48px 80px"><div class="stack" style="--gap:28px">
     ${eyebrow("Account and privacy")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Your account</h1>
-    <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${formEnd("Change password")}</form></div>
+    <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Change password")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show only a short title and a link, never message content.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
     <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications, messages, uploaded profile photos and identity checks held by Handova and Didit. If a provider deletion fails, we stop and ask you to contact us. Organisations keep a private record of completed work with your name replaced by “Former member”. We keep signed Handova professional or organisation agreement records for six years after deletion, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
@@ -461,6 +461,7 @@ export async function submitAccount(kind, form) {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
     const role = val(fd, "role");
     if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
+    if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
     if (role === "organisation" && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
     const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang() } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang() } } });
     if (error) throw error;
@@ -497,6 +498,7 @@ export async function submitAccount(kind, form) {
     toast(on ? "Email notifications are on." : "Email notifications are off. You will still see updates in the bell.");
   });
   if (kind === "new-password" || kind === "change-password") return withForm(form, async (fd) => {
+    if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
     await result(db.auth.updateUser({ password: String(fd.get("password")) }));
     closeDialog();
     toast("Password updated.");

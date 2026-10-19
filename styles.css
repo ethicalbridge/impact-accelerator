@@ -1350,3 +1350,11 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .btn.danger-outline { color: #9b2c1f; border-color: #e3b9b2; }
 .btn.danger-outline:hover { background: #fbeeec; }
 @media (max-width: 760px) { .al-row { flex-direction: column; } .al-actions { max-width: none; justify-content: flex-start; } }
+/* Show / hide password */
+.pw-wrap { position: relative; display: block; }
+.pw-wrap input { padding-right: 52px !important; }
+.pw-toggle { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.pw-toggle:hover { color: var(--ink); background: var(--mint-2); }
+.pw-toggle.on { color: var(--teal); }
+.pw-toggle.on::after { content: ""; position: absolute; width: 22px; height: 2px; background: currentColor; transform: rotate(-45deg); border-radius: 2px; }
+.pw-toggle:focus-visible { outline: 3px solid var(--ink); outline-offset: 1px; }

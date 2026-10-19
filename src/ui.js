@@ -140,7 +140,9 @@ export function field(name, label, { value = "", type = "text", required = false
   const id = `f-${name}`;
   const control = type === "textarea"
     ? `<textarea id="${id}" name="${name}" ${required ? "required" : ""} ${attrs}>${e(value)}</textarea>`
-    : `<input id="${id}" name="${name}" type="${type}" value="${e(value)}" ${required ? "required" : ""} ${attrs}>`;
+    : type === "password"
+      ? `<span class="pw-wrap"><input id="${id}" name="${name}" type="password" value="${e(value)}" ${required ? "required" : ""} ${attrs}><button type="button" class="pw-toggle" data-action="pw-toggle" aria-controls="${id}" aria-pressed="false" aria-label="Show password" title="Show password">${icon("eye", 18)}</button></span>`
+      : `<input id="${id}" name="${name}" type="${type}" value="${e(value)}" ${required ? "required" : ""} ${attrs}>`;
   return `<label class="field ${full ? "full" : ""}" for="${id}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>${control}${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;
 }
 // Language picker: a dropdown of common working languages with search, plus "add another" for local and sign languages.
