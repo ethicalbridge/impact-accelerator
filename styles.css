@@ -1464,3 +1464,4 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 @media (max-width: 1480px) { .ws-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .ws-btn { padding-inline: 12px; min-width: 44px; justify-content: center; } }
 @media (max-width: 1180px) and (min-width: 961px) { .site-header .wrap { gap: 14px; } .main-nav { gap: 12px; } .header-actions { gap: 6px; } }
 @media (max-width: 1080px) and (min-width: 961px) { .brand > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .main-nav { gap: 10px; } .main-nav a, .main-nav .nav-drop summary { font-size: .92rem; } }
+.invited-pill { white-space: normal; padding: 10px 14px; font-size: .9rem; background: var(--ochre-bg); color: var(--ochre-ink); }
