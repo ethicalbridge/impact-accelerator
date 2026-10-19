@@ -39,7 +39,7 @@ export const QUESTIONS = {
 };
 
 export const STAFF_SIZES = [["none", "None, volunteers only"], ["1-5", "1–5"], ["6-20", "6–20"], ["21-50", "21–50"], ["50+", "More than 50"]];
-export const CAREER_STAGES = [["student", "Student"], ["early", "Early career (under 5 years of work)"], ["mid", "Mid-career (5–15 years)"], ["senior", "Senior (over 15 years)"], ["retired", "Retired"], ["break", "Career break or between jobs"]];
+export const CAREER_STAGES = [["student", "Student"], ["early", "Early career (under 5 years of work)"], ["mid", "Mid-career (5–10 years)"], ["experienced", "Experienced (10–15 years)"], ["senior", "Senior (over 15 years)"], ["retired", "Retired"], ["break", "Career break or between jobs"]];
 
 // [code, label] for every option; scales are coded "1".."n".
 export const optionsOf = (q) => q.type === "scale" ? q.options.map((label, i) => [String(i + 1), label]) : q.options;
