@@ -1,8 +1,14 @@
 // Local QA only: an in-browser imitation of the Handova database and its server functions.
 // Never used in production builds. Seeded accounts: admin@example.test, org@example.test, talent@example.test (password: any 12+ characters).
+// Mirrors the latest definitions in supabase/migrations (the newest file that defines a function wins).
 const KEY = "ia-mock-db-v1", SKEY = "ia-mock-session-v1";
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
 const now = () => new Date().toISOString();
+const DAY = 864e5;
+// current_date, in the browser's own time zone (the date the UI offers by default).
+const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+// True when the timestamp is more than `days` days in the past.
+const ago = (t, days) => !!t && Date.parse(t) < Date.now() - days * DAY;
 const ADMIN = "00000000-0000-4000-8000-00000000000a", ORGU = "00000000-0000-4000-8000-00000000000b", TAL = "00000000-0000-4000-8000-00000000000c", ORG = "00000000-0000-4000-8000-0000000000aa", NEED = "00000000-0000-4000-8000-0000000000bb";
 
 function seed() {
@@ -16,50 +22,106 @@ function seed() {
     profiles: [{ user_id: TAL, name: "Amina Okoro", headline: "Research and impact measurement", bio: "I turn complex evidence into clear decisions for community-led organisations.", experience: "Independent researcher, 2022 to now", location: "Nairobi · UTC+3", country: "Kenya", skills: ["Research", "Data analysis", "Training"], languages: ["English", "Swahili"], hours_available: 12, arrangement: "Remote", website: "", age_confirmed: true, unpaid_confirmed: true, published: true, review_status: "approved", approved_at: now(), created_at: now(), updated_at: now() }],
     organisations: [{ id: ORG, name: "Community Research Lab", country: "Kenya", city: "Kisumu", website: "https://example.org", summary: "A community research group helping village committees use evidence.", org_type: "Community organisation", locally_led_confirmed: true, status: "approved", approved_at: now(), created_at: now() }],
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
-    needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", created_at: now(), updated_at: now() }],
+    needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", approved_at: now(), created_at: now(), updated_at: now() }],
     applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [], app_settings: [{ key: "require_id_verification", value: "true" }], id_verifications: [],
+    user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], account_deletion_authorizations: [],
   };
 }
-const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } d.user_settings ||= []; d.user_private ||= []; d.survey_responses ||= []; return d; };
+// Tables added after the first mock: older saved mock databases get them empty.
+const LATER = ["user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations"];
+const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
-D.user_settings ||= []; D.user_private ||= []; D.survey_responses ||= [];
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
 const session = () => { try { return JSON.parse(localStorage.getItem(SKEY)); } catch { return null; } };
 const me = () => session()?.user?.id || null;
 const fail = (message, code) => { const e = new Error(message); e.code = code; throw e; };
-const isMember = (org, u = me()) => D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u);
+const RLS = () => fail("new row violates row-level security policy", "42501");
+const CHECK = (t) => fail(`new row for relation "${t}" violates check constraint`, "23514");
+// "x is the signed-in user" (never true for a missing user, unlike x === me() when signed out).
+const own = (x, u = me()) => u != null && x === u;
+const isAdmin = (u = me()) => u != null && D.admins.some((a) => a.user_id === u);
+const requireAdmin = () => { if (!isAdmin()) fail("Administrator access required."); };
+const isMember = (org, u = me()) => u != null && D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u);
 const needOrg = (n) => D.needs.find((x) => x.id === n)?.organisation_id;
-const notify = (user, kind, title, body = "", link = "") => user && D.notifications.push({ id: uid(), user_id: user, kind, title, body, link, read_at: null, created_at: now() });
+const isParty = (c) => !!c && (own(c.user_id) || isMember(needOrg(c.need_id)));
+const notify = (user, kind, title, body = "", link = "", ref = null) => user && D.notifications.push({ id: uid(), user_id: user, kind, title, body, link, ref, read_at: null, created_at: now() });
 const notifyOrg = (org, ...a) => D.organisation_members.filter((m) => m.organisation_id === org).forEach((m) => notify(m.user_id, ...a));
 const notifyAdmins = (...a) => D.admins.forEach((x) => notify(x.user_id, ...a));
+const adminAction = (action, target_type, target_id, detail = {}) => D.admin_actions.push({ id: uid(), admin_id: me(), action, target_type, target_id, detail, created_at: now() });
 const profilePublic = (u) => D.profiles.some((p) => p.user_id === u && p.published && p.review_status === "approved");
 const orgApproved = (o) => D.organisations.some((x) => x.id === o && x.status === "approved");
+const orgBlocked = (o) => D.organisations.some((x) => x.id === o && ["suspended", "rejected"].includes(x.status));
+const idRequired = () => D.app_settings.some((s) => s.key === "require_id_verification" && s.value === "true");
+const trimmed = (v) => String(v ?? "").trim();
+const orNull = (v) => trimmed(v) || null;
+// 'DD Mon YYYY HH24:MI' in UTC, as the notifications print it.
+const utcStamp = (d = new Date()) => `${String(d.getUTCDate()).padStart(2, "0")} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getUTCMonth()]} ${d.getUTCFullYear()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+
+// SHA-256 of a UTF-8 string as hex, like encode(sha256(convert_to(text, 'UTF8')), 'hex').
+function sha256(text) {
+  const K = [], H = [], prime = (n) => { for (let i = 2; i * i <= n; i++) if (n % i === 0) return false; return true; };
+  for (let n = 2, i = 0; i < 64; n++) if (prime(n)) { if (i < 8) H[i] = (Math.pow(n, 1 / 2) * 2 ** 32) | 0; K[i++] = (Math.pow(n, 1 / 3) * 2 ** 32) | 0; }
+  const bytes = Array.from(new TextEncoder().encode(text)), bits = bytes.length * 8;
+  bytes.push(0x80);
+  while (bytes.length % 64 !== 56) bytes.push(0);
+  for (let i = 7; i >= 0; i--) bytes.push(i > 3 ? Math.floor(bits / 2 ** (i * 8)) & 255 : (bits >>> (i * 8)) & 255);
+  const h = H.slice(), w = new Array(64), rot = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let o = 0; o < bytes.length; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = (bytes[o + 4 * i] << 24) | (bytes[o + 4 * i + 1] << 16) | (bytes[o + 4 * i + 2] << 8) | bytes[o + 4 * i + 3];
+    for (let i = 16; i < 64; i++) w[i] = (w[i - 16] + (rot(w[i - 15], 7) ^ rot(w[i - 15], 18) ^ (w[i - 15] >>> 3)) + w[i - 7] + (rot(w[i - 2], 17) ^ rot(w[i - 2], 19) ^ (w[i - 2] >>> 10))) | 0;
+    let [a, b, c, d, e, f, g, k] = h;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (k + (rot(e, 6) ^ rot(e, 11) ^ rot(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0, t2 = ((rot(a, 2) ^ rot(a, 13) ^ rot(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      k = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    [a, b, c, d, e, f, g, k].forEach((x, i) => (h[i] = (h[i] + x) | 0));
+  }
+  return h.map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+// ---------- contribution helpers (hours_ready_at, endorsement_due_since, endorsement_overdue) ----------
+const hoursOf = (e, st) => D.hours.filter((h) => h.engagement_id === e.id && h.status === st);
+const approvedHours = (e) => hoursOf(e, "approved").reduce((t, h) => t + Number(h.hours), 0);
+function hoursReadyAt(e) {
+  const ok = hoursOf(e, "approved"), planned = Number(e.scope?.hours) || 0;
+  if (!planned || !ok.length || hoursOf(e, "pending").length || approvedHours(e) < planned) return null;
+  return ok.map((h) => h.reviewed_at || h.created_at).sort().pop();
+}
+const endorsementDueSince = (e) => (e.status === "active" ? [e.talent_delivered_at, hoursReadyAt(e)].filter(Boolean).sort()[0] || null : null);
+const endorsementOverdue = (org) => D.engagements.some((e) => e.organisation_id === org && e.status === "active" && ago(endorsementDueSince(e), 14));
+// Admins can read a conversation once it, or the contribution it belongs to, is reported.
+const conversationReported = (c) => D.reports.some((r) => (r.target_type === "conversation" && r.target_id === c.id) || (r.target_type === "contribution" && D.engagements.some((e) => e.id === r.target_id && e.need_id === c.need_id && e.user_id != null && e.user_id === c.user_id)));
 
 // ---------- visibility, loosely mirroring the database rules ----------
 function visible(table, r) {
-  const u = me(), admin = D.admins.some((a) => a.user_id === u);
+  const u = me(), admin = isAdmin(u);
   switch (table) {
-    case "profiles": return (r.published && r.review_status === "approved") || r.user_id === u || admin || D.applications.some((a) => a.user_id === r.user_id && isMember(needOrg(a.need_id))) || D.engagements.some((e) => e.user_id === r.user_id && isMember(e.organisation_id));
+    case "profiles": return (r.published && r.review_status === "approved") || own(r.user_id) || admin || D.applications.some((a) => a.user_id === r.user_id && isMember(needOrg(a.need_id))) || D.engagements.some((e) => e.user_id === r.user_id && isMember(e.organisation_id));
     case "organisations": return r.status === "approved" || isMember(r.id) || admin;
     case "needs": return (["open", "closed"].includes(r.status) && orgApproved(r.organisation_id)) || isMember(r.organisation_id) || admin;
-    case "applications": case "invitations": return r.user_id === u || isMember(needOrg(r.need_id)) || admin;
-    case "conversations": return r.user_id === u || isMember(needOrg(r.need_id)) || (admin && D.reports.some((x) => x.target_id === r.id));
-    case "messages": { const c = D.conversations.find((x) => x.id === r.conversation_id); return c && visible("conversations", c); }
-    case "engagements": return r.user_id === u || isMember(r.organisation_id) || admin;
-    case "hours": { const e = D.engagements.find((x) => x.id === r.engagement_id); return r.user_id === u || (e && isMember(e.organisation_id)) || admin; }
-    case "reports": return r.reporter_id === u || admin;
-    case "saved_needs": case "notifications": case "user_settings": case "user_private": return r.user_id === u || (table === "user_private" && admin);
-    case "agreement_signatures": return r.user_id === u || admin;
+    case "applications": case "invitations": return own(r.user_id) || isMember(needOrg(r.need_id)) || admin;
+    case "conversations": return isParty(r) || (admin && conversationReported(r));
+    case "messages": { const c = D.conversations.find((x) => x.id === r.conversation_id); return !!c && visible("conversations", c); }
+    case "engagements": return own(r.user_id) || isMember(r.organisation_id) || admin;
+    case "hours": { const e = D.engagements.find((x) => x.id === r.engagement_id); return own(r.user_id) || (e && isMember(e.organisation_id)) || admin; }
+    case "reports": return own(r.reporter_id) || admin;
+    case "saved_needs": case "notifications": case "user_settings": case "user_private": return own(r.user_id) || (table === "user_private" && admin);
+    case "agreement_signatures": case "id_verifications": return own(r.user_id) || admin;
+    case "contribution_signatures": return own(r.user_id) || isMember(r.organisation_id) || admin || D.engagements.some((e) => e.id === r.engagement_id && own(e.user_id));
+    case "completion_private": case "admin_actions": case "survey_responses": return admin;
     case "app_settings": return true;
-    case "organisation_members": return r.user_id === u || isMember(r.organisation_id) || admin;
+    case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
     default: return false;
   }
 }
+// Column grants: signers see each other's name, role, focal point and version, not email, IP or browser.
+const GRANTED = { contribution_signatures: ["id", "engagement_id", "organisation_id", "party", "full_name", "signer_role", "focal_point_name", "focal_point_contact", "version", "text_sha256", "language", "signed_at"] };
 
 // ---------- select parsing and embedding ----------
 function splitTop(s) { const out = []; let depth = 0, cur = ""; for (const ch of s) { if (ch === "(") depth++; if (ch === ")") depth--; if (ch === "," && !depth) { out.push(cur.trim()); cur = ""; } else cur += ch; } if (cur.trim()) out.push(cur.trim()); return out; }
 const FK = { organisations: ["organisation_id", "id"], profiles: ["user_id", "user_id"], needs: ["need_id", "id"] };
 function shape(table, row, cols) {
+  if (GRANTED[table]) row = Object.fromEntries(GRANTED[table].map((k) => [k, row[k]]));
   if (!cols || cols === "*") return { ...row };
   const out = {};
   for (const part of splitTop(cols)) {
@@ -67,12 +129,21 @@ function shape(table, row, cols) {
     if (m) {
       const [, alias, t, inner] = m;
       const [local, remote] = FK[t];
-      const target = D[t].find((x) => x[remote] === row[local] && visible(t, x));
+      const target = row[local] == null ? null : D[t].find((x) => x[remote] === row[local] && visible(t, x));
       out[alias || t] = target ? shape(t, target, inner) : null;
     } else if (part === "*") Object.assign(out, row);
     else out[part] = row[part];
   }
   return out;
+}
+
+// Range filters: numbers as numbers, dates and text as strings (ISO timestamps sort correctly as text). null never matches, as in SQL.
+const numeric = (x) => typeof x === "number" || (typeof x === "string" && x.trim() !== "" && !Number.isNaN(Number(x)) && !/^\d{4}-\d{2}-\d{2}/.test(x));
+function compare(a, b) {
+  if (a == null || b == null) return NaN;
+  if (numeric(a) && numeric(b)) return Number(a) - Number(b);
+  const x = String(a), y = String(b);
+  return x > y ? 1 : x < y ? -1 : 0;
 }
 
 class Query {
@@ -85,6 +156,10 @@ class Query {
   neq(k, v) { this.f.push((r) => String(r[k]) !== String(v)); return this; }
   in(k, arr) { this.f.push((r) => arr.map(String).includes(String(r[k]))); return this; }
   is(k, v) { this.f.push((r) => (v === null ? r[k] == null : r[k] === v)); return this; }
+  gt(k, v) { this.f.push((r) => compare(r[k], v) > 0); return this; }
+  gte(k, v) { this.f.push((r) => compare(r[k], v) >= 0); return this; }
+  lt(k, v) { this.f.push((r) => compare(r[k], v) < 0); return this; }
+  lte(k, v) { this.f.push((r) => compare(r[k], v) <= 0); return this; }
   order(k, o = {}) { this.ord = [k, o.ascending !== false]; return this; }
   limit(n) { this.lim = n; return this; }
   maybeSingle() { this.single = "maybe"; return this; }
@@ -116,11 +191,13 @@ class Query {
   }
 }
 
+const REPORT_TYPES = ["profile", "need", "organisation", "conversation", "contribution", "other"];
+const REPORT_REASONS = ["safety", "exploitation", "harassment", "fraud", "misleading", "privacy", "spam", "other"];
 function insertRow(t, v) {
   const u = me();
   if (!u) fail("Please sign in.", "42501");
   const row = { id: uid(), created_at: now(), ...v };
-  if (t === "user_settings") { if (v.user_id && v.user_id !== u) fail("new row violates row-level security policy", "42501"); row.user_id = u; delete row.id; }
+  if (t === "user_settings") { if (v.user_id && v.user_id !== u) RLS(); row.user_id = u; delete row.id; }
   if (t === "profiles") {
     if (v.user_id !== u) fail("permission", "42501");
     if (v.published && !(v.age_confirmed && v.unpaid_confirmed)) fail("check", "23514");
@@ -129,42 +206,63 @@ function insertRow(t, v) {
     if (v.published) notifyAdmins("profile_review", "Profile to review", v.name, "#admin");
   }
   if (t === "needs") {
-    if (!isMember(v.organisation_id)) fail("new row violates row-level security policy", "42501");
-    if (!["draft", "pending"].includes(v.status) && !orgApproved(v.organisation_id)) fail("new row violates row-level security policy", "42501");
+    if (!isMember(v.organisation_id)) RLS();
+    if (!["draft", "pending"].includes(v.status) && !orgApproved(v.organisation_id)) RLS();
+    // need_guard
+    if (v.status === "closed" && !isAdmin()) fail("Only a need Handova has approved can be closed. Send it for review first.");
     if (v.status === "open") fail("Send your need for review. Handova checks every need and opens it once it is approved.");
     if (!v.no_vulnerable_contact) fail("check", "23514");
+    if (v.status === "pending" && !isAdmin() && orgBlocked(v.organisation_id)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
+    if (v.status === "pending" && !isAdmin() && endorsementOverdue(v.organisation_id)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
     if (v.status === "pending" && needsInUse(v.organisation_id, null, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
-    if (v.status === "pending") notifyAdmins("need_submitted", "A need is waiting for review", v.title, "#admin");
-    if (v.status === "open" && D.needs.filter((n) => n.organisation_id === v.organisation_id && n.status === "open").length >= 3) fail("An organisation can have up to 3 open needs at a time. Close one first.");
+    if (v.status === "pending") { row.review_note = null; notifyAdmins("need_submitted", "A need is waiting for review", v.title, "#admin"); }
+    row.updated_at = now();
   }
   if (t === "applications" || t === "invitations") {
     const n = D.needs.find((x) => x.id === v.need_id);
-    if (!n || n.status !== "open") fail("new row violates row-level security policy", "42501");
-    if (t === "applications" && (v.user_id !== u || !profilePublic(u))) fail("new row violates row-level security policy", "42501");
-    if (t === "invitations" && (!isMember(n.organisation_id) || !profilePublic(v.user_id))) fail("new row violates row-level security policy", "42501");
+    if (!n || n.status !== "open") RLS();
+    if (t === "applications" && (v.user_id !== u || !profilePublic(u))) RLS();
+    if (t === "invitations" && (!isMember(n.organisation_id) || !profilePublic(v.user_id))) RLS();
     if (D[t].some((x) => x.need_id === v.need_id && x.user_id === v.user_id)) fail("duplicate", "23505");
-    Object.assign(row, { status: "pending" });
-    let c = D.conversations.find((x) => x.need_id === v.need_id && x.user_id === v.user_id);
-    if (c) Object.assign(c, { status: "open", closed_reason: "" }); else D.conversations.push({ id: uid(), need_id: v.need_id, user_id: v.user_id, status: "open", closed_reason: "", created_at: now() });
+    Object.assign(row, { status: "pending", decided_at: null });
+    conversationFor(v.need_id, v.user_id);
     if (t === "applications") notifyOrg(n.organisation_id, "application", "New application", n.title, "#org"); else notify(v.user_id, "invitation", "You have been invited to a need", n.title, "#workspace");
   }
   if (t === "messages") {
     const c = D.conversations.find((x) => x.id === v.conversation_id);
-    if (!c || c.status !== "open" || !visible("conversations", c) || v.sender_id !== u) fail("new row violates row-level security policy", "42501");
-    const n = D.needs.find((x) => x.id === c.need_id);
-    if (u === c.user_id) notifyOrg(n.organisation_id, "message", "New message", n.title, "#conversation/" + c.id); else notify(c.user_id, "message", "New message", n.title, "#conversation/" + c.id);
+    if (!c || c.status !== "open" || !isParty(c) || v.sender_id !== u) RLS();
+    const body = trimmed(v.body);
+    if (!body || body.length > 4000) CHECK("messages");
+    // Column grants: members insert only conversation_id, sender_id and body; Handova's own messages come from server functions.
+    if (Object.keys(v).some((k) => !["conversation_id", "sender_id", "body"].includes(k))) fail("permission denied for table messages", "42501");
+    Object.assign(row, { kind: "user", sender_closed_at: null });
+    messageNotify(row, c);
   }
   if (t === "hours") {
+    // hours_notify (before insert): at most 12 hours a day across all contributions.
+    const hrs = Number(v.hours);
+    if (D.hours.filter((h) => h.user_id === v.user_id && h.work_date === v.work_date && h.status !== "changes_requested").reduce((s, h) => s + Number(h.hours), 0) + hrs > 12) fail("You can log up to 12 hours in one day.");
     const e = D.engagements.find((x) => x.id === v.engagement_id);
-    if (!e || e.user_id !== u || e.status !== "active") fail("new row violates row-level security policy", "42501");
-    Object.assign(row, { status: "pending", review_note: "" });
+    if (!e || !own(e.user_id) || v.user_id !== u || e.status !== "active") RLS();
+    const desc = trimmed(v.description);
+    if (!(hrs > 0 && hrs <= 12) || !v.work_date || v.work_date > today() || desc.length < 10 || desc.length > 2000 || (v.evidence && !/^https:\/\//.test(v.evidence))) CHECK("hours");
+    Object.assign(row, { evidence: v.evidence || "", status: "pending", review_note: "", reviewed_by: null, reviewed_at: null });
     notifyOrg(e.organisation_id, "hours", "Hours to review", e.scope.need_title, "#org");
   }
-  if (t === "reports") { row.reporter_id = u; row.status = "open"; notifyAdmins("report", "New concern reported", `${v.reason} · ${v.target_type}`, "#admin"); }
+  if (t === "reports") {
+    Object.assign(row, { reporter_id: u, status: "open", admin_note: "", resolved_at: null });
+    if (v.target_type === "conversation" && !isParty(D.conversations.find((c) => c.id === v.target_id))) RLS();
+    if (D.reports.filter((r) => r.reporter_id === u && !ago(r.created_at, 1)).length >= 10) RLS();
+    const details = trimmed(v.details);
+    if (!REPORT_TYPES.includes(v.target_type) || !REPORT_REASONS.includes(v.reason) || details.length < 10 || details.length > 4000) CHECK("reports");
+    notifyAdmins("report", v.reason === "exploitation" ? "Urgent: sexual exploitation or abuse reported" : "New concern reported", `${v.reason} · ${v.target_type}`, "#admin");
+    notify(u, "report_received", "We received your report", `Thank you. Our safeguarding lead reads every report and will contact you if we need more information. Reference ${String(row.id).slice(0, 8).toUpperCase()}.`, "#report");
+  }
   if (t === "saved_needs") delete row.id;
   D[t].push(row);
   return row;
 }
+const LIVE_FIELDS = ["title", "description", "output", "skills", "languages", "hours", "location", "country", "deadline", "places", "arrangement"];
 function updateRow(t, r, v) {
   const u = me();
   if (t === "profiles") {
@@ -175,17 +273,41 @@ function updateRow(t, r, v) {
     if (r.published && !(r.age_confirmed && r.unpaid_confirmed)) fail("check", "23514");
     if (r.published && !was && ["draft", "changes_requested"].includes(r.review_status)) { r.review_status = "pending"; notifyAdmins("profile_review", "Profile to review", r.name, "#admin"); }
   } else if (t === "needs") {
-    if (!isMember(r.organisation_id)) fail("permission", "42501");
+    // needs_update policy, then need_guard (20261019000500_audit_fixes.sql)
+    const adm = isAdmin(), org = r.organisation_id;
+    if (!isMember(org)) fail("permission", "42501");
     if (["open", "closed"].includes(r.status) && ["draft", "pending"].includes(v.status)) fail("Close a published need instead of returning it to draft.");
-    if (["open", "closed"].includes(r.status) && ["title", "description", "output", "skills", "languages", "hours", "location", "deadline", "places"].some((k) => k in v && JSON.stringify(v[k]) !== JSON.stringify(r[k]))) fail("A live need can’t be edited. Stop applications and send a corrected copy for review.");
-    if (v.status === "open" && r.status !== "open" && !(r.status === "closed" && r.approved_at)) fail("Send your need for review. Handova checks every need and opens it once it is approved.");
-    if (v.status === "pending" && r.status !== "pending" && needsInUse(r.organisation_id, r.id, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
-    if (v.status === "pending" && r.status !== "pending") { v = { ...v, review_note: null }; notifyAdmins("need_submitted", "A need is waiting for review", r.title, "#admin"); }
-    if (v.status === "closed" && r.status === "open") closeNeedApps(r);
-    if (v.status === "open" && r.status !== "open" && D.needs.filter((n) => n.organisation_id === r.organisation_id && n.status === "open").length >= 3) fail("An organisation can have up to 3 open needs at a time. Close one first.");
+    if (!adm && v.status === "closed" && ["draft", "pending"].includes(r.status)) fail("Only a need Handova has approved can be closed. Send it for review first.");
+    if (v.status === "open" && r.status !== "open") {
+      if (!adm && !(r.status === "closed" && r.approved_at)) fail("Send your need for review. Handova checks every need and opens it once it is approved.");
+      if (!adm && endorsementOverdue(org)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first.");
+      if (!orgApproved(org)) fail("The organisation must be approved before its needs can open.");
+      if (needsInUse(org, r.id, false) >= 3) fail("An organisation can have up to 3 needs open or in progress at a time. Finish or close one first.");
+      const deadline = "deadline" in v ? v.deadline : r.deadline;
+      if (deadline && deadline < today()) fail("Choose a deadline in the future.");
+      v = { ...v, approved_at: r.approved_at || now(), review_note: null };
+    }
+    if (v.status === "pending" && r.status !== "pending") {
+      if (!adm && orgBlocked(org)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
+      if (!adm && endorsementOverdue(org)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
+      if (needsInUse(org, r.id, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
+      v = { ...v, review_note: null };
+    }
+    if (!adm && ["open", "closed"].includes(r.status) && LIVE_FIELDS.some((k) => k in v && JSON.stringify(v[k]) !== JSON.stringify(r[k]))) fail("A live need can’t be edited. Stop applications and send a corrected copy for review.");
     if ((v.status || r.status) !== "draft" && !(v.no_vulnerable_contact ?? r.no_vulnerable_contact)) fail("check", "23514");
+    if (!["draft", "pending"].includes(v.status ?? r.status) && !orgApproved(org)) RLS();
+    if (v.status === "pending" && r.status !== "pending") notifyAdmins("need_submitted", "A need is waiting for review", v.title ?? r.title, "#admin");
+    const closing = v.status === "closed" && r.status === "open";
     Object.assign(r, v, { updated_at: now() });
-  } else if (t === "organisations") { if (!isMember(r.id)) fail("permission", "42501"); Object.assign(r, v); }
+    if (closing) closeNeedApps(r);
+  } else if (t === "organisations") {
+    if (!isMember(r.id)) fail("permission", "42501");
+    const old = { ...r };
+    Object.assign(r, v);
+    // org_change_guard: Handova hears about edits to an approved organisation; one asked for details goes back into review.
+    if (old.status === "approved" && ["name", "website", "summary", "ethical_bridge_url", "country", "org_type", "logo_url"].some((k) => JSON.stringify(r[k] ?? null) !== JSON.stringify(old[k] ?? null))) notifyAdmins("org_changed", "Approved organisation updated", r.name, "#organisations/" + r.id);
+    if (old.status === "changes_requested" && r.status === "changes_requested" && !isAdmin()) { r.status = "pending"; notifyAdmins("org_review", "Organisation updated and ready for review", r.name, "#admin"); }
+  }
   else if (t === "notifications") { if (r.user_id !== u) fail("permission", "42501"); Object.assign(r, { read_at: v.read_at }); }
   else fail("permission denied", "42501");
 }
@@ -208,50 +330,412 @@ const rpcs = {
     const row = { id: uid(), user_id: me(), kind: p_kind, version: p_version, full_name: p_name.trim(), hours_committed: p_hours, agreement_text: p_text, signed_at: now() };
     D.agreement_signatures.push(row); return row.id;
   },
-  is_admin: () => D.admins.some((a) => a.user_id === me()),
-  create_organisation: (a) => { if (!me()) fail("Please sign in first."); if (!a.p_locally_led) fail("Handova is for locally led organisations."); const id = uid(); D.organisations.push({ id, name: a.p_name, country: a.p_country, city: a.p_city || "", website: a.p_website || "", summary: a.p_summary || "", org_type: a.p_org_type, locally_led_confirmed: true, status: "pending", created_at: now() }); D.organisation_members.push({ organisation_id: id, user_id: me(), role: "owner", full_name: a.p_full_name || "", created_at: now() }); notifyAdmins("org_review", "Organisation to review", a.p_name, "#admin"); return id; },
-  admin_review_organisation: (a) => { if (!rpcs.is_admin()) fail("Administrator access required."); const o = D.organisations.find((x) => x.id === a.p_org); o.status = a.p_decision; if (a.p_decision === "approved") o.approved_at = now(); notifyOrg(o.id, "org_decision", a.p_decision === "approved" ? "Your organisation is approved" : "Please update your organisation details", a.p_note || "", "#org"); },
-  admin_review_profile: (a) => { if (!rpcs.is_admin()) fail("Administrator access required."); const p = D.profiles.find((x) => x.user_id === a.p_user); p.review_status = a.p_decision; if (a.p_decision === "approved") p.approved_at = now(); notify(p.user_id, "profile_decision", a.p_decision === "approved" ? "Your profile is approved and public" : "Please update your profile", a.p_note || "", "#workspace"); },
-  admin_review_need: (a) => { if (!rpcs.is_admin()) fail("Administrator access required."); const n = D.needs.find((x) => x.id === a.p_need); if (!n) fail("Need not found."); if (n.status !== "pending") fail("This need is not waiting for review."); if (a.p_decision === "approved") { if (!orgApproved(n.organisation_id)) fail("Approve the organisation first. The need stays pending until then."); Object.assign(n, { status: "open", approved_at: now(), review_note: null }); notifyOrg(n.organisation_id, "need_decision", "Your need is live", a.p_note || n.title, "#org/needs/" + n.id); } else { if (!String(a.p_note || "").trim()) fail("Write a note so the organisation knows what to change."); Object.assign(n, { status: "draft", review_note: a.p_note.trim() }); notifyOrg(n.organisation_id, "need_decision", "Please update your need", a.p_note, "#org/needs/" + n.id); } },
-  record_first_call: (a) => { const x = D.engagements.find((y) => y.id === a.p_id); if (!x) fail("Not found"); if (x.status !== "active") fail("You can record the first call once both have signed."); let c = D.conversations.find((v) => v.need_id === x.need_id && v.user_id === x.user_id); if (!c) { c = { id: uid(), need_id: x.need_id, user_id: x.user_id, status: "open", closed_reason: "", created_at: now() }; D.conversations.push(c); } D.messages.push({ id: uid(), conversation_id: c.id, sender_id: me(), body: a.p_summary, kind: "user", created_at: now() }); Object.assign(x, { first_call_at: a.p_date || now(), first_call_by: me(), first_call_written: !!a.p_written }); },
-  admin_update_report: (a) => { if (!rpcs.is_admin()) fail("Administrator access required."); Object.assign(D.reports.find((x) => x.id === a.p_id), { status: a.p_status }); },
-  decide_application: (a) => { const x = D.applications.find((y) => y.id === a.p_id); if (!x || !isMember(needOrg(x.need_id))) fail("You cannot decide on this application."); if (x.status !== "pending") fail("This application has already been decided."); x.status = a.p_accept ? "accepted" : "declined"; if (a.p_accept) return engage(x.need_id, x.user_id); closeConv(x.need_id, x.user_id, "Application not selected"); notify(x.user_id, "application_decision", "Your application was not selected", "", "#workspace"); return null; },
-  withdraw_application: (a) => { const x = D.applications.find((y) => y.id === a.p_id && y.user_id === me()); if (!x || x.status !== "pending") fail("Only a pending application can be withdrawn."); x.status = "withdrawn"; closeConv(x.need_id, x.user_id, "Application withdrawn"); },
-  admin_introduce: (a) => { if (!D.admins.some((x) => x.user_id === me())) fail("Administrator access required."); const n = D.needs.find((x) => x.id === a.p_need); if (!n || n.status !== "open" || !orgApproved(n.organisation_id)) fail("This need is not open."); if (!profilePublic(a.p_user)) fail("Only approved, published profiles can be introduced."); if (D.invitations.some((x) => x.need_id === a.p_need && x.user_id === a.p_user) || D.applications.some((x) => x.need_id === a.p_need && x.user_id === a.p_user && ["pending", "accepted"].includes(x.status))) fail("This person is already connected to this need."); if (String(a.p_message || "").trim().length < 30) fail("Write a short introduction of at least 30 characters."); const id = uid(); D.invitations.push({ id, need_id: a.p_need, user_id: a.p_user, invited_by: me(), message: "[Introduced by Handova] " + a.p_message.trim(), status: "pending", created_at: now() }); let c = D.conversations.find((x) => x.need_id === a.p_need && x.user_id === a.p_user); if (c) Object.assign(c, { status: "open", closed_reason: "" }); else D.conversations.push({ id: uid(), need_id: a.p_need, user_id: a.p_user, status: "open", closed_reason: "", created_at: now() }); notify(a.p_user, "invitation", "You have been invited to a need", n.title, "#workspace"); notifyOrg(n.organisation_id, "introduction", "Handova introduced a professional", n.title, "#org"); return id; },
-  respond_invitation: (a) => { const x = D.invitations.find((y) => y.id === a.p_id && y.user_id === me()); if (!x || x.status !== "pending") fail("You have already responded."); x.status = a.p_accept ? "accepted" : "declined"; if (a.p_accept) return engage(x.need_id, x.user_id); closeConv(x.need_id, x.user_id, "Invitation declined"); return null; },
-  sign_engagement: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || e.status !== "awaiting_signatures") fail("This agreement is no longer awaiting signatures."); if (!a.p_name || a.p_name.trim().length < 2) fail("Type your full name to sign."); if (e.user_id === me()) { if (e.talent_signed_at) fail("You have already signed."); Object.assign(e, { talent_signed_name: a.p_name, talent_signed_at: now() }); } else if (isMember(e.organisation_id)) { if (e.org_signed_at) fail("Your organisation has already signed."); Object.assign(e, { org_signed_name: a.p_name, org_signed_at: now() }); } else fail("You are not a party to this agreement."); if (e.talent_signed_at && e.org_signed_at) e.status = "active"; return e.status; },
-  review_hours: (a) => { const h = D.hours.find((x) => x.id === a.p_id); const e = D.engagements.find((x) => x.id === h?.engagement_id); if (!h || !isMember(e.organisation_id) || h.user_id === me()) fail("You cannot review this entry."); if (h.status !== "pending") fail("This entry has already been reviewed."); if (!a.p_approve && (a.p_note || "").trim().length < 5) fail("Explain what needs to change."); Object.assign(h, { status: a.p_approve ? "approved" : "changes_requested", review_note: a.p_note || "" }); notify(h.user_id, "hours_review", a.p_approve ? "Hours approved" : "Changes requested on your hours", e.scope.need_title, "#workspace"); },
-  complete_engagement: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || !isMember(e.organisation_id)) fail("You cannot complete this contribution."); if (e.status !== "active") fail("Only an active contribution can be completed."); if (D.hours.some((h) => h.engagement_id === e.id && h.status === "pending")) fail("Review all pending hours first."); const endorse = (a.p_endorsement || "").trim(); if (a.p_delivered === "all" && endorse.length < 100) fail("Write an endorsement of at least 100 characters."); if (!(a.p_skills || []).length) fail("Choose at least one skill you saw in this work."); Object.assign(e, { status: "completed", completed_at: now(), followup_due: new Date(Date.now() + 182 * 864e5).toISOString().slice(0, 10), delivered_as_agreed: a.p_delivered, deliverables: a.p_deliverables, confirmed_skills: a.p_skills || [], endorsement: endorse || null, endorsement_language: a.p_language, endorsed_by_role: a.p_role, endorser_name: a.p_name, show_endorser_name: a.p_show_name, note_to_professional: a.p_note || null, rating: null }); closeConv(e.need_id, e.user_id, "Contribution completed"); notify(e.user_id, "completed", "Your endorsement is ready", e.scope.need_title, "#workspace"); },
-  request_endorsement_correction: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || e.user_id !== me()) fail("Only the professional can ask for a correction."); if (e.correction_requested_at) fail("You have already asked for a correction."); Object.assign(e, { correction_requested_at: now(), correction_reason: a.p_reason, correction_note: a.p_note, public: false }); },
-  edit_endorsement: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || !isMember(e.organisation_id)) fail("You cannot edit this endorsement."); if (!e.correction_requested_at || e.endorsement_edited_at) fail("Not possible."); Object.assign(e, { deliverables: a.p_deliverables, endorsement: a.p_endorsement || null, confirmed_skills: a.p_skills, endorsement_edited_at: now() }); },
-  mark_delivered: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || e.user_id !== me()) fail("Only the professional can say the work is delivered."); if (e.status !== "active") fail("This contribution is not in progress."); if (e.talent_delivered_at) fail("You have already told the organisation."); e.talent_delivered_at = now(); notify(D.organisation_members.find((m) => m.organisation_id === e.organisation_id)?.user_id, "delivered", `${e.scope.talent} has delivered everything`, e.scope.need_title, `#org/needs/${e.need_id}`); },
+  is_admin: () => isAdmin(),
+  // The organisation agreement just signed is linked to the new organisation (20261019000800).
+  create_organisation: (a) => {
+    const u = me();
+    if (!u) fail("Please sign in first.");
+    if (!a.p_locally_led) fail("Handova is for locally led organisations.");
+    if (D.organisation_members.filter((m) => m.user_id === u).length >= 3) fail("You can manage up to three organisations.");
+    const sig = D.agreement_signatures.filter((s) => s.user_id === u && s.kind === "organisation" && !s.organisation_id).sort((x, y) => (x.signed_at < y.signed_at ? 1 : -1))[0];
+    if (!sig) fail("Please read and sign the Handova organisation agreement first.");
+    const id = uid();
+    D.organisations.push({ id, name: trimmed(a.p_name), country: trimmed(a.p_country), city: trimmed(a.p_city), website: trimmed(a.p_website), summary: trimmed(a.p_summary), org_type: trimmed(a.p_org_type) || "Community organisation", locally_led_confirmed: true, status: "pending", created_at: now() });
+    sig.organisation_id = id;
+    D.organisation_members.push({ organisation_id: id, user_id: u, role: "owner", full_name: trimmed(a.p_full_name), created_at: now() });
+    notifyAdmins("org_review", "Organisation to review", trimmed(a.p_name), "#admin");
+    return id;
+  },
+  // Suspending or rejecting also stops its open needs; applicants and invitees are told (20261019000200).
+  admin_review_organisation: (a) => {
+    requireAdmin();
+    const d = a.p_decision;
+    if (!["pending", "approved", "changes_requested", "rejected", "suspended"].includes(d)) fail(`invalid input value for enum org_status: "${d}"`, "22P02");
+    const o = D.organisations.find((x) => x.id === a.p_org);
+    if (!o) fail("Organisation not found.");
+    const note = orNull(a.p_note);
+    o.status = d;
+    if (d === "approved") o.approved_at ||= now();
+    if (["suspended", "rejected"].includes(d)) D.needs.filter((n) => n.organisation_id === o.id && n.status === "open").forEach(closeNeed);
+    if (d === "approved") notifyOrg(o.id, "org_decision", "Your organisation is approved", "You can now post your first need: one piece of work, up to 16 hours, with a clear output. Handova checks each need before it goes live, usually within two working days." + (D.needs.some((x) => x.organisation_id === o.id && x.status === "pending") ? " The needs you already sent are being checked now." : "") + (note ? " Note from Handova: " + note : ""), "#org/need");
+    else notifyOrg(o.id, "org_decision", { changes_requested: "Please update your organisation details", rejected: "Your organisation was not approved", suspended: "Your organisation is suspended on Handova" }[d] || "Your organisation status changed", note || "", "#org");
+    adminAction("org_" + d, "organisation", o.id, { name: o.name, note: a.p_note || "" });
+  },
+  admin_review_profile: (a) => {
+    requireAdmin();
+    if (!["approved", "changes_requested", "rejected"].includes(a.p_decision)) fail("Choose approve, request changes or reject.");
+    const p = D.profiles.find((x) => x.user_id === a.p_user);
+    if (!p) fail("Profile not found.");
+    p.review_status = a.p_decision; if (a.p_decision === "approved") p.approved_at ||= now();
+    notify(p.user_id, "profile_decision", { approved: "Your profile is approved and public", changes_requested: "Please update your profile" }[a.p_decision] || "Your profile was not approved", a.p_note || "", "#workspace");
+  },
+  admin_confirm_identity: (a) => {
+    requireAdmin();
+    const p = D.profiles.find((x) => x.user_id === a.p_user);
+    if (p) Object.assign(p, { id_status: a.p_approve ? "approved" : "declined", id_verified_at: a.p_approve ? now() : null, updated_at: now() });
+    notify(a.p_user, "id_check", a.p_approve ? "Your identity is verified" : "We could not confirm your identity", a.p_approve ? "Thank you. Your profile now shows ID verified." : "Please try the identity check again, or write to hello@handova.org.", "#workspace/profile");
+  },
+  admin_review_need: (a) => {
+    requireAdmin();
+    const n = D.needs.find((x) => x.id === a.p_need);
+    if (!n) fail("Need not found.");
+    if (n.status !== "pending") fail("This need is not waiting for review.");
+    if (a.p_decision === "approved") {
+      if (!orgApproved(n.organisation_id)) fail("Approve the organisation first. The need stays pending until then.");
+      if (needsInUse(n.organisation_id, n.id, false) >= 3) fail("An organisation can have up to 3 needs open or in progress at a time. Finish or close one first.");
+      if (n.deadline && n.deadline < today()) fail("Choose a deadline in the future.");
+      Object.assign(n, { status: "open", approved_at: n.approved_at || now(), review_note: null, updated_at: now() });
+      notifyOrg(n.organisation_id, "need_decision", "Your need is live", orNull(a.p_note) || n.title, "#org/needs/" + n.id);
+    } else if (a.p_decision === "changes_requested") {
+      const note = trimmed(a.p_note);
+      if (!note) fail("Write a note so the organisation knows what to change.");
+      Object.assign(n, { status: "draft", review_note: note, updated_at: now() });
+      notifyOrg(n.organisation_id, "need_decision", "Please update your need", note, "#org/needs/" + n.id);
+    } else fail("Choose approve or ask for changes.");
+  },
+  record_first_call: (a) => {
+    const u = me(), x = D.engagements.find((y) => y.id === a.p_id);
+    if (!x || !(own(x.user_id) || isMember(x.organisation_id))) fail("You are not a party to this contribution.");
+    if (x.status !== "active") fail("You can record the first call once both have signed.");
+    const summary = trimmed(a.p_summary);
+    if (summary.length < 10) fail("Add a short summary of what you agreed.");
+    postMessage(conversationFor(x.need_id, x.user_id), u, summary.slice(0, 4000), "user");
+    Object.assign(x, { first_call_at: a.p_date ? `${a.p_date}T00:00:00.000Z` : now(), first_call_by: u, first_call_written: !!a.p_written });
+  },
+  admin_update_report: (a) => {
+    requireAdmin();
+    if (!["open", "reviewing", "resolved"].includes(a.p_status)) CHECK("reports");
+    const r = D.reports.find((x) => x.id === a.p_id);
+    if (r) Object.assign(r, { status: a.p_status, admin_note: a.p_note || "", resolved_at: a.p_status === "resolved" ? now() : null });
+  },
+  decide_application: (a) => {
+    const x = D.applications.find((y) => y.id === a.p_id);
+    if (!x || !isMember(needOrg(x.need_id))) fail("You cannot decide on this application.");
+    if (x.status !== "pending") fail("This application has already been decided.");
+    Object.assign(x, { status: a.p_accept ? "accepted" : "declined", decided_at: now() });
+    if (a.p_accept) return engage(x.need_id, x.user_id);
+    closeConv(x.need_id, x.user_id, "Application not selected");
+    notify(x.user_id, "application_decision", "Your application was not selected", D.needs.find((n) => n.id === x.need_id)?.title || "", "#workspace");
+    return null;
+  },
+  withdraw_application: (a) => {
+    const x = D.applications.find((y) => y.id === a.p_id && own(y.user_id));
+    if (!x) fail("Application not found.");
+    if (x.status !== "pending") fail("Only a pending application can be withdrawn.");
+    Object.assign(x, { status: "withdrawn", decided_at: now() });
+    closeConv(x.need_id, x.user_id, "Application withdrawn");
+    notifyOrg(needOrg(x.need_id), "application_withdrawn", "An application was withdrawn", D.needs.find((n) => n.id === x.need_id)?.title || "", "#org");
+  },
+  admin_introduce: (a) => { if (!isAdmin()) fail("Administrator access required."); const n = D.needs.find((x) => x.id === a.p_need); if (!n || n.status !== "open" || !orgApproved(n.organisation_id)) fail("This need is not open."); if (!profilePublic(a.p_user)) fail("Only approved, published profiles can be introduced."); if (D.invitations.some((x) => x.need_id === a.p_need && x.user_id === a.p_user) || D.applications.some((x) => x.need_id === a.p_need && x.user_id === a.p_user && ["pending", "accepted"].includes(x.status))) fail("This person is already connected to this need."); if (String(a.p_message || "").trim().length < 30) fail("Write a short introduction of at least 30 characters."); const id = uid(); D.invitations.push({ id, need_id: a.p_need, user_id: a.p_user, invited_by: me(), message: "[Introduced by Handova] " + a.p_message.trim(), status: "pending", decided_at: null, created_at: now() }); conversationFor(a.p_need, a.p_user); notify(a.p_user, "invitation", "You have been invited to a need", n.title, "#workspace"); notifyOrg(n.organisation_id, "introduction", "Handova introduced a professional", n.title, "#org"); return id; },
+  respond_invitation: (a) => {
+    const x = D.invitations.find((y) => y.id === a.p_id && own(y.user_id));
+    if (!x) fail("Invitation not found.");
+    if (x.status !== "pending") fail("You have already responded.");
+    Object.assign(x, { status: a.p_accept ? "accepted" : "declined", decided_at: now() });
+    if (a.p_accept) return engage(x.need_id, x.user_id);
+    closeConv(x.need_id, x.user_id, "Invitation declined");
+    notifyOrg(needOrg(x.need_id), "invitation_declined", "An invitation was declined", D.needs.find((n) => n.id === x.need_id)?.title || "", "#org");
+    return null;
+  },
+  // Contribution agreement v2 (20261018000600_kickoff_and_messages.sql): keeps the exact text, its hash and each confirmation;
+  // the organisation names its signer's role and a safeguarding focal point. When both have signed, Handova posts the first-call agenda.
+  sign_engagement: (a) => {
+    const u = me();
+    if (a.p_text === undefined && a.p_version === undefined) fail("Handova was updated. Please reload the page and sign again.");
+    if (!u) fail("Please sign in first.");
+    const name = trimmed(a.p_name);
+    if (name.length < 2) fail("Type your full name to sign.");
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e) fail("Agreement not found.");
+    if (e.status !== "awaiting_signatures") fail("This agreement is no longer awaiting signatures.");
+    if (a.p_version !== e.terms_version) fail("This agreement has been updated. Reload the page and read it again.");
+    const text = String(a.p_text || "");
+    if (!text || !text.includes(e.scope?.need_title || "") || !text.includes(e.terms_version)) fail("The agreement text could not be confirmed. Reload the page and sign again.");
+    const hash = sha256(text), conf = a.p_confirmations || {};
+    let party, needed, idst = null, idat = null;
+    if (own(e.user_id)) {
+      party = "professional";
+      if (e.talent_signed_at) fail("You have already signed.");
+      idst = D.profiles.find((p) => p.user_id === u)?.id_status ?? null;
+      if (idRequired() && idst !== "approved") fail("Please verify your identity before signing your first contribution agreement. You can do it from your profile in a few minutes.");
+      idat = D.id_verifications.filter((v) => v.user_id === u && String(v.status).toLowerCase() === "approved").map((v) => v.updated_at).sort().pop() || null;
+      needed = ["scope", "confidentiality", "read_all", "no_conflict"];
+    } else if (isMember(e.organisation_id)) {
+      party = "organisation";
+      if (e.org_signed_at) fail("Your organisation has already signed.");
+      if (trimmed(a.p_role).length < 2) fail("Add your role in the organisation.");
+      if (trimmed(a.p_focal_name).length < 2 || trimmed(a.p_focal_contact).length < 5) fail("Name the safeguarding focal point for this contribution and how to reach them.");
+      needed = ["scope", "confidentiality", "read_all", "no_conflict", "authority"];
+    } else fail("You are not a party to this agreement.");
+    if (needed.some((k) => !(conf[k] === true || conf[k] === "true"))) fail("Tick every confirmation to sign.");
+    if (name.length > 120 || trimmed(a.p_role).length > 120 || trimmed(a.p_focal_name).length > 120 || trimmed(a.p_focal_contact).length > 200) CHECK("contribution_signatures");
+    D.contribution_signatures.push({ id: uid(), engagement_id: e.id, organisation_id: e.organisation_id, party, user_id: u, email: D.users.find((x) => x.id === u)?.email || "", full_name: name, signer_role: orNull(a.p_role), focal_point_name: orNull(a.p_focal_name), focal_point_contact: orNull(a.p_focal_contact), confirmations: conf, version: e.terms_version, agreement_text: text, text_sha256: hash, language: String(a.p_lang || "en").slice(0, 8), ip: "", user_agent: (navigator.userAgent || "").slice(0, 400), id_status: party === "professional" ? idst : null, id_verified_at: idat, signed_at: now(), account_closed_at: null });
+    const title = e.scope?.need_title || "";
+    if (party === "professional") {
+      Object.assign(e, { talent_signed_name: name, talent_signed_at: now() });
+      notifyOrg(e.organisation_id, "signed", "The professional signed the agreement", title, "#agreement/" + e.id);
+    } else {
+      Object.assign(e, { org_signed_name: name, org_signed_by: u, org_signed_at: now() });
+      notify(e.user_id, "signed", "The organisation signed the agreement", title, "#agreement/" + e.id);
+    }
+    if (e.talent_signed_at && e.org_signed_at) {
+      e.status = "active";
+      kickoffMessage(e);
+      const body = `${title}. Arrange a 30–45 minute call to meet and plan the work. A suggested agenda is in your Messages. Signed ${utcStamp()} UTC · ${e.terms_version} · reference ${hash.slice(0, 12)}`, link = `#conversation-for/${e.need_id}/${e.user_id}`;
+      notify(e.user_id, "agreement_active", "Signed by both. Next: plan your first call", body, link);
+      notifyOrg(e.organisation_id, "agreement_active", "Signed by both. Next: plan your first call", body, link);
+    }
+    return e.status;
+  },
+  review_hours: (a) => { const h = D.hours.find((x) => x.id === a.p_id); const e = D.engagements.find((x) => x.id === h?.engagement_id); if (!h || !isMember(e.organisation_id) || own(h.user_id)) fail("You cannot review this entry."); if (h.status !== "pending") fail("This entry has already been reviewed."); if (!a.p_approve && trimmed(a.p_note).length < 5) fail("Explain what needs to change."); Object.assign(h, { status: a.p_approve ? "approved" : "changes_requested", review_note: trimmed(a.p_note), reviewed_by: me(), reviewed_at: now() }); notify(h.user_id, "hours_review", a.p_approve ? "Hours approved" : "Changes requested on your hours", e.scope.need_title, "#workspace"); },
+  // A professional corrects a time entry the organisation returned; it goes back for review (20261019000900).
+  amend_hours: (a) => {
+    const h = D.hours.find((x) => x.id === a.p_id);
+    if (!h || !own(h.user_id)) fail("You cannot change this entry.");
+    if (h.status !== "changes_requested") fail("Only entries the organisation returned can be corrected.");
+    const e = D.engagements.find((x) => x.id === h.engagement_id);
+    if (e?.status !== "active") fail("This contribution is no longer active.");
+    if (!a.p_date || a.p_date > today()) fail("Choose a date that is not in the future.");
+    const hrs = a.p_hours == null || a.p_hours === "" ? NaN : Number(a.p_hours);
+    if (!(hrs > 0 && hrs <= 12)) fail("Log between 0.5 and 12 hours.");
+    const desc = trimmed(a.p_description);
+    if (desc.length < 10) fail("Describe the work in at least 10 characters.");
+    if (a.p_evidence && !/^https:\/\//.test(a.p_evidence)) fail("Links must start with https://");
+    if (D.hours.filter((x) => x.user_id === h.user_id && x.work_date === a.p_date && x.status !== "changes_requested" && x.id !== h.id).reduce((s, x) => s + Number(x.hours), 0) + hrs > 12) fail("You can log up to 12 hours in one day.");
+    if (desc.length > 2000) CHECK("hours");
+    Object.assign(h, { work_date: a.p_date, hours: hrs, description: desc, evidence: a.p_evidence || "", status: "pending", reviewed_by: null, reviewed_at: null });
+    notifyOrg(e.organisation_id, "hours", "Corrected hours to review", e.scope.need_title, "#org");
+  },
+  // 20261019000500_audit_fixes.sql: "partly delivered" can be completed without an endorsement (stored as '').
+  complete_engagement: (a) => {
+    if (a.p_delivered === undefined && "p_rating" in a) fail("Handova was updated. Please reload the page and complete it again.");
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e || !isMember(e.organisation_id)) fail("You cannot complete this contribution.");
+    if (e.status !== "active") fail("Only an active contribution can be completed.");
+    if (!["all", "partly"].includes(a.p_delivered)) fail("Say whether the agreed work was delivered.");
+    const deliverables = trimmed(a.p_deliverables);
+    if (deliverables.length < 10) fail("Describe what was handed over.");
+    const skills = [...new Set((a.p_skills || []).map(trimmed).filter(Boolean))];
+    if (skills.length > 3) fail("Choose up to 3 skills.");
+    if (!skills.length) fail("Choose at least one skill you saw in this work.");
+    const endorse = trimmed(a.p_endorsement);
+    if (a.p_delivered === "all" && endorse.length < 100) fail("Write an endorsement of at least 100 characters.");
+    if (a.p_delivered === "partly" && endorse && endorse.length < 100) fail("Write at least 100 characters, or leave the endorsement empty.");
+    if (endorse.length > 1200) fail("Keep the endorsement under 1,200 characters.");
+    if (trimmed(a.p_role).length < 2) fail("Add your role.");
+    if (!["yes", "right_need", "no"].includes(a.p_work_again)) fail("Answer the question for Handova.");
+    if (a.p_confirm !== true) fail("Confirm the endorsement is accurate and private details are left out.");
+    if (hoursOf(e, "pending").length) fail("Review all pending hours first.");
+    const due = new Date(); due.setMonth(due.getMonth() + 6);
+    Object.assign(e, { status: "completed", completed_at: now(), followup_due: due.toISOString().slice(0, 10), delivered_as_agreed: a.p_delivered, deliverables, confirmed_skills: skills, endorsement: endorse, endorsement_language: orNull(a.p_language), endorsed_by_role: trimmed(a.p_role), endorsed_by: me(), endorser_name: orNull(a.p_name), show_endorser_name: a.p_show_name ?? true, note_to_professional: orNull(trimmed(a.p_note).slice(0, 600)), rating: null });
+    D.completion_private = D.completion_private.filter((x) => x.engagement_id !== e.id).concat({ engagement_id: e.id, work_again: a.p_work_again, note: orNull(trimmed(a.p_work_again_note).slice(0, 600)), created_at: now() });
+    closeConv(e.need_id, e.user_id, "Contribution completed");
+    notify(e.user_id, "completed", `Your endorsement from ${e.scope.organisation ?? "the organisation"} is ready`, e.scope.need_title + (a.p_delivered === "partly" ? ". The organisation marked the work as partly delivered. If that feels unfair, you can ask for a correction or report a concern." : ". Read it and choose whether it appears on your impact CV."), "#workspace");
+    if (a.p_work_again === "no") notifyAdmins("work_again_no", "An organisation would not welcome a professional again", e.scope.need_title, "#admin");
+  },
+  request_endorsement_correction: (a) => {
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e || !own(e.user_id)) fail("Only the professional can ask for a correction.");
+    if (e.status !== "completed") fail("You can ask for a correction once the contribution is complete.");
+    if (e.correction_requested_at) fail("You have already asked for a correction.");
+    if (!["fact", "spelling", "private", "other"].includes(a.p_reason)) fail("Choose a reason.");
+    const note = trimmed(a.p_note);
+    if (note.length < 5) fail("Say what should be corrected.");
+    Object.assign(e, { correction_requested_at: now(), correction_reason: a.p_reason, correction_note: note.slice(0, 300), public: false, published_at: null });
+    notifyOrg(e.organisation_id, "correction_requested", `${e.scope.talent ?? "The professional"} asked for a correction to your endorsement`, `${e.scope.need_title}: ${note.slice(0, 200)}`, "#org/needs/" + e.need_id);
+  },
+  // 20261019000900_flow_fixes.sql: 1 to 3 skills; an empty endorsement only for "partly"; the corrected endorsement waits for the professional again.
+  edit_endorsement: (a) => {
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e || !isMember(e.organisation_id)) fail("You cannot edit this endorsement.");
+    if (!e.correction_requested_at) fail("Endorsements can be edited only when the professional asks for a correction.");
+    if (e.endorsement_edited_at) fail("This endorsement has already been corrected.");
+    if (Date.now() > Date.parse(e.correction_requested_at) + 14 * DAY) fail("The 14 days to correct this endorsement have passed.");
+    const deliverables = trimmed(a.p_deliverables);
+    if (deliverables.length < 10) fail("Describe what was handed over.");
+    const skills = [...new Set((a.p_skills || []).map(trimmed).filter(Boolean))];
+    if (skills.length > 3) fail("Choose up to 3 skills.");
+    if (!skills.length) fail("Choose at least one skill you saw in this work.");
+    const endorse = trimmed(a.p_endorsement);
+    if (!endorse && e.delivered_as_agreed != null && e.delivered_as_agreed !== "partly") fail("Write an endorsement of at least 100 characters.");
+    if (endorse && (endorse.length < 100 || endorse.length > 1200)) fail("The endorsement must be 100 to 1,200 characters.");
+    Object.assign(e, { deliverables, endorsement: endorse, confirmed_skills: skills, endorsement_edited_at: now(), public: false });
+    notify(e.user_id, "endorsement_corrected", "Your endorsement was corrected", `${e.scope.need_title}. Read it and choose whether it appears on your impact CV.`, "#workspace");
+  },
+  mark_delivered: (a) => {
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e || !own(e.user_id)) fail("Only the professional can say the work is delivered.");
+    if (e.status !== "active") fail("This contribution is not in progress.");
+    if (e.talent_delivered_at) fail("You have already told the organisation.");
+    e.talent_delivered_at = now();
+    notifyOrg(e.organisation_id, "delivered", `${e.scope.talent ?? "The professional"} has delivered everything`, `${e.scope.need_title}: please check the work, then finish and write the endorsement.`, `#org/needs/${e.need_id}`);
+  },
   set_career_stage: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.career_stage = a.p_stage; },
-  set_research_contact: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.research_contact = a.p_yes; },
-  submit_survey: (a) => { const e = D.engagements.find((x) => x.id === a.p_engagement); if (!e || e.status !== "completed") fail("This contribution is not finished."); const old = D.survey_responses.find((r) => r.engagement_id === e.id && r.kind === a.p_kind); if (old && old.status !== "skipped") return; if (old) D.survey_responses = D.survey_responses.filter((r) => r !== old); D.survey_responses.push({ id: uid(), engagement_id: e.id, kind: a.p_kind, respondent: me(), status: a.p_status, short_form: !!a.p_short, q_version: a.p_version, lang: a.p_lang, answers: a.p_status === "submitted" ? a.p_answers : {}, created_at: now() }); },
-  survey_pending: () => { const u = me(); const out = []; for (const e of D.engagements.filter((x) => x.status === "completed")) { const has = (k) => D.survey_responses.some((r) => r.engagement_id === e.id && r.kind === k); if (isMember(e.organisation_id) && !has("organisation")) out.push({ engagement_id: e.id, kind: "organisation", short_form: D.survey_responses.some((r) => r.kind === "organisation" && r.status === "submitted" && !r.short_form && D.engagements.find((x) => x.id === r.engagement_id)?.organisation_id === e.organisation_id), need_title: e.scope.need_title, other_name: e.scope.talent }); if (e.user_id === u && !has("professional")) out.push({ engagement_id: e.id, kind: "professional", short_form: false, need_title: e.scope.need_title, other_name: e.scope.organisation }); } return out; },
-  admin_survey_data: () => D.engagements.filter((e) => e.status === "completed").map((e) => { const o = D.organisations.find((x) => x.id === e.organisation_id) || {}; const p = D.profiles.find((x) => x.user_id === e.user_id) || {}; const up = D.user_private.find((x) => x.user_id === e.user_id) || {}; const r = (k) => { const x = D.survey_responses.find((y) => y.engagement_id === e.id && y.kind === k); return x ? { id: x.id, kind: x.kind, status: x.status, short_form: x.short_form, q_version: x.q_version, lang: x.lang, answers: x.answers, created_at: x.created_at } : null; }; return { engagement_id: e.id, completed_at: e.completed_at, organisation_id: e.organisation_id, professional_id: e.user_id, org_country: o.country, org_type: o.org_type, staff_size: o.staff_size, pro_country: p.country, career_stage: up.career_stage, hours_planned: e.scope.hours, hours_approved: D.hours.filter((h) => h.engagement_id === e.id && h.status === "approved").reduce((t, h) => t + Number(h.hours), 0), delivered: e.delivered_as_agreed, still_in_use: e.followup_in_use, followup_answered_at: e.followup_answered_at, work_again: null, research_contact_org: null, research_contact_pro: up.research_contact ?? null, org_response: r("organisation"), pro_response: r("professional"), six_months: r("six_months"), need_title: e.scope.need_title, org_name: o.name, pro_name: p.name }; }),
-  admin_delete_survey_response: (a) => { const r = D.survey_responses.find((x) => x.id === a.p_id); if (!r) fail("Response not found."); if (a.p_ask_again) D.survey_responses = D.survey_responses.filter((x) => x !== r); else Object.assign(r, { status: "skipped", answers: {} }); },
-  admin_delete_contribution: (a) => { if (String(a.p_confirm || "").trim().toUpperCase() !== "DELETE") fail("Type DELETE to confirm."); const n = D.engagements.length; D.engagements = D.engagements.filter((e) => e.id !== a.p_id); if (D.engagements.length === n) fail("Contribution not found."); D.hours = D.hours.filter((h) => h.engagement_id !== a.p_id); },
-  admin_delete_organisation: (a) => { const o = D.organisations.find((x) => x.id === a.p_org); if (!o) fail("Organisation not found."); if ((a.p_confirm || "").trim() !== o.name) fail("Type the organisation’s name exactly to confirm."); if (D.engagements.some((e) => e.organisation_id === o.id)) fail("This organisation has contribution records."); const ids = D.needs.filter((n) => n.organisation_id === o.id).map((n) => n.id); D.needs = D.needs.filter((n) => n.organisation_id !== o.id); D.applications = D.applications.filter((x) => !ids.includes(x.need_id)); D.organisation_members = D.organisation_members.filter((m) => m.organisation_id !== o.id); D.organisations = D.organisations.filter((x) => x !== o); },
-  admin_endorsements_waiting: () => D.engagements.filter((e) => e.status === "active" && e.talent_delivered_at).map((e) => ({ id: e.id, organisation: e.scope.organisation, talent: e.scope.talent, need_title: e.scope.need_title, since: e.talent_delivered_at, talent_delivered: true })),
-  end_engagement: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); if (!e || !(e.user_id === me() || isMember(e.organisation_id))) fail("You are not a party to this engagement."); const ok = D.hours.filter((h) => h.engagement_id === e.id && h.status === "approved").reduce((t, h) => t + Number(h.hours), 0); if (e.user_id !== me() && e.status === "active" && ok >= Number(e.scope.hours) && !D.hours.some((h) => h.engagement_id === e.id && h.status === "pending")) fail("All the agreed hours are approved, so the work is finished. Complete it and write the endorsement instead. If something is wrong, contact Handova."); e.status = "ended"; closeConv(e.need_id, e.user_id, "Engagement ended"); },
-  set_contribution_visibility: (a) => { const e = D.engagements.find((x) => x.id === a.p_id && x.user_id === me() && x.status === "completed"); if (!e) fail("Only your own completed contributions can be published."); e.public = a.p_public; },
-  answer_followup: (a) => { const e = D.engagements.find((x) => x.id === a.p_id); Object.assign(e, { followup_in_use: a.p_in_use, followup_answered_at: now() }); },
-  close_conversation: (a) => { const c = D.conversations.find((x) => x.id === a.p_id); if (!c || !visible("conversations", c)) fail("You are not part of this conversation."); Object.assign(c, { status: "closed", closed_reason: "Ended by a participant" }); },
-  public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || e.user_id === me())).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: D.hours.filter((h) => h.engagement_id === e.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0), started: e.created_at, signed: e.org_signed_at, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at })),
-  delete_my_account: () => { const u = me(); D.engagements.filter((e) => e.user_id === u).forEach((e) => { e.scope.talent = "Former member"; e.user_id = null; e.public = false; }); D.messages = D.messages.filter((m) => m.sender_id !== u); for (const t of ["profiles", "applications", "invitations", "saved_needs", "notifications", "organisation_members"]) D[t] = D[t].filter((r) => r.user_id !== u); D.conversations = D.conversations.filter((c) => c.user_id !== u); D.users = D.users.filter((x) => x.id !== u); localStorage.removeItem(SKEY); },
+  set_research_contact: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.research_contact = a.p_yes; r.research_contact_at = now(); },
+  submit_survey: (a) => {
+    const e = D.engagements.find((x) => x.id === a.p_engagement);
+    if (!e || e.status !== "completed") fail("This contribution is not finished.");
+    if (a.p_kind === "professional") { if (!own(e.user_id)) fail("You cannot answer for this contribution."); }
+    else if (["organisation", "six_months"].includes(a.p_kind)) { if (!isMember(e.organisation_id)) fail("You cannot answer for this contribution."); if (a.p_kind === "six_months" && !e.followup_answered_at) fail("Answer the six-month question first."); }
+    else fail("Unknown questionnaire.");
+    if (!["submitted", "skipped"].includes(a.p_status)) fail("Unknown status.");
+    const answers = a.p_status === "submitted" ? a.p_answers || {} : {};
+    if (answers.o_concern === "yes" || answers.p_concern === "yes") notifyAdmins("survey_concern", "A questionnaire answer flagged a concern", e.scope.need_title, "#admin-responses");
+    const old = D.survey_responses.find((r) => r.engagement_id === e.id && r.kind === a.p_kind);
+    if (old && old.status !== "skipped") return;
+    if (old) D.survey_responses = D.survey_responses.filter((r) => r !== old);
+    D.survey_responses.push({ id: uid(), engagement_id: e.id, kind: a.p_kind, respondent: me(), status: a.p_status, short_form: !!a.p_short, q_version: String(a.p_version || "").slice(0, 20), lang: a.p_lang == null ? null : String(a.p_lang).slice(0, 8), answers, created_at: now() });
+  },
+  // Contributions finished in the last 60 days; the short form if a full one was answered in the last 90 days.
+  survey_pending: () => {
+    const out = [], has = (e, k) => D.survey_responses.some((r) => r.engagement_id === e.id && r.kind === k), recent = D.engagements.filter((x) => x.status === "completed" && !ago(x.completed_at, 60));
+    for (const e of recent) if (isMember(e.organisation_id) && !has(e, "organisation")) out.push({ engagement_id: e.id, kind: "organisation", short_form: D.survey_responses.some((r) => r.kind === "organisation" && r.status === "submitted" && !r.short_form && !ago(r.created_at, 90) && D.engagements.find((x) => x.id === r.engagement_id)?.organisation_id === e.organisation_id), need_title: e.scope.need_title, other_name: e.scope.talent });
+    for (const e of recent) if (own(e.user_id) && !has(e, "professional")) out.push({ engagement_id: e.id, kind: "professional", short_form: false, need_title: e.scope.need_title, other_name: e.scope.organisation });
+    return out;
+  },
+  admin_survey_data: () => { if (!isAdmin()) fail("Only Handova can see questionnaire answers."); return D.engagements.filter((e) => e.status === "completed").map((e) => { const o = D.organisations.find((x) => x.id === e.organisation_id) || {}; const p = D.profiles.find((x) => x.user_id === e.user_id) || {}; const up = D.user_private.find((x) => x.user_id === e.user_id) || {}; const orgPriv = D.user_private.filter((x) => D.organisation_members.some((m) => m.organisation_id === e.organisation_id && m.user_id === x.user_id) && x.research_contact != null); const r = (k) => { const x = D.survey_responses.find((y) => y.engagement_id === e.id && y.kind === k); return x ? { id: x.id, kind: x.kind, status: x.status, short_form: x.short_form, q_version: x.q_version, lang: x.lang, answers: x.answers, created_at: x.created_at } : null; }; return { engagement_id: e.id, completed_at: e.completed_at, organisation_id: e.organisation_id, professional_id: e.user_id, org_country: o.country, org_type: o.org_type, staff_size: o.staff_size, pro_country: p.country, career_stage: up.career_stage, hours_planned: e.scope.hours, hours_approved: approvedHours(e), delivered: e.delivered_as_agreed, still_in_use: e.followup_in_use, followup_answered_at: e.followup_answered_at, work_again: D.completion_private.find((x) => x.engagement_id === e.id)?.work_again ?? null, research_contact_org: orgPriv.length ? orgPriv.some((x) => x.research_contact) : null, research_contact_pro: up.research_contact ?? null, org_response: r("organisation"), pro_response: r("professional"), six_months: r("six_months"), need_title: e.scope.need_title, org_name: o.name, pro_name: p.name }; }).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)); },
+  admin_delete_survey_response: (a) => { requireAdmin(); const r = D.survey_responses.find((x) => x.id === a.p_id); if (!r) fail("Response not found."); adminAction("survey_response_deleted", "survey_response", r.id, { engagement_id: r.engagement_id, kind: r.kind, status: r.status, ask_again: !!a.p_ask_again }); if (a.p_ask_again) D.survey_responses = D.survey_responses.filter((x) => x !== r); else Object.assign(r, { status: "skipped", answers: {} }); },
+  // Its hours and private answers go with it; signed agreement records stay (unlinked) unless it was a test (20261019000100).
+  admin_delete_contribution: (a) => {
+    requireAdmin();
+    if (trimmed(a.p_confirm).toUpperCase() !== "DELETE") fail("Type DELETE to confirm.");
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e) fail("Contribution not found.");
+    adminAction("contribution_deleted", "contribution", e.id, { need_title: e.scope.need_title, organisation: e.scope.organisation, professional: e.scope.talent, status: e.status, created_at: e.created_at, completed_at: e.completed_at, reason: a.p_reason || "", test: !!a.p_test });
+    if (a.p_test) D.contribution_signatures = D.contribution_signatures.filter((s) => s.engagement_id !== e.id);
+    else D.contribution_signatures.forEach((s) => { if (s.engagement_id === e.id) s.engagement_id = null; });
+    D.notifications = D.notifications.filter((n) => n.ref !== e.id);
+    D.engagements = D.engagements.filter((x) => x !== e);
+    for (const t of ["hours", "completion_private", "survey_responses"]) D[t] = D[t].filter((r) => r.engagement_id !== e.id);
+    if (!a.p_test) {
+      const reason = trimmed(a.p_reason), body = e.scope.need_title + (reason ? ": " + reason : "");
+      notify(e.user_id, "contribution_removed", "A contribution was removed by Handova", body, "#workspace");
+      notifyOrg(e.organisation_id, "contribution_removed", "A contribution was removed by Handova", body, "#org");
+    }
+  },
+  admin_delete_organisation: (a) => {
+    requireAdmin();
+    const o = D.organisations.find((x) => x.id === a.p_org);
+    if (!o) fail("Organisation not found.");
+    if (trimmed(a.p_confirm) !== o.name) fail("Type the organisation’s name exactly to confirm.");
+    if (D.engagements.some((e) => e.organisation_id === o.id)) fail("This organisation has contribution records. Professionals rely on them for their impact CVs and the signed agreements must be kept, so suspend it instead.");
+    D.needs.filter((n) => n.organisation_id === o.id && n.status === "open").forEach(closeNeed);
+    notifyOrg(o.id, "org_decision", "Your organisation was removed from Handova", trimmed(a.p_reason) || "Contact hello@handova.org if you have questions.", "#onboarding");
+    const ids = D.needs.filter((n) => n.organisation_id === o.id).map((n) => n.id);
+    adminAction("org_deleted", "organisation", o.id, { name: o.name, country: o.country, reason: a.p_reason || "", needs: ids.length });
+    const convs = D.conversations.filter((c) => ids.includes(c.need_id)).map((c) => c.id);
+    D.messages = D.messages.filter((m) => !convs.includes(m.conversation_id));
+    for (const t of ["applications", "invitations", "conversations", "saved_needs"]) D[t] = D[t].filter((x) => !ids.includes(x.need_id));
+    D.needs = D.needs.filter((n) => n.organisation_id !== o.id);
+    D.organisation_members = D.organisation_members.filter((m) => m.organisation_id !== o.id);
+    D.organisations = D.organisations.filter((x) => x !== o);
+  },
+  admin_endorsements_waiting: () => { if (!isAdmin()) fail("Only Handova can see this list."); return D.engagements.filter((e) => e.status === "active" && endorsementDueSince(e)).map((e) => ({ id: e.id, organisation: e.scope.organisation, talent: e.scope.talent, need_title: e.scope.need_title, since: endorsementDueSince(e), talent_delivered: !!e.talent_delivered_at })).sort((x, y) => (x.since > y.since ? 1 : -1)); },
+  // A reason is required and kept; the organisation can't end early once all agreed hours are approved; Handova is told (20261018000800).
+  end_engagement: (a) => {
+    const u = me(), e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e || !(own(e.user_id) || isMember(e.organisation_id))) fail("You are not a party to this contribution.");
+    if (!["awaiting_signatures", "active"].includes(e.status)) fail("This contribution has already finished.");
+    const reason = trimmed(a.p_reason);
+    if (reason.length < 5) fail("Give a short reason for ending the contribution.");
+    if (!own(e.user_id) && e.status === "active" && hoursReadyAt(e)) fail("All the agreed hours are approved, so the work is finished. Complete it and write the endorsement instead. If something is wrong, contact Handova.");
+    Object.assign(e, { status: "ended", end_reason: reason.slice(0, 1000), ended_at: now(), ended_by: u });
+    closeConv(e.need_id, e.user_id, "Contribution ended");
+    const body = `${e.scope.need_title}: ${reason.slice(0, 300)}`;
+    notify(e.user_id, "ended", "A contribution was ended", body, "#workspace");
+    notifyOrg(e.organisation_id, "ended", "A contribution was ended", body, "#org");
+    notifyAdmins("ended", "A contribution was ended early", body, "#admin");
+  },
+  set_contribution_visibility: (a) => { const e = D.engagements.find((x) => x.id === a.p_id && own(x.user_id) && x.status === "completed"); if (!e) fail("Only your own completed contributions can be published."); e.public = !!a.p_public; e.published_at = a.p_public ? e.published_at || now() : null; },
+  answer_followup: (a) => { const e = D.engagements.find((x) => x.id === a.p_id && isMember(x.organisation_id) && x.status === "completed" && x.followup_due && x.followup_due <= today()); if (!e) fail("This follow-up is not available yet."); Object.assign(e, { followup_in_use: a.p_in_use, followup_note: trimmed(a.p_note), followup_answered_at: now() }); },
+  close_conversation: (a) => {
+    const c = D.conversations.find((x) => x.id === a.p_id);
+    if (!isParty(c)) fail("You are not part of this conversation.");
+    if (D.engagements.some((e) => e.need_id === c.need_id && e.user_id != null && e.user_id === c.user_id && ["awaiting_signatures", "active"].includes(e.status))) fail("While the contribution is live, Messages stay open. To stop the work, use End this contribution. If you feel unsafe, Report a concern.");
+    Object.assign(c, { status: "closed", closed_reason: "Ended by a participant", closed_at: now() });
+  },
+  public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at })),
+  // 20261019000600_conversation_retention.sql. Only reachable through the account-delete function below.
+  delete_my_account: () => {
+    const u = me();
+    if (!u) fail("Please sign in first.");
+    if (!D.account_deletion_authorizations.some((x) => x.user_id === u && !ago(x.verified_at, 5 / 1440))) fail("Please use Account and privacy to delete your account.");
+    D.account_deletion_authorizations = D.account_deletion_authorizations.filter((x) => x.user_id !== u);
+    const t = now();
+    for (const s of [...D.agreement_signatures, ...D.contribution_signatures]) if (s.user_id === u && !s.account_closed_at) s.account_closed_at = t;
+    D.engagements.filter((e) => e.user_id === u).forEach((e) => { e.scope = { ...e.scope, talent: "Former member" }; if (e.talent_signed_name) e.talent_signed_name = "Former member"; e.public = false; });
+    // Messages in conversations with a contribution or a report are kept for six years, shown as "Former member".
+    const kept = new Set(D.conversations.filter((c) => (c.user_id != null && D.engagements.some((e) => e.need_id === c.need_id && e.user_id === c.user_id)) || D.reports.some((r) => r.target_type === "conversation" && r.target_id === c.id)).map((c) => c.id));
+    D.messages.forEach((m) => { if (m.sender_id === u && kept.has(m.conversation_id)) Object.assign(m, { kind: "former", sender_closed_at: t, sender_id: null }); });
+    D.messages = D.messages.filter((m) => m.sender_id !== u);
+    // Application-only chats go with the account; the others stay, without the person.
+    const gone = new Set(D.conversations.filter((c) => c.user_id === u && !kept.has(c.id)).map((c) => c.id));
+    D.conversations = D.conversations.filter((c) => !gone.has(c.id));
+    D.messages = D.messages.filter((m) => !gone.has(m.conversation_id));
+    D.organisations.forEach((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); if (ms.length && ms.every((m) => m.user_id === u)) o.status = "suspended"; });
+    // delete from auth.users: cascades and "on delete set null".
+    for (const tb of ["profiles", "applications", "invitations", "saved_needs", "notifications", "organisation_members", "user_settings", "user_private", "id_verifications", "admins", "account_deletion_authorizations"]) D[tb] = D[tb].filter((r) => r.user_id !== u);
+    const unset = (rows, ...keys) => rows.forEach((r) => keys.forEach((k) => { if (r[k] === u) r[k] = null; }));
+    unset(D.conversations, "user_id"); unset(D.engagements, "user_id", "org_signed_by", "endorsed_by", "ended_by", "first_call_by"); unset(D.hours, "user_id", "reviewed_by");
+    unset(D.contribution_signatures, "user_id"); unset(D.reports, "reporter_id"); unset(D.survey_responses, "respondent"); unset(D.invitations, "invited_by"); unset(D.admin_actions, "admin_id");
+    D.users = D.users.filter((x) => x.id !== u);
+  },
 };
 function needsInUse(org, except, withPending) { return D.needs.filter((n) => n.organisation_id === org && n.id !== except && (n.status === "open" || (withPending && n.status === "pending") || (n.status === "closed" && D.engagements.some((e) => e.need_id === n.id && ["awaiting_signatures", "active"].includes(e.status))))).length; }
-function closeNeedApps(n) { for (const a of D.applications.filter((x) => x.need_id === n.id && x.status === "pending")) { Object.assign(a, { status: "declined", decided_at: now() }); closeConv(n.id, a.user_id, "Need closed"); notify(a.user_id, "application_decision", "The need you applied to is closed", n.title + ": it is no longer taking applications. Thank you for applying.", "#workspace"); } }
-function closeConv(need, user, reason) { const c = D.conversations.find((x) => x.need_id === need && x.user_id === user); if (c) Object.assign(c, { status: "closed", closed_reason: reason }); }
+// need_guard, open -> closed: everyone still waiting gets an answer.
+function closeNeedApps(n) {
+  for (const a of D.applications.filter((x) => x.need_id === n.id && x.status === "pending")) { Object.assign(a, { status: "declined", decided_at: now() }); closeConv(n.id, a.user_id, "Need closed"); notify(a.user_id, "application_decision", "The need you applied to is closed", n.title + ": it is no longer taking applications. Thank you for applying.", "#workspace"); }
+  for (const i of D.invitations.filter((x) => x.need_id === n.id && x.status === "pending")) { Object.assign(i, { status: "declined", decided_at: now() }); notify(i.user_id, "invitation", "An invitation is no longer open", n.title + ": this need is no longer taking anyone new. Thank you.", "#workspace"); }
+}
+// update needs set status = 'closed' run by a server function (passes need_guard as Handova or the organisation).
+function closeNeed(n) { if (n.status !== "open") return; Object.assign(n, { status: "closed", updated_at: now() }); closeNeedApps(n); }
+function closeConv(need, user, reason) { const c = D.conversations.find((x) => x.need_id === need && x.user_id != null && x.user_id === user); if (c) Object.assign(c, { status: "closed", closed_reason: reason, closed_at: now() }); }
+// conversation_for: the conversation for a need and professional, opened if needed.
+function conversationFor(need, user) {
+  let c = D.conversations.find((x) => x.need_id === need && x.user_id != null && x.user_id === user);
+  if (!c) D.conversations.push((c = { id: uid(), need_id: need, user_id: user, status: "open", closed_reason: "", closed_at: null, created_at: now() }));
+  else if (c.status !== "open") Object.assign(c, { status: "open", closed_reason: "", closed_at: null });
+  return c;
+}
+// message_notify: Handova's own messages (and kept ones) don't send "New message" alerts.
+function messageNotify(m, c) {
+  if (m.kind !== "user") return;
+  const n = D.needs.find((x) => x.id === c.need_id);
+  if (m.sender_id != null && m.sender_id === c.user_id) notifyOrg(n.organisation_id, "message", "New message", n.title, "#conversation/" + c.id);
+  else notify(c.user_id, "message", "New message", n.title, "#conversation/" + c.id);
+}
+function postMessage(c, sender, body, kind = "user") { const m = { id: uid(), conversation_id: c.id, sender_id: sender, body, kind, sender_closed_at: null, created_at: now() }; D.messages.push(m); messageNotify(m, c); return m; }
+// kickoff_message (20261018000600): Handova's suggested first-call agenda, posted when both have signed.
+function kickoffMessage(e) {
+  const c = conversationFor(e.need_id, e.user_id), org = e.scope?.organisation ?? "the organisation";
+  const s = D.contribution_signatures.find((x) => x.engagement_id === e.id && x.party === "organisation");
+  const focal = s ? ((s.focal_point_name || "") + (s.focal_point_contact ? ` (${s.focal_point_contact})` : "")).trim() || null : null;
+  const body = [
+    "You have both signed. The next step is a short first call (30–45 minutes) to meet and plan the work. Reply here with two or three times that suit you, and say your time zone. Audio only is fine if data is limited.",
+    "",
+    "On the call, agree:",
+    `1. Goal: what the finished work looks like and how ${org} will keep using it after handover.`,
+    "2. Timing: the delivery date and any check-in dates.",
+    `3. Contact person: who at ${org} answers questions and checks the work.`,
+    "4. Reviews: how drafts are shared and checked, and who approves the final work.",
+    "5. Out of scope: what this contribution does not cover.",
+    "6. Keeping in touch: talk anywhere, but write decisions and changes here in Messages. Sharing phone numbers or personal emails is optional, and either of you can say no.",
+    "7. Information and access: what is needed, shared through a secure channel the organisation chooses, and when access ends. Never passwords or card details.",
+    `8. Safeguarding: ${focal ? "the focal point is " + focal : "the organisation's safeguarding focal point is named on the agreement page"}. Agree how either of you raises a concern.`,
+    "",
+    `Don't record the call or use AI note-takers unless everyone agrees at the start, and don't show anything about the people ${org} supports. After the call, one of you taps "Record what we agreed" so you both have the same written record.`,
+  ].join("\n");
+  postMessage(c, null, body.slice(0, 4000), "system");
+}
+// create_engagement (20261018000500): agreement v2, with the deadline and the professional's country in the frozen scope.
 function engage(needId, user) {
   const n = D.needs.find((x) => x.id === needId), o = D.organisations.find((x) => x.id === n.organisation_id), p = D.profiles.find((x) => x.user_id === user);
   if (n.status !== "open") fail("This need is no longer open.");
   const filled = D.engagements.filter((e) => e.need_id === needId && e.status !== "ended").length;
   if (filled >= n.places) fail("All places on this need are already filled.");
   const id = uid();
-  D.engagements.push({ id, need_id: needId, organisation_id: n.organisation_id, user_id: user, terms_version: "2026-10-v1", scope: { need_title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, organisation: o.name, organisation_country: o.country, talent: p.name }, talent_signed_name: "", talent_signed_at: null, org_signed_name: "", org_signed_at: null, status: "awaiting_signatures", public: false, created_at: now() });
-  if (filled + 1 >= n.places) { n.status = "closed"; closeNeedApps(n); }
+  D.engagements.push({ id, need_id: needId, organisation_id: n.organisation_id, user_id: user, terms_version: "contribution-2026-10-v2", scope: { need_title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline ?? null, organisation: o.name, organisation_country: o.country, talent: p?.name ?? null, talent_country: p?.country ?? null }, talent_signed_name: "", talent_signed_at: null, org_signed_name: "", org_signed_by: null, org_signed_at: null, status: "awaiting_signatures", deliverables: "", endorsement: "", endorsed_by_role: "", public: false, published_at: null, first_call_at: null, first_call_by: null, first_call_written: false, end_reason: null, ended_at: null, ended_by: null, talent_delivered_at: null, confirmed_skills: [], show_endorser_name: true, created_at: now() });
+  if (filled + 1 >= n.places) closeNeed(n);
   notify(user, "agreement", "Sign your contribution agreement", n.title, "#agreement/" + id);
   notifyOrg(n.organisation_id, "agreement", "Sign your contribution agreement", n.title, "#agreement/" + id);
   return id;
@@ -270,25 +754,53 @@ const auth = {
   async resetPasswordForEmail() { return { data: {}, error: null }; },
 };
 
+// Edge functions. Identity checks: the mock approves straight away, as if Didit had approved the document.
+// account-delete: removes the member's identity records and photos, authorises delete_my_account for 5 minutes and runs it.
+async function invokeFunction(name, body) {
+  D = load(); const u = me();
+  if (!u) return { data: null, error: { message: "Please sign in first." } };
+  if (name === "account-delete") {
+    try {
+      D.account_deletion_authorizations = D.account_deletion_authorizations.filter((x) => x.user_id !== u).concat({ user_id: u, verified_at: now() });
+      rpcs.delete_my_account();
+      save();
+    } catch { return { data: null, error: { message: "Could not finish deleting your account. Please contact support." } }; }
+    for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith(`ia-mock-file:avatars/${u}/`)) localStorage.removeItem(k); }
+    return { data: { ok: true }, error: null };
+  }
+  if (name !== "id-verify") return { data: null, error: { message: `Edge function ${name} is not available in the local test backend.` } };
+  const p = D.profiles.find((x) => x.user_id === u);
+  if (!p) return { data: null, error: { message: "Create your professional profile first." } };
+  if (body?.action === "start") {
+    if (p.id_status === "approved") return { data: null, error: { message: "Your identity is already verified." } };
+    if (!p.id_status) p.id_status = "started";
+    D.id_verifications.push({ id: uid(), user_id: u, provider: "didit", session_id: uid(), status: "Not Started", document_name: "", created_at: now(), updated_at: now() });
+    save(); return { data: { url: "#verify-done" }, error: null };
+  }
+  if (body?.action === "check") {
+    if (p.id_status === "started") {
+      Object.assign(p, { id_status: "approved", id_verified_at: now(), id_document_name: p.name.toUpperCase() });
+      const v = D.id_verifications.filter((x) => x.user_id === u).sort((x, y) => (x.created_at < y.created_at ? 1 : -1))[0];
+      if (v) Object.assign(v, { status: "Approved", document_name: p.name.toUpperCase(), updated_at: now() });
+      save();
+    }
+    return { data: { status: p.id_status }, error: null };
+  }
+  return { data: null, error: { message: "Unknown action" } };
+}
+
 export function createClient() {
   return {
     auth,
     from: (t) => new Query(t),
-    // Identity checks: the mock approves straight away, as if Didit had approved the document.
-    functions: { async invoke(name, { body } = {}) {
-      D = load(); const u = me(); const p = D.profiles.find((x) => x.user_id === u);
-      if (name !== "id-verify" || !p) return { data: null, error: { message: "Create your professional profile first." } };
-      if (body?.action === "start") { p.id_status = "started"; save(); return { data: { url: "#verify-done" }, error: null }; }
-      if (body?.action === "check") { if (p.id_status === "started") { p.id_status = "approved"; p.id_verified_at = now(); p.id_document_name = p.name.toUpperCase(); save(); } return { data: { status: p.id_status }, error: null }; }
-      return { data: null, error: { message: "Unknown action" } };
-    } },
+    functions: { invoke: (name, { body } = {}) => invokeFunction(name, body) },
     // Storage: files kept as data URLs in localStorage, so photo uploads work offline.
     storage: { from: (bucket) => ({
       async upload(path, blob) { const url = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); localStorage.setItem(`ia-mock-file:${bucket}/${path}`, url); return { data: { path }, error: null }; },
       getPublicUrl(path) { return { data: { publicUrl: localStorage.getItem(`ia-mock-file:${bucket}/${path}`) || "" } }; },
       async remove(paths) { paths.forEach((p) => localStorage.removeItem(`ia-mock-file:${bucket}/${p}`)); return { data: [], error: null }; },
     }) },
-    rpc: (fn, args = {}) => ({ then(res, rej) { return Promise.resolve().then(() => { try { D = load(); const data = rpcs[fn](args); save(); return { data: data ?? null, error: null }; } catch (e) { return { data: null, error: { message: e.message } }; } }).then(res, rej); } }),
+    rpc: (fn, args = {}) => ({ then(res, rej) { return Promise.resolve().then(() => { try { D = load(); if (!Object.hasOwn(rpcs, fn)) fail(`Could not find the function public.${fn} in the schema cache`, "PGRST202"); const data = rpcs[fn](args); save(); return { data: data ?? null, error: null }; } catch (e) { return { data: null, error: { message: e.message, code: e.code } }; } }).then(res, rej); } }),
   };
 }
 window.__iaMockReset = () => { localStorage.removeItem(KEY); localStorage.removeItem(SKEY); };
