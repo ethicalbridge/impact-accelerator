@@ -53,15 +53,16 @@ Deno.serve(async (req) => {
 
   const link = new URL(n.link || "#notifications", SITE).toString();
   const settings = new URL("#account", SITE).toString();
+  const cta = n.link === "#org/need" ? "Post your first need" : "Open Handova";
   const subject = `${n.title} · Handova`;
-  const text = `${n.title}${n.body ? `\n${n.body}` : ""}\n\nOpen Handova: ${link}\n\nYou receive this because you have a Handova account. Turn emails off in Account and privacy: ${settings}`;
+  const text = `${n.title}${n.body ? `\n${n.body}` : ""}\n\n${cta}: ${link}\n\nYou receive this because you have a Handova account. Turn emails off in Account and privacy: ${settings}`;
   const html = `<!doctype html><html><body style="margin:0;background:#f6f3ec;font-family:Arial,Helvetica,sans-serif;color:#10302c">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fffdf8;border:1px solid #e3ded2;border-radius:16px">
 <tr><td style="padding:28px 32px 8px;font:600 18px Georgia,serif;color:#123e3a">Handova <span style="font:400 13px Arial,Helvetica,sans-serif;color:#0f6f63">· Skills handed over. Capability that stays.</span></td></tr>
 <tr><td style="padding:8px 32px 0;font:400 24px/1.3 Georgia,serif">${esc(n.title)}</td></tr>
 ${n.body ? `<tr><td style="padding:10px 32px 0;font-size:16px;line-height:1.5;color:#4b605c">${esc(n.body)}</td></tr>` : ""}
-<tr><td style="padding:24px 32px 28px"><a href="${esc(link)}" style="display:inline-block;background:#0f6f63;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">Open Handova</a></td></tr>
+<tr><td style="padding:24px 32px 28px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="#0f6f63" style="background:#0f6f63;border-radius:999px;mso-padding-alt:12px 24px"><a href="${esc(link)}" style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;border-radius:999px">${cta}</a></td></tr></table></td></tr>
 <tr><td style="padding:16px 32px 24px;border-top:1px solid #e3ded2;font-size:12px;line-height:1.5;color:#6b7d79">For your privacy, this email never includes message content. You receive it because you have a Handova account. <a href="${esc(settings)}" style="color:#0f6f63">Turn emails off</a>. An initiative of Ethical Bridge.</td></tr>
 </table></td></tr></table></body></html>`;
 
