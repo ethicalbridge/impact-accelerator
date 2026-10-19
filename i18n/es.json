@@ -1,4 +1,7 @@
 {"(Ethical Bridge, opens in a new tab)":"(Ethical Bridge, se abre en una pestaña nueva)",
+"You already have an account":"Ya tienes una cuenta",
+"There is already a Handova account for {email}, so we didn’t send a new confirmation email.":"Ya existe una cuenta de Handova para {email}, así que no enviamos un nuevo correo de confirmación.",
+"Sign in with your password to continue. If your organisation was removed, you can set it up again after signing in.":"Inicia sesión con tu contraseña para continuar. Si tu organización se eliminó, podrás registrarla de nuevo después de iniciar sesión.",
 "Handova in numbers":"Handova en cifras",
 "Live figures. Open any line to see the records behind it.":"Cifras en vivo. Abre cualquier línea para ver los registros.",
 "Registered organisations":"Organizaciones registradas",

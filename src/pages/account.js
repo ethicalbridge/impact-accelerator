@@ -89,7 +89,7 @@ export async function signin(params) {
       ${formEnd("Sign in", `<a href="#reset" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Forgot your password?</a>`)}
     </div></fieldset>
   </form>`;
-  return { title: "Sign in", html: authShell("signin", r, form), after: bindRole };
+  return { title: "Sign in", html: authShell("signin", r, form), after: () => { bindRole(); try { const em = sessionStorage.getItem("hv-prefill-email"); const f = document.getElementById("f-email"); if (em && f && !f.value) { f.value = em; sessionStorage.removeItem("hv-prefill-email"); document.getElementById("f-password")?.focus(); } } catch {} } };
 }
 
 export async function reset() {
@@ -465,6 +465,12 @@ export async function submitAccount(kind, form) {
     const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang() } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang() } } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
+    // An address that already has an account gets no new email (Supabase answers with no identities). Say so, kindly.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      try { sessionStorage.setItem("hv-prefill-email", val(fd, "email")); } catch {}
+      form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("user", 28, "#0f6f63")}</span><h2 style="font-size:2rem">You already have an account</h2><p><span>There is already a Handova account for ${e(val(fd, "email"))}, so we didn’t send a new confirmation email.</span> <span>Sign in with your password to continue. If your organisation was removed, you can set it up again after signing in.</span></p><div class="row" style="--gap:10px">${btn("Sign in", `#signin?role=${encodeURIComponent(role)}`, "")}${btn("Forgot your password?", "#reset", "secondary")}</div></div>`;
+      return;
+    }
     form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it to confirm your email, then sign in to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
   });
   if (kind === "resend-confirm") return withForm(form, async (fd) => {
