@@ -1360,3 +1360,4 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .pw-toggle:focus-visible { outline: 3px solid var(--ink); outline-offset: 1px; }
 .impact-hours { position: relative; }
 .impact-hours .link-btn { margin-top: 4px; font-weight: 700; color: var(--teal); align-self: flex-start; justify-self: start; text-align: left; padding: 0; }
+.account-menu summary .avatar.photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; box-shadow: none; }
