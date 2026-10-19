@@ -75,7 +75,30 @@ export async function responses(params) {
     const ids = REFS[title] || [];
     return ids.length ? `<span class="rs-ref">${ids.map((id) => { const info = qInfo(id); return `<span class="rs-qn">Q${info.n}</span>`; }).join("")}<span>${ids.map((id) => e(qInfo(id).q)).join(" + ")}</span></span>` : "";
   };
-  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
+  const CRIT = {
+    "Practical value: a lot or a great deal": "answered “A lot” or “A great deal”",
+    "Couldn’t have done it, or only later or less well": "answered “Ourselves, but later or less well” or “It would not have been done”",
+    "“First test”: high value they couldn’t reach alone": "gave both of those answers",
+    "Can use it without outside help": "answered “Yes” or “Yes, with a little help”",
+    "Decided mostly or equally by the organisation": "answered “Mostly us” or “Both equally”",
+    "Received less than the time they gave": "answered “Much less” or “A bit less”",
+    "Raised a concern": "answered “Yes”",
+    "Need matched the real work (mostly or completely)": "answered “Mostly” or “Completely”",
+    "Got what they needed from the organisation": "answered “Mostly” or “Yes”",
+    "Work took more time than planned": "answered “A bit more” or “Much more”",
+    "Would take on another need": "answered “Yes, in the next 3 months” or “Yes, later”",
+    "Students or early career": "are students or early career",
+    "Still in use after 6 months": "answered “Yes”",
+    "Helped them do more or better for the people they serve": "answered “Yes, clearly” or “Somewhat”",
+    "Response rate": "answered the questionnaire",
+  };
+  const critLine = (title, s) => {
+    if (!s.n || s.ring == null) return s.sub ? `<span class="small muted">${s.sub}</span>` : "";
+    const c = CRIT[title] || "";
+    const lead = s.n >= 30 ? `${Math.round(s.ring * 100)}% of ${s.n}` : `${s.k} of ${s.n}`;
+    return `<span class="rs-crit">${e(lead)} ${e(c)}</span>`;
+  };
+  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${critLine(title, s)}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
   let tiles = "";
