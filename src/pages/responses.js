@@ -96,11 +96,14 @@ export async function responses(params) {
 
   // Answers per question.
   const qs = QUESTIONS[tab];
+  // Question numbers as they appear in the questionnaire (six months: Q1 still in use, then Q2a if no / Q2b if yes).
+  const qNum = (q) => (tab === "six_months" ? (q.when === "no" ? "2a" : "2b") : String(QUESTIONS[tab].indexOf(q) + 1));
+  const qTitle = (q) => `<h3><span class="rs-qn">Q${qNum(q)}</span> ${e(q.q)}${q.when ? ` <span class="rs-when">${q.when === "no" ? "Asked if not in use" : "Asked if still in use"}</span>` : ""}</h3>`;
   const qBlock = (q) => {
     const list = answered.filter((r) => A(r)[q.id] != null && (q.type !== "multi" || A(r)[q.id].length));
     if (q.type === "open") {
       const texts = list.map((r) => ({ t: A(r)[q.id], r })).sort((a, b) => Date.parse(b.r.completed_at) - Date.parse(a.r.completed_at));
-      return `<section class="card rs-q"><h3>${e(q.q)}</h3><p class="small muted">${texts.length} ${texts.length === 1 ? "answer" : "answers"} · shown in the language people wrote in</p>${texts.length ? `<ul class="rs-open">${texts.slice(0, 200).map(({ t, r }) => `<li><p data-no-i18n>${e(t)}</p><span class="small muted">${e(cGroup(r.org_country))} · ${e(date(r.completed_at, { month: "short", year: "numeric" }))}${r.delivered === "partly" ? " · <span>partly delivered</span>" : ""}</span></li>`).join("")}</ul>` : ""}</section>`;
+      return `<section class="card rs-q">${qTitle(q)}<p class="small muted">${texts.length} ${texts.length === 1 ? "answer" : "answers"} · shown in the language people wrote in</p>${texts.length ? `<ul class="rs-open">${texts.slice(0, 200).map(({ t, r }) => `<li><p data-no-i18n>${e(t)}</p><span class="small muted">${e(cGroup(r.org_country))} · ${e(date(r.completed_at, { month: "short", year: "numeric" }))}${r.delivered === "partly" ? " · <span>partly delivered</span>" : ""}</span></li>`).join("")}</ul>` : ""}</section>`;
     }
     // Survey-report style: a bar per answer choice, then the table of numbers.
     const n = list.length, hide = filtered && n > 0 && n < 5, many = n >= 30;
@@ -114,11 +117,16 @@ export async function responses(params) {
     const bars = rowsQ.map((x) => `<div class="rs-bar" title="${e(`${x.lab}: ${x.k} of ${n}`)}"><span class="rs-bar-l">${e(x.lab)}</span><span class="rs-bar-t"><span class="${tone(x.i)}" style="width:${hide ? 0 : x.pct.toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round(x.pct)}%` : x.k}</span></div>`).join("");
     const avg = scale && n && !hide ? (list.reduce((t, r) => t + Number(A(r)[q.id]), 0) / n) : null;
     const table = `<table class="rs-table"><thead><tr><th scope="col">Answer choices</th>${many ? '<th scope="col">Responses</th>' : ""}<th scope="col">${many ? "" : "Responses"}</th></tr></thead><tbody>${rowsQ.map((x) => `<tr><td>${e(x.lab)}</td>${many ? `<td>${Math.round(x.pct)}%</td>` : ""}<td>${hide ? "–" : x.k}</td></tr>`).join("")}</tbody><tfoot><tr><td>Answered</td>${many ? "<td></td>" : ""}<td>${n}</td></tr></tfoot></table>`;
-    return `<section class="card rs-q"><div class="row between" style="align-items:flex-start;gap:12px"><h3>${e(q.q)}</h3>${avg != null ? `<span class="rs-avg">Average <strong>${avg.toFixed(1)}</strong> of ${steps}</span>` : ""}</div>
+    return `<section class="card rs-q"><div class="row between" style="align-items:flex-start;gap:12px">${qTitle(q)}${avg != null ? `<span class="rs-avg">Average <strong>${avg.toFixed(1)}</strong> of ${steps}</span>` : ""}</div>
       <p class="small muted">${n ? `${n} ${n === 1 ? "answer" : "answers"}` : "No answers yet"}${q.type === "multi" ? " · people could choose several, so totals can pass 100%" : ""}${n && !many ? " · counts until 30 answers, then percentages" : ""}</p>
       ${hide ? `<p class="small muted">Too few answers to show with this filter.</p>` : `<div class="rs-chart">${bars}</div><details class="rs-numbers"><summary>Show the numbers</summary>${table}</details>`}</section>`;
   };
 
+  const stillBlock = () => {
+    const n = base.length, yes = base.filter((r) => r.still_in_use).length, hide = filtered && n > 0 && n < 5, many = n >= 30;
+    const bar = (lab, k, cls) => `<div class="rs-bar"><span class="rs-bar-l">${lab}</span><span class="rs-bar-t"><span class="${cls}" style="width:${hide || !n ? 0 : ((k / n) * 100).toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round((k / n) * 100)}%` : k}</span></div>`;
+    return `<section class="card rs-q"><h3><span class="rs-qn">Q1</span> Are you still using what was delivered?</h3><p class="small muted">${n ? `${n} ${n === 1 ? "answer" : "answers"}` : "No answers yet"}</p>${hide ? `<p class="small muted">Too few answers to show with this filter.</p>` : `<div class="rs-chart">${bar("Yes", yes, "rs-t4")}${bar("No", n - yes, "rs-t1")}</div>`}</section>`;
+  };
   const concerns = answered.filter((r) => A(r).o_concern === "yes" || A(r).p_concern === "yes");
   const sel = (name, lab, list, v) => `<label class="field rs-filter"><span>${lab}</span><select name="${name}">${list.map(([k, t]) => `<option value="${e(k)}" ${k === v ? "selected" : ""}>${e(t)}</option>`).join("")}</select></label>`;
   const q = (over) => { const p = new URLSearchParams({ tab, ...f, ...over }); [...p.keys()].forEach((k) => { if (!p.get(k) || p.get(k) === "all") p.delete(k); }); return `#admin-responses?${p}`; };
@@ -139,7 +147,7 @@ export async function responses(params) {
     <div class="rs-tiles">${tiles}</div>
     ${concerns.length && tab !== "six_months" ? `<section class="card"><h2 class="card-title">${icon("shield", 20, "#7a4f0e")} Concerns raised in questionnaires</h2><p class="small muted">Follow up through safeguarding. These are not formal reports unless the person also reported it.</p>${concerns.map((r) => `<div class="list-row"><span class="stack" style="--gap:2px"><strong data-no-i18n>${e(r.need_title || "")}</strong><span class="small muted">${e(date(r.completed_at))} · <span>${A(r).o_concern === "yes" ? "the organisation" : "the professional"}</span></span></span>${pill("Concern", "clay")}</div>`).join("")}</section>` : ""}
     ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
-    <div class="rs-grid">${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
+    <div class="rs-grid">${tab === "six_months" ? stillBlock() : ""}${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
     ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
   </div></div>`;
   return {
