@@ -17,12 +17,13 @@ export async function notifications() {
 export async function admin() {
   if (!state.user) return { redirect: "#signin?next=%23admin" };
   if (!state.isAdmin) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1><p class="lead">Your account doesn’t have admin access.</p></div>` };
-  const [orgs, profiles, reports, engagements, needs, allProfiles, sigs, idQueue, idDocs, needQueue] = await Promise.all([
+  const [orgs, profiles, reports, engagements, needs, allOrgs, allProfiles, sigs, idQueue, idDocs, needQueue] = await Promise.all([
     result(db.from("organisations").select("*").in("status", ["pending", "changes_requested"]).order("created_at")),
     result(db.from("profiles").select(PROFILE_COLS).eq("review_status", "pending").order("updated_at")),
     result(db.from("reports").select("*").neq("status", "resolved").order("created_at", { ascending: false })),
     result(db.from("engagements").select("id,status,scope,created_at,completed_at,followup_due,followup_in_use,organisation_id,user_id").order("created_at", { ascending: false }).limit(200)),
     result(db.from("needs").select("id,status,created_at,organisation_id")),
+    result(db.from("organisations").select("id,status")).catch(() => []),
     result(db.from("profiles").select("user_id,review_status,published")),
     result(db.from("agreement_signatures").select("user_id,kind,organisation_id,signer_role,version,full_name,signed_at,hours_committed,ip").order("signed_at", { ascending: false }).limit(1000)).catch(() => []),
     // Identity checks waiting for a person, whatever the profile's review status.
@@ -53,24 +54,27 @@ export async function admin() {
     <section class="card"><h2 style="font-size:1.7rem;margin-bottom:8px">Organisations awaiting review</h2>${orgs.length ? orgs.map(orgCard).join("") : empty("All caught up", "New organisations appear here.")}</section>
     ${idQueue.filter((q) => !profiles.some((x) => x.user_id === q.user_id)).length ? `<section class="card" style="border-color:var(--ochre-line)"><h2 style="font-size:1.7rem;margin-bottom:8px">Identity checks to review</h2><p class="small muted">The check passed at Didit but needs a person: the name differs from the profile, or Didit is reviewing it.</p>${idQueue.filter((q) => !profiles.some((x) => x.user_id === q.user_id)).map(profCard).join("")}</section>` : ""}
     <section class="card"><h2 style="font-size:1.7rem;margin-bottom:8px">Profiles awaiting first publication</h2>${profiles.length ? profiles.map(profCard).join("") : empty("All caught up", "Profiles appear here when someone publishes for the first time.")}</section>
-    <section class="card"><h2 style="font-size:1.7rem;margin-bottom:12px">Pilot numbers</h2><div class="table-scroll"><table class="data"><tbody>
-      <tr><td>Approved professionals</td><td><strong>${count(allProfiles, (p) => p.review_status === "approved" && p.published)}</strong></td></tr>
-      <tr><td>Open needs</td><td><strong>${count(needs, (n) => n.status === "open")}</strong></td></tr>
-      <tr><td>Contributions started</td><td><strong>${engagements.length}</strong></td></tr>
-      <tr><td>Contributions completed</td><td><strong>${count(engagements, (x) => x.status === "completed")}</strong></td></tr>
-      <tr><td>Ended early</td><td><strong>${count(engagements, (x) => x.status === "ended")}</strong></td></tr>
-      <tr><td>Six-month follow-ups answered “still in use”</td><td><strong>${count(engagements, (x) => x.followup_in_use === true)}</strong> of ${count(engagements, (x) => x.followup_in_use !== null && x.followup_in_use !== undefined)}</td></tr>
-    </tbody></table></div></section>
+    <section class="card"><h2 style="font-size:1.7rem;margin-bottom:6px">Handova in numbers</h2><p class="small muted" style="margin-bottom:10px">Live figures. Open any line to see the records behind it.</p><div class="al-numbers">
+      ${[["Registered organisations", allOrgs.length, `${count(allOrgs, (o) => o.status === "approved")} approved · ${count(allOrgs, (o) => o.status === "pending")} under review${count(allOrgs, (o) => o.status === "suspended") ? ` · ${count(allOrgs, (o) => o.status === "suspended")} suspended` : ""}`, "#admin-list/organisations"],
+        ["Registered professionals", allProfiles.length, `${count(allProfiles, (p) => p.review_status === "approved" && p.published)} approved and public`, "#admin-list/professionals"],
+        ["Approved professionals", count(allProfiles, (p) => p.review_status === "approved" && p.published), "", "#admin-list/professionals?show=approved"],
+        ["Open needs", count(needs, (n) => n.status === "open"), `${needs.length} needs in total`, "#admin-list/needs?show=open"],
+        ["Contributions started", engagements.length, "", "#admin-list/contributions"],
+        ["Contributions completed", count(engagements, (x) => x.status === "completed"), "", "#admin-list/contributions?show=completed"],
+        ["Ended early", count(engagements, (x) => x.status === "ended"), "", "#admin-list/contributions?show=ended"],
+        ["Six-month follow-ups answered “still in use”", `${count(engagements, (x) => x.followup_in_use === true)} of ${count(engagements, (x) => x.followup_in_use !== null && x.followup_in_use !== undefined)}`, "", "#admin-list/followups"]]
+        .map(([label, n, sub, href]) => `<a class="al-num" href="${href}"><span class="stack" style="--gap:2px"><span class="al-num-l">${label}</span>${sub ? `<span class="small muted">${sub}</span>` : ""}</span><strong>${n}</strong>${icon("arrow", 18)}</a>`).join("")}
+    </div></section>
   </div></div>`;
   return { title: "Admin", html };
 }
 
 export function adminDecision(kind, id, decision) {
-  const labels = { approved: "Approve", changes_requested: "Ask for changes", rejected: "Reject" };
+  const labels = { approved: "Approve", changes_requested: "Ask for changes", rejected: "Reject", suspended: "Suspend" };
   if (kind === "need") return decisionDialog(decision === "approved" ? "Approve this need?" : "Ask for changes?", decision === "approved" ? "It goes live straight away and the organisation is notified. You can add a short note." : "The need goes back to draft. The organisation sees your note on the need and in their notifications.", "admin-need", id,
     `${field("note", "Note", { type: "textarea", required: decision !== "approved", attrs: 'maxlength="1000"' })}<input type="hidden" name="decision" value="${decision}">`, decision === "approved" ? "Approve" : "Ask for changes");
-  decisionDialog(`${labels[decision]}?`, decision === "approved" ? "They will be notified. You can add a short welcome note." : "Explain what they need to change or why. They will see this note in their notifications.", kind === "org" ? "admin-org" : "admin-profile", id,
-    `${field("note", "Note", { type: "textarea", required: decision !== "approved", attrs: 'maxlength="1000"' })}<input type="hidden" name="decision" value="${decision}">`, labels[decision], decision === "rejected");
+  decisionDialog(`${labels[decision]}?`, decision === "approved" ? "They will be notified. You can add a short welcome note." : decision === "suspended" ? "Its page and open needs go offline and its team can’t post new needs. Anyone waiting on an open need is told. Explain why; the team sees this note." : "Explain what they need to change or why. They will see this note in their notifications.", kind === "org" ? "admin-org" : "admin-profile", id,
+    `${field("note", "Note", { type: "textarea", required: decision !== "approved", attrs: 'maxlength="1000"' })}<input type="hidden" name="decision" value="${decision}">`, labels[decision], decision === "rejected" || decision === "suspended");
 }
 
 export async function submitAdmin(kind, form) {
@@ -80,6 +84,6 @@ export async function submitAdmin(kind, form) {
     else await result(db.rpc("admin_review_profile", { p_user: form.dataset.id, p_decision: val(fd, "decision"), p_note: val(fd, "note") }));
     document.getElementById("dialog").close();
     toast("Decision saved and sent.");
-    go("#admin");
+    go(location.hash.startsWith("#admin") ? location.hash : "#admin");
   });
 }

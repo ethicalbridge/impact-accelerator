@@ -9,6 +9,7 @@ import * as acc from "./pages/account.js";
 import * as ws from "./pages/workspace.js";
 import * as eng from "./pages/engagement.js";
 import * as rsp from "./pages/responses.js";
+import * as adl from "./pages/adminlists.js";
 import * as adm from "./pages/admin.js";
 import * as legal from "./pages/legal.js";
 
@@ -48,6 +49,7 @@ async function page(r) {
     case "notifications": return adm.notifications();
     case "admin": return adm.admin();
     case "admin-responses": return rsp.responses(r.params);
+    case "admin-list": return adl.adminList(r.a, r.params);
     case "verify-done": return acc.verifyDone();
     case "email-confirmed": return acc.emailConfirmed(r.params);
     case "privacy": return legal.privacy();
@@ -186,6 +188,7 @@ const actions = {
   "read-all": async () => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", state.user.id).is("read_at", null); state.unread = 0; render(); },
   "admin-org": (el) => adm.adminDecision("org", el.dataset.id, el.dataset.decision),
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
+  "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   "delete-account": () => acc.deleteAccount(),
@@ -200,7 +203,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
