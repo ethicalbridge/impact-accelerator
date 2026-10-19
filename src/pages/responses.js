@@ -140,17 +140,19 @@ export async function responses(params) {
       return `<details class="rs-resp"><summary><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(who(r))}</strong><span class="small muted"><span data-no-i18n>${e(r.need_title || "")}</span> · ${e(date(resp.created_at))}${resp.short_form ? " · <span>short version</span>" : ""}</span></span>${resp.status === "skipped" ? pill("Skipped", "grey") : pill("Answered")}<span class="c-toggle" aria-hidden="true"></span></summary>
         <div class="rs-resp-body">${resp.status === "skipped" ? '<p class="small muted">They chose to skip the questionnaire.</p>' : answersHtml}<div class="row" style="--gap:8px;margin-top:10px"><button class="btn secondary sm danger-outline" type="button" data-action="rs-del" data-id="${e(resp.id)}" data-who="${e(who(r))}">Delete this response</button></div></div></details>`;
     }).join("");
-    return `<h2 class="card-title" style="margin-top:8px">Individual responses</h2><p class="small muted">Who answered what. Only Handova sees names; downloads and reports stay anonymous.</p><section class="card">${list.length ? rowsHtml : '<p class="muted">No responses yet.</p>'}</section>`;
+    return `<p class="small muted">Who answered what. Open a response to see each answer. Only Handova sees names; downloads and reports stay anonymous.</p><section class="card">${list.length ? rowsHtml : '<p class="muted">No responses yet.</p>'}</section>`;
   };
   const concerns = answered.filter((r) => A(r).o_concern === "yes" || A(r).p_concern === "yes");
   const sel = (name, lab, list, v) => `<label class="field rs-filter"><span>${lab}</span><select name="${name}">${list.map(([k, t]) => `<option value="${e(k)}" ${k === v ? "selected" : ""}>${e(t)}</option>`).join("")}</select></label>`;
-  const q = (over) => { const p = new URLSearchParams({ tab, ...f, ...over }); [...p.keys()].forEach((k) => { if (!p.get(k) || p.get(k) === "all") p.delete(k); }); return `#admin-responses?${p}`; };
+  const individual = params.get("view") === "individual";
+  const nResp = base.filter((r) => got(r)).length;
+  const q = (over) => { const p = new URLSearchParams({ tab, ...f, ...(individual ? { view: "individual" } : {}), ...over }); [...p.keys()].forEach((k) => { if (!p.get(k) || p.get(k) === "all") p.delete(k); }); return `#admin-responses?${p}`; };
 
   const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:22px">
     ${back("Admin", "#admin")}
     <div class="row between" style="align-items:flex-end"><div>${eyebrow("Questionnaires")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What people tell us</h1><p class="muted">Answers after each finished contribution. Only Handova sees this page. Wording version ${e(SURVEY_VERSION)}.</p></div>
       <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="rs-export" data-tab="${tab}">${icon("download", 16)} Download answers (CSV)</button><button class="btn secondary sm" type="button" data-action="rs-codebook">${icon("download", 16)} Codebook</button></div></div>
-    <nav class="rs-tabs" aria-label="Questionnaire">${TABS.map(([k, t]) => `<a href="#admin-responses?${new URLSearchParams({ tab: k, ...(f.period !== "all" ? { period: f.period } : {}) })}" ${k === tab ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
+    <nav class="rs-tabs" aria-label="Questionnaire">${TABS.map(([k, t]) => `<a href="#admin-responses?${new URLSearchParams({ tab: k, ...(f.period !== "all" ? { period: f.period } : {}), ...(individual ? { view: "individual" } : {}) })}" ${k === tab ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
     <form class="rs-filters" data-rs-filters>
       ${sel("period", "Period", PERIODS, f.period)}
       ${sel("country", pro ? "Professional’s country" : "Organisation’s country", [["", "All countries"], ...countries.map((c) => [c, c])], f.country)}
@@ -159,12 +161,13 @@ export async function responses(params) {
       ${sel("delivered", "Delivered", [["", "All"], ["everything", "Everything agreed"], ["partly", "Partly"]], f.delivered)}
     </form>
     <p class="small muted">Under 30 answers we show counts, not percentages. With a filter applied, groups with fewer than 5 answers are hidden. Countries with fewer than 3 ${pro ? "professionals" : "organisations"} are grouped as “Other countries”.</p>
-    <div class="rs-tiles">${tiles}</div>
+    <nav class="rs-view" aria-label="View"><a href="${q({ view: "" })}" ${individual ? "" : 'aria-current="page"'}>${icon("chart", 16)}<span>Summary and charts</span></a><a href="${q({ view: "individual" })}" ${individual ? 'aria-current="page"' : ""}>${icon("people", 16)}<span>See each response</span> <strong>${nResp}</strong></a></nav>
+    ${individual ? responsesList() : `<div class="rs-tiles">${tiles}</div>
     ${concerns.length && tab !== "six_months" ? `<section class="card"><h2 class="card-title">${icon("shield", 20, "#7a4f0e")} Concerns raised in questionnaires</h2><p class="small muted">Follow up through safeguarding. These are not formal reports unless the person also reported it.</p>${concerns.map((r) => `<div class="list-row"><span class="stack" style="--gap:2px"><strong data-no-i18n>${e(r.need_title || "")}</strong><span class="small muted">${e(date(r.completed_at))} · <span>${A(r).o_concern === "yes" ? "the organisation" : "the professional"}</span></span></span>${pill("Concern", "clay")}</div>`).join("")}</section>` : ""}
     ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
     <div class="rs-grid">${tab === "six_months" ? stillBlock() : ""}${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
     ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
-    ${responsesList()}
+    `}
   </div></div>`;
   return {
     title: "Questionnaire answers", html,
