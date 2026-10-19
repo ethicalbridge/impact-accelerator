@@ -130,16 +130,19 @@ export async function responses(params) {
     return qCard(`Q${qNum(q)}`, q.q, opts, picked, list.length, avg, q.type === "multi");
   };
   const rateCard = () => `<div class="rs-qc"><div class="rs-qc-head"><span class="rs-qn rs-qn-all">All</span><span class="rs-qc-q">Response rate: everyone asked after a finished contribution</span></div><div class="rs-qc-body">${donut([{ label: "Answered", k: answered.length, color: "#0f6f63" }, { label: "Skipped", k: skipped, color: "#eb6834" }, { label: "Not answered yet", k: Math.max(0, base.length - answered.length - skipped), color: "#ece7dc" }], base.length, `${answered.length}/${base.length}`, "answered")}<ul class="rs-legend"><li><span class="rs-sw" style="background:#0f6f63"></span><span class="rs-lg-l">Answered</span><span class="rs-lg-v">${answered.length}</span></li><li><span class="rs-sw" style="background:#eb6834"></span><span class="rs-lg-l">Skipped</span><span class="rs-lg-v">${skipped}</span></li><li><span class="rs-sw" style="background:#ece7dc"></span><span class="rs-lg-l">Not answered yet</span><span class="rs-lg-v">${Math.max(0, base.length - answered.length - skipped)}</span></li></ul></div></div>`;
+  // Top: one ring per question, counting how many people answered it. Below: the answers themselves, as bars.
+  const ringCard = (num, qtext, k, n, sub) => { const st = show(k, n); return `<div class="rs-tile rs-ring-card" title="${e(n ? `${k} of ${n}` : "No answers yet")}">${ringSvg(st)}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-ref"><span class="rs-qn${/^Q/.test(num) ? "" : " rs-qn-all"}">${num}</span></span><span class="rs-tile-t">${e(qtext)}</span><span class="small muted">${n ? e(sub) : "No answers yet"}</span></div></div>`; };
+  const answeredQ = (q) => answered.filter((r) => A(r)[q.id] != null && (q.type !== "multi" || A(r)[q.id].length)).length;
   let tiles = "";
   if (tab === "six_months") {
-    const yes = base.filter((r) => r.still_in_use).length;
-    tiles = qCard("Q1", "Are you still using what was delivered?", { list: [["yes", "Yes"], ["no", "No"]] }, (v) => (v === "yes" ? yes : base.length - yes), base.length)
-      + QUESTIONS.six_months.map(cardFor).join("");
+    tiles = ringCard("Q1", "Are you still using what was delivered?", base.length, base.length, `${base.length} of ${base.length} six-month checks answered`)
+      + QUESTIONS.six_months.map((q) => { const shownTo = base.filter((r) => (q.when === "yes" ? r.still_in_use : !r.still_in_use)).length; return ringCard(`Q${qNum(q)}`, q.q, answeredQ(q), shownTo, `${answeredQ(q)} of ${shownTo} answered (${q.when === "yes" ? "asked if still in use" : "asked if not in use"})`); }).join("");
   } else {
-    tiles = rateCard() + QUESTIONS[tab].filter((q) => q.type !== "open").map(cardFor).join("");
+    tiles = ringCard("All", "Response rate", answered.length, base.length, `${answered.length} of ${base.length} answered · ${skipped} skipped`)
+      + QUESTIONS[tab].map((q) => { const k = answeredQ(q); return ringCard(`Q${qNum(q)}`, q.q, k, answered.length, `${k} of ${answered.length} answered this question`); }).join("");
     if (tab === "professional") {
-      const staged = rows.filter((r) => r.career_stage);
-      tiles += qCard("Profile", "Career stage (asked once, private)", { list: CAREER_STAGES }, (v) => staged.filter((r) => r.career_stage === v).length, staged.length);
+      const staged = rows.filter((r) => r.career_stage).length;
+      tiles += ringCard("Profile", "Career stage (asked once, private)", staged, rows.length, `${staged} of ${rows.length} professionals have answered`);
     }
   }
   // The strategy's "first test" combines two answers, so it sits apart from the questions.
@@ -217,7 +220,8 @@ export async function responses(params) {
     </form>
     <p class="small muted">Under 30 answers we show counts, not percentages. With a filter applied, groups with fewer than 5 answers are hidden. Countries with fewer than 3 ${pro ? "professionals" : "organisations"} are grouped as “Other countries”.</p>
     <nav class="rs-view" aria-label="View"><a href="${q({ view: "" })}" ${individual ? "" : 'aria-current="page"'}>${icon("chart", 16)}<span>Summary and charts</span></a><a href="${q({ view: "individual" })}" ${individual ? 'aria-current="page"' : ""}>${icon("people", 16)}<span>See each response</span> <strong>${nResp}</strong></a></nav>
-    ${individual ? responsesList() : `<div class="rs-qcs">${tiles}</div>${combined}
+    ${individual ? responsesList() : `<div class="rs-tiles">${tiles}</div>${combined}
+    <h2 class="card-title" style="margin-top:8px">Answers to each question</h2><div class="rs-grid">${tab === "six_months" ? stillBlock() : ""}${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
     ${concerns.length && tab !== "six_months" ? `<section class="card"><h2 class="card-title">${icon("shield", 20, "#7a4f0e")} Concerns raised in questionnaires</h2><p class="small muted">Follow up through safeguarding. These are not formal reports unless the person also reported it.</p>${concerns.map((r) => `<div class="list-row"><span class="stack" style="--gap:2px"><strong data-no-i18n>${e(r.need_title || "")}</strong><span class="small muted">${e(date(r.completed_at))} · <span>${A(r).o_concern === "yes" ? "the organisation" : "the professional"}</span></span></span>${pill("Concern", "clay")}</div>`).join("")}</section>` : ""}
     ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
     ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
