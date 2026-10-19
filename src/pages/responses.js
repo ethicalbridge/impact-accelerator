@@ -54,12 +54,12 @@ export async function responses(params) {
     return { k, n, big: `${Math.round(ring * 100)}%`, sub: `of ${n} answers`, ring };
   };
   // A ring that fills to the share; the number in the middle follows the small-sample rule.
-  const ringSvg = (s) => {
+  const ringSvg = (s, warn) => {
     const r = 38, c = 2 * Math.PI * r, f = s.ring == null ? 0 : Math.max(0, Math.min(1, s.ring));
-    return `<svg class="rs-ring" viewBox="0 0 96 96" role="img" aria-label="${e(s.big)}"><circle cx="48" cy="48" r="${r}" class="rs-ring-track"/>${f > 0 ? `<circle cx="48" cy="48" r="${r}" class="rs-ring-fill" stroke-dasharray="${(f * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 48 48)"/>` : ""}<text x="48" y="${s.big.length > 6 ? 52 : 55}" text-anchor="middle" class="rs-ring-num${s.big.length > 6 ? " sm" : ""}">${e(s.big)}</text></svg>`;
+    return `<svg class="rs-ring" viewBox="0 0 96 96" role="img" aria-label="${e(s.big)}"><circle cx="48" cy="48" r="${r}" class="rs-ring-track"/>${f > 0 ? `<circle cx="48" cy="48" r="${r}" class="rs-ring-fill${warn ? " warn" : ""}" stroke-dasharray="${(f * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 48 48)"/>` : ""}<text x="48" y="${s.big.length > 6 ? 52 : 55}" text-anchor="middle" class="rs-ring-num${s.big.length > 6 ? " sm" : ""}">${e(s.big)}</text></svg>`;
   };
   const share = (key, yes, valid = () => true) => { const list = answered.filter((r) => A(r)[key] != null && valid(A(r)[key])); return show(list.filter((r) => yes(A(r)[key])).length, list.length); };
-  const tile = (title, s, note) => `<div class="rs-tile" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s)}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
+  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
   let tiles = "";
@@ -70,10 +70,10 @@ export async function responses(params) {
       tile("Practical value: a lot or a great deal", share("o_value", (v) => Number(v) >= 4)),
       tile("Couldn’t have done it, or only later or less well", share("o_without", (v) => ["later", "not_done"].includes(v), (v) => v !== "not_sure"), "Leaves out “Not sure”"),
       tile("“First test”: high value they couldn’t reach alone", first, "Value a lot or more AND later, less well or not done"),
-      tile("Received less than the time they gave", share("o_worth", (v) => Number(v) <= 2), "Early warning for extractive work"),
+      tile("Received less than the time they gave", share("o_worth", (v) => Number(v) <= 2), "Warning sign: lower is better", true),
       tile("Decided mostly or equally by the organisation", share("o_decided", (v) => v !== "professional")),
       tile("Can use it without outside help", share("o_maintain", (v) => v === "yes" || v === "little_help", (v) => v !== "not_sure")),
-      tile("Raised a concern", share("o_concern", (v) => v === "yes")),
+      tile("Raised a concern", share("o_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
     ].join("");
   } else if (tab === "professional") {
     const staged = rows.filter((r) => r.career_stage);
@@ -81,10 +81,10 @@ export async function responses(params) {
       tile("Response rate", rate, `${skipped} skipped · ${base.length} finished contributions`),
       tile("Need matched the real work (mostly or completely)", share("p_match", (v) => Number(v) >= 4)),
       tile("Got what they needed from the organisation", share("p_support", (v) => Number(v) >= 3)),
-      tile("Work took more time than planned", share("p_time", (v) => Number(v) >= 4), "Hidden overwork"),
+      tile("Work took more time than planned", share("p_time", (v) => Number(v) >= 4), "Hidden overwork: lower is better", true),
       tile("Would take on another need", share("p_again", (v) => v === "soon" || v === "later", (v) => v !== "not_sure")),
       tile("Students or early career", show(staged.filter((r) => ["student", "early"].includes(r.career_stage)).length, staged.length), "Of professionals with a known career stage"),
-      tile("Raised a concern", share("p_concern", (v) => v === "yes")),
+      tile("Raised a concern", share("p_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
     ].join("");
   } else {
     const fu = base;
@@ -113,7 +113,7 @@ export async function responses(params) {
     });
     const scale = q.type === "scale";
     const steps = rowsQ.length;
-    const tone = (i) => (scale ? `rs-t${Math.round((i / Math.max(1, steps - 1)) * 4)}` : "rs-t4");
+    const tone = () => "rs-t4";
     const bars = rowsQ.map((x) => `<div class="rs-bar" title="${e(`${x.lab}: ${x.k} of ${n}`)}"><span class="rs-bar-l">${e(x.lab)}</span><span class="rs-bar-t"><span class="${tone(x.i)}" style="width:${hide ? 0 : x.pct.toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round(x.pct)}%` : x.k}</span></div>`).join("");
     const avg = scale && n && !hide ? (list.reduce((t, r) => t + Number(A(r)[q.id]), 0) / n) : null;
     const table = `<table class="rs-table"><thead><tr><th scope="col">Answer choices</th>${many ? '<th scope="col">Responses</th>' : ""}<th scope="col">${many ? "" : "Responses"}</th></tr></thead><tbody>${rowsQ.map((x) => `<tr><td>${e(x.lab)}</td>${many ? `<td>${Math.round(x.pct)}%</td>` : ""}<td>${hide ? "–" : x.k}</td></tr>`).join("")}</tbody><tfoot><tr><td>Answered</td>${many ? "<td></td>" : ""}<td>${n}</td></tr></tfoot></table>`;
