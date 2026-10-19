@@ -37,15 +37,18 @@ export async function workspace(sub) {
   const changes = hours.filter((h) => h.status === "changes_requested" && active.some((x) => x.id === h.engagement_id));
   const engHours = (x) => hours.filter((h) => h.engagement_id === x.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
   // Everything waiting for the professional, most urgent first.
+  const fresh = completed.filter((x) => !x.public && x.completed_at && Date.now() - Date.parse(x.completed_at) < 21 * 864e5 && !(p.cv_hidden || []).includes(x.id));
   const todo = [
+    ...fresh.map((x) => todoRow(`${e(x.organisation?.name || "The organisation")} has finished and endorsed your work`, `${quoted(x.scope?.need_title || "")} · <span>read it and choose whether it appears on your impact CV</span>`, `<button class="btn sm" type="button" data-action="goto-focus" data-target="done-${x.id}">Read it</button>`)),
     ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
     ...pendingInv.map((i) => { const intro = /^\[Introduced by Handova\]\s*/.test(i.message || ""), msg = (i.message || "").replace(/^\[Introduced by Handova\]\s*/, ""); return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${intro ? `Handova introduced you to ${quoted(i.need?.title || "")} from ${e(i.need?.organisation?.name || "an organisation")}` : `${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}`}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${msg ? `<p class="small invite-msg" data-no-i18n>“${e(msg)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`; }),
     ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Correct the entry", `#agreement/${h.engagement_id}`, "sm")); }),
     ...active.filter((x) => !x.first_call_at).map((x) => todoRow(`Plan your first call with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · 30–45 minutes to meet and agree how you’ll work`, `${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`)),
     ...active.map((x) => (x.talent_delivered_at || hoursReadyAt(x, hours))
       ? todoRow(`Waiting for ${e(x.organisation?.name || "the organisation")} to finish and endorse your work`, `${quoted(x.scope?.need_title || "")} · <span>${x.talent_delivered_at ? `you told them on ${date(x.talent_delivered_at)}` : "all agreed hours are approved"}</span> · <span>they’re reminded after 7 and 14 days</span>`, btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm"))
-      : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
+      : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${`<button class="btn sm" type="button" data-action="goto-focus" data-href="#agreement/${x.id}" data-target="log-form">Log time</button>`}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
     ...surveys.map((x) => todoRow(`Two minutes: how did your contribution with ${e(x.other_name || "the organisation")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the organisation</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="professional">Answer</button>`)),
+    ...(p.published ? [] : [todoRow("Your profile is private", "Organisations can’t see it or invite you yet. Send it for review when it’s ready; we usually reply within two working days.", `<button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send for review</button>`)]),
     ...(priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
@@ -53,7 +56,7 @@ export async function workspace(sub) {
   const cvRows = completed.map((x) => {
     const corr = x.correction_requested_at;
     const corrLine = corr ? (x.endorsement_edited_at ? `<span class="small" style="color:var(--teal);font-weight:600">Corrected by the organisation on ${date(x.endorsement_edited_at)}.</span>` : `<span class="small muted">You asked for a correction on ${date(corr)}. The organisation can edit it within 14 days.</span>`) : "";
-    return `<div class="todo-row" style="flex-direction:column;align-items:stretch;gap:12px"><div class="stack" style="--gap:6px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>
+    return `<div class="todo-row" id="done-${x.id}" tabindex="-1" style="flex-direction:column;align-items:stretch;gap:12px"><div class="stack" style="--gap:6px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>
       ${x.endorsement ? `<blockquote class="small endorse-quote" data-no-i18n>“${e(x.endorsement)}”</blockquote><span class="small muted">— ${e([x.show_endorser_name ? x.endorser_name : "", x.endorsed_by_role, x.organisation?.name].filter(Boolean).join(", "))}</span>` : `<span class="small muted">No written endorsement.</span>`}
       ${(x.confirmed_skills || []).length ? `<div class="row" style="--gap:6px"><span class="small muted">Skills confirmed:</span>${tags(x.confirmed_skills)}</div>` : ""}
       ${x.note_to_professional ? `<div class="private-note"><span class="small" style="font-weight:700">A note just for you</span><p class="small" data-no-i18n>${e(x.note_to_professional)}</p></div>` : ""}
@@ -93,7 +96,7 @@ export async function workspace(sub) {
 }
 
 function reviewBanner(p) {
-  if (!p.published) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Publish it when you are ready; we review it before it becomes public.</p>${btn("Publish profile", "#workspace/profile", "sm")}</div>`;
+  if (!p.published) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Organisations can’t see it or invite you yet. Send it for review when it’s ready.</p><button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send my profile for review</button></div>`;
   if (p.review_status === "pending") return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p>Your profile is <strong>awaiting approval</strong>. We usually review within two working days and will notify you.</p></div>`;
   if (p.review_status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1">We asked for some changes to your profile. Check your notifications, update your profile and publish it again.</p>${btn("Edit profile", "#workspace/profile", "sm")}</div>`;
   if (p.review_status === "rejected") return `<div class="banner alert">${icon("alert", 22)}<p>Your profile was not approved. Write to us if you think this is a mistake.</p></div>`;
@@ -247,6 +250,7 @@ function todoItems(o, { needs, apps, engs, hours, surveys = [] }) {
     const since = dueSince(x, hours), waitingH = hours.some((h) => h.engagement_id === x.id && h.status === "pending");
     out.push({ html: todoRow(`Finish and endorse ${personName(x)}’s work`, `${quoted(x.scope?.need_title || need(x.need_id)?.title || "")} · <span>${x.talent_delivered_at ? `${personName(x)} says everything is delivered` : "All agreed hours are approved"}</span>${daysSince(since) > 14 ? ` · <span style="color:var(--clay-ink);font-weight:600">New needs are paused until you do this</span>` : ""}`, waitingH ? btn("Review hours first", `#org/needs/${x.need_id}`, "secondary sm") : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Finish and endorse</button>`) });
   }
+  for (const x of engs.filter((y) => y.status === "active" && !y.first_call_at && !dueSince(y, hours))) out.push({ html: todoRow(`Plan your first call with ${personName(x)}`, `${quoted(x.scope?.need_title || need(x.need_id)?.title || "")} · <span>a 30–45 minute call to agree dates and how you’ll review drafts</span>`, `${x.user_id ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "sm") : ""}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`) });
   for (const x of engs.filter((y) => y.status === "awaiting_signatures" && !y.org_signed_at)) out.push({ html: todoRow(`Sign the agreement with ${personName(x)}`, quoted(x.scope?.need_title || need(x.need_id)?.title || ""), btn("Review and sign", `#agreement/${x.id}`, "sm")) });
   for (const n of needs.filter((y) => y.status === "draft" && y.review_note)) out.push({ html: todoRow(`Handova asked for changes to ${quoted(n.title)}`, `<span data-no-i18n>${e(n.review_note)}</span>`, btn("Update need", `#org/need/${n.id}`, "sm")) });
   for (const n of needs) {
@@ -444,7 +448,7 @@ export async function submitFirstCall(form) {
 // Send a draft to Handova for review.
 export async function submitForReview(id) {
   await result(db.from("needs").update({ status: "pending" }).eq("id", id));
-  toast("Sent to Handova. We’ll let you know when it’s live.");
+  toast("Sent to Handova. We usually check new needs within two working days, and we’ll email you when it’s live.");
   go(`#org/needs/${id}`);
 }
 
@@ -462,7 +466,7 @@ function needForm(n, o, approved, langs, full = false) {
   return `<form class="form card" data-form="need" data-id="${e(n.id || "")}" data-was="${e(n.status || "")}" data-org="${e(o.id)}" novalidate><div class="form-grid">
     ${field("title", "Title", { value: n.title, required: true, full: true, attrs: 'maxlength="160" minlength="5" placeholder="e.g. Improve our community data tools"' })}
     ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? At least 20 characters. Don’t include names of the people you support." })}
-    ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
+    ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "What you want to receive at the end. Put each thing on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome. These are the languages our professionals work in.", options: langs })}
     ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
@@ -497,7 +501,7 @@ export async function submitNeed(form) {
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
     else form.dataset.id = (await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }).select("id").single()))?.id || "";
     const was = form.dataset.was;
-    toast(row.status === "pending" && was !== "pending" ? "Sent to Handova. We’ll let you know when it’s live." : row.status === "draft" ? "Draft saved." : row.status === "open" && was === "closed" ? "Your need is open again." : "Changes saved.");
+    toast(row.status === "pending" && was !== "pending" ? "Sent to Handova. We usually check new needs within two working days, and we’ll email you when it’s live." : row.status === "draft" ? "Draft saved." : row.status === "open" && was === "closed" ? "Your need is open again." : "Changes saved.");
     go(form.dataset.id ? `#org/needs/${form.dataset.id}` : "#org/needs");
   });
 }
@@ -536,19 +540,26 @@ export async function submitInvite(form) {
   await withForm(form, async (fd) => {
     await result(db.from("invitations").insert({ need_id: val(fd, "need_id"), user_id: form.dataset.id, message: val(fd, "message") }));
     closeDialog();
-    toast("Invitation sent.");
+    toast("Invitation sent. Most people reply within a week, and we’ll email you when they do.");
   });
 }
 
 export function reportDialog(type, id) {
   if (!state.user) return go("#report");
-  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p>${select("reason", "What is the concern?", [["safety", "Safety or safeguarding"], ["harassment", "Harassment or inappropriate behaviour"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p>${select("reason", "What is the concern?", [["exploitation", "Sexual exploitation or abuse"], ["safety", "A child or adult at risk, or another safety concern"], ["harassment", "Harassment or inappropriate behaviour"], ["fraud", "Fraud, payment requests or false hours"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function submitReport(form) {
   await withForm(form, async (fd) => {
-    await result(db.from("reports").insert({ target_type: form.dataset.type || "other", target_id: form.dataset.id || null, reason: val(fd, "reason"), details: val(fd, "details") }));
+    const base = { target_type: form.dataset.type || "other", target_id: form.dataset.id || null, reason: val(fd, "reason"), details: val(fd, "details") };
+    try { await result(db.from("reports").insert(base)); }
+    catch (err) {
+      // Until the database accepts the newer reasons, file them under the closest older one, with the reason in the text.
+      const older = { exploitation: ["safety", "[Sexual exploitation or abuse] "], fraud: ["misleading", "[Fraud] "] }[base.reason];
+      if (!older || !/check|violat|23514/i.test(String(err?.message || err?.code || ""))) throw err;
+      await result(db.from("reports").insert({ ...base, reason: older[0], details: (older[1] + base.details).slice(0, 4000) }));
+    }
     closeDialog();
-    toast("Thank you. Your report has been sent to our safeguarding lead.");
+    toast("Thank you. We have received your report. Our safeguarding lead reads every report and will contact you if we need more information. If someone is in immediate danger, contact local emergency services first.");
   });
 }
 

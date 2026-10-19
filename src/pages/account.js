@@ -1,5 +1,5 @@
-import { locale, getLang } from "../i18n.js";
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, val, loadSession, homeFor } from "../core.js";
+import { locale, getLang, t, tf } from "../i18n.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession, homeFor } from "../core.js";
 import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
@@ -152,7 +152,7 @@ export function profileForm(p = {}) {
   const head = (title, sub = "") => `<div class="pf-cardhead">${eyebrow(title)}${sub ? `<p class="muted small" style="margin:0">${sub}</p>` : ""}</div>`;
   // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
   const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
-  return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}">
+  return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}" novalidate>
     ${p.closed_reason === "inactive" && !p.published ? `<div class="banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
     ${p.inactive_since && p.published ? `<div class="banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString(locale(), { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
     ${edit ? identityCard(p) : ""}
@@ -194,7 +194,7 @@ export function profileForm(p = {}) {
     <section class="card stack" style="--gap:14px">
       ${head("Agreement", "Handova only works if organisations can count on the people they find here.")}
       ${agreementBlock()}
-      <div class="checkbox-box">${check("published", "<strong>Publish my profile.</strong> Once approved, anyone can see it, including search engines. You can unpublish at any time.", p.published)}</div>
+      <div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone can see it, including search engines. You can unpublish at any time.", p.published)}</div>
       ${formEnd(edit ? "Save profile" : "Create profile")}
     </section>
   </form>`;
@@ -261,7 +261,9 @@ export async function verifyDone() {
     name_mismatch: ["Thank you, we are reviewing it", "The name on your document is different from your profile name, so an administrator will confirm it shortly."],
     declined: ["The check did not go through", "Please try again with a clear photo of a valid passport or ID card, in good light."],
   }[st] || ["Thank you", "We are processing your check. You will get a notification as soon as it is done."];
-  return { title: "Identity check", html: `<div class="wrap" style="max-width:720px;padding-block:72px 96px"><div class="card stack" style="--gap:16px"><span class="icon-tile lg">${icon(st === "approved" ? "check" : "clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">${msg[0]}</h1><p class="lead">${msg[1]}</p><div class="row">${btn("Back to my profile", "#workspace/profile")}${btn("Find a need", "#needs", "secondary")}</div></div></div>` };
+  // Most people verify in the middle of signing: take them straight back to the agreement.
+  const toSign = await result(db.from("engagements").select("id,scope").eq("user_id", state.user.id).eq("status", "awaiting_signatures").is("talent_signed_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle()).catch(() => null);
+  return { title: "Identity check", html: `<div class="wrap" style="max-width:720px;padding-block:72px 96px"><div class="card stack" style="--gap:16px"><span class="icon-tile lg">${icon(st === "approved" ? "check" : "clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">${msg[0]}</h1><p class="lead">${msg[1]}</p><div class="row">${toSign ? btn(tf("Back to your agreement with {org}", { org: toSign.scope?.organisation || t("the organisation") }), `#agreement/${toSign.id}`) : btn("Back to my profile", "#workspace/profile")}${toSign ? btn("My workspace", "#workspace", "secondary") : btn("Find a need", "#needs", "secondary")}</div></div></div>` };
 }
 
 // The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.
@@ -530,23 +532,32 @@ export async function submitAccount(kind, form) {
     if (wasAsked) go("#org");
   });
   if (kind === "profile") return withForm(form, async (fd) => {
-    if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
+    // Collect every problem, so people can fix the whole form in one pass.
+    const problems = [], q = (n) => form.querySelector(`[name="${n}"]`);
+    form.querySelectorAll("input:invalid, textarea:invalid, select:invalid").forEach((el) => { if (!el.closest(".entry-editor") && !["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct", "sign_name"].includes(el.name)) problems.push([el, fieldProblem(el)]); });
     const website = val(fd, "website");
-    if (website && !safeURL(website)) throw Error("Use a full web address starting with https://");
+    if (website && !safeURL(website)) problems.push([q("website"), "Use a full web address starting with https://"]);
     const linkedin = val(fd, "linkedin");
-    if (!linkedin) throw Error("Add your LinkedIn profile. We use it to check who you are before approving your profile.");
-    if (linkedin && !/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) throw Error("Use your LinkedIn profile address, starting with https://www.linkedin.com/");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: readEntries(form, "experience"), education_items: readEntries(form, "education"), photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
-    if (!row.skills.length) throw Error("Add at least one skill.");
-    if (!row.languages.length) throw Error("Choose at least one language you can work in.");
-    if (!row.experience_items.length) throw Error("Add at least one role under Experience.");
-    if (!row.education_items.length) throw Error("Add at least one qualification under Education.");
-    if (row.hours_available < 4) throw Error("Choose at least 4 hours a month.");
-    if (!val(fd, "career_stage")) throw Error("Choose your career stage.");
+    if (!linkedin) problems.push([q("linkedin"), "Add your LinkedIn profile. We use it to check who you are before approving your profile."]);
+    else if (!/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) problems.push([q("linkedin"), "Use your LinkedIn profile address, starting with https://www.linkedin.com/"]);
+    const entries = (kind) => { try { return readEntries(form, kind); } catch (err) { problems.push([err.field || form.querySelector(`[data-entry-editor="${kind}"]`), err.message]); return null; } };
+    const xp = entries("experience"), ed = entries("education");
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: xp || [], education_items: ed || [], photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
+    if (!row.skills.length) problems.push([q("skills"), "Add at least one skill."]);
+    if (!row.languages.length) problems.push([q("languages"), "Choose at least one language you can work in."]);
+    if (xp && !xp.length) problems.push([form.querySelector('[data-entry-editor="experience"] button') || form.querySelector('[data-entry-editor="experience"]'), "Add at least one role under Experience."]);
+    if (ed && !ed.length) problems.push([form.querySelector('[data-entry-editor="education"] button') || form.querySelector('[data-entry-editor="education"]'), "Add at least one qualification under Education."]);
+    if (row.hours_available < 4) problems.push([q("hours_available"), "Choose at least 4 hours a month."]);
+    if (!val(fd, "career_stage")) problems.push([q("career_stage"), "Choose your career stage."]);
     if (!signedCurrent()) {
-      if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) throw Error("Read the agreement and tick all four boxes to sign it.");
+      if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) problems.push([["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct"].map(q).find((el) => el && !el.checked), "Read the agreement and tick all four boxes to sign it."]);
+      if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
+    }
+    const found = problems.filter(([el]) => el);
+    if (found.length) throw fieldErrors(found);
+    if (problems.length) throw Error(problems[0][1]);
+    if (!signedCurrent()) {
       const signName = val(fd, "sign_name");
-      if (signName.length < 2) throw Error("Type your full name to sign the agreement.");
       await result(db.rpc("sign_agreement", { p_kind: "professional", p_version: PRO_AGREEMENT_VERSION, p_name: signName, p_text: proAgreementText(), p_hours: row.hours_available }));
       state.proAgreement = { version: PRO_AGREEMENT_VERSION, signed_at: new Date().toISOString(), full_name: signName, hours_committed: row.hours_available };
     }

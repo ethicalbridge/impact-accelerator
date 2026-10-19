@@ -321,8 +321,9 @@ export function readEntries(form, kind) {
       ? [!it.title && "role", !it.organisation && "organisation", !it.country && "country", !it.start && "start year", !it.end && "end year or Present"]
       : [!it.title && "qualification", !it.field && "field of study", !it.organisation && "university", !it.country && "country", !it.start && "start year", !it.end && "end year or Studying now"];
     const gaps = missing.filter(Boolean);
-    if (gaps.length) throw Error(`Complete ${name}: add the ${gaps.join(", ")}.`);
-    if (it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for ${name}: it ends before it starts.`);
+    const fail = (msg, sel) => { const err = Error(msg); err.field = (sel && row.querySelector(sel)) || row.querySelector("input, select, textarea") || row; throw err; };
+    if (gaps.length) fail(`Complete ${name}: add the ${gaps.join(", ")}.`, !it.title ? ".en-title" : !it.organisation ? ".en-org" : !it.country ? ".en-country" : !it.start ? ".en-start-y" : ".en-end-y");
+    if (it.end !== "present" && dkey(it.end) < dkey(it.start)) fail(`Check the dates for ${name}: it ends before it starts.`, ".en-end-y");
     out.push(it);
   }
   return out;
@@ -551,12 +552,13 @@ export function header(active) {
     const name = state.profile?.name || state.memberships[0]?.full_name || state.user.email;
     const ws = state.memberships.length ? `<a href="#org">${icon("grid", 18)}Organisation workspace</a>` : "";
     const pw = state.profile ? `<a href="#workspace">${icon("user", 18)}My workspace</a>` : "";
-    right = `${langMenu()}<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
+    const home = state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding";
+    right = `<a class="btn secondary sm ws-btn" href="${home}" title="My workspace" ${active === home ? 'aria-current="page"' : ""}>${icon("grid", 16)}<span>My workspace</span></a>${langMenu()}<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
       <details class="account-menu"><summary>${avatarFor({ name, photo_url: state.profile?.photo_url || "" }, 36)}<span class="hide-sm">${e(String(name).split(" ")[0])}</span></summary><div class="menu">${ws}${pw}${!ws && !pw ? `<a href="#onboarding">${icon("user", 18)}Finish setting up</a>` : ""}${state.isAdmin ? `<a href="#admin">${icon("shield", 18)}Admin</a>` : ""}<a href="#account">${icon("settings", 18)}Account and privacy</a><button type="button" data-action="signout">${icon("logout", 18)}Sign out</button></div></details>`;
   } else {
     right = `${langMenu()}<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
   }
-  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? "" : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
+  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? `<a class="nav-signin" href="${state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding"}">My workspace</a>` : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
 }
 
 export function footer(cfg) {

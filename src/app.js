@@ -95,6 +95,8 @@ async function render() {
     if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");
     out.after?.();
     enhance(main, r.name);
+    // A link can ask the next page to bring one element into view (e.g. the "publish" box at the end of a long form).
+    try { const f = sessionStorage.getItem("hv-focus"); if (f) { sessionStorage.removeItem("hv-focus"); const el = document.getElementById(f); if (el) { el.scrollIntoView({ block: "center" }); el.focus?.({ preventScroll: true }); el.closest(".checkbox-box, section, .card")?.classList.add("flash"); } } } catch {}
     idNudge(r.name);
     trackPage();
   } catch (err) {
@@ -121,10 +123,12 @@ const actions = {
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); el.setAttribute("aria-label", open ? "Close menu" : "Open menu"); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
+  "more-filters": (el) => { const f = el.closest("form"); const on = f.classList.toggle("show-more"); el.setAttribute("aria-expanded", String(on)); el.textContent = t(on ? "Fewer filters" : "More filters"); },
   "verify-id": (el) => acc.startIdCheck(el),
   "admin-id": async (el) => { await result(db.rpc("admin_confirm_identity", { p_user: el.dataset.id, p_approve: el.dataset.ok === "1" })); toast("Identity decision saved."); render(); },
   "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
   print: () => window.print(),
+  "goto-focus": (el) => { try { sessionStorage.setItem("hv-focus", el.dataset.target); } catch {} if (el.dataset.href && location.hash !== el.dataset.href) go(el.dataset.href); else { const t = document.getElementById(el.dataset.target); t?.scrollIntoView({ block: "center" }); t?.focus?.({ preventScroll: true }); } },
   apply: (el) => pub.applyDialog(el.dataset.id),
   "save-need": async (el) => {
     if (!state.user) return go("#signin");
@@ -197,6 +201,7 @@ const actions = {
   "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
   "admin-contrib-delete": (el) => adl.deleteContribDialog(el.dataset.id, el.dataset.title),
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
+  "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   "delete-account": () => acc.deleteAccount(),
   "cookie-settings": () => initConsent(true),
@@ -222,6 +227,7 @@ const confirmRpc = {
   "hours-amend": ["amend_hours", (id, fd) => ({ p_id: id, p_date: String(fd.get("work_date") || ""), p_hours: Number(fd.get("hours")), p_description: String(fd.get("description") || ""), p_evidence: String(fd.get("evidence") || "").trim() }), "Corrected and sent for review."],
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
+  "admin-report-resolve": ["admin_update_report", (id, fd) => ({ p_id: id, p_status: "resolved", p_note: String(fd.get("note") || "") }), "Report resolved."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
 };
 
@@ -277,6 +283,8 @@ document.documentElement.classList.remove("i18n-wait");
 // Changing language reloads the page: warn first if a form has unsaved typing.
 document.addEventListener("input", (ev) => { if (ev.target.closest?.("form") && !ev.target.closest(".lang-menu")) window.__hvDirty = true; });
 window.addEventListener("hashchange", () => { window.__hvDirty = false; });
+window.addEventListener("beforeprint", () => document.querySelectorAll("#main details").forEach((d) => { d.dataset.wasOpen = d.open ? "1" : ""; d.open = true; }));
+window.addEventListener("afterprint", () => document.querySelectorAll("details[data-was-open]").forEach((d) => { d.open = d.dataset.wasOpen === "1"; delete d.dataset.wasOpen; }));
 $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 bindHeader();

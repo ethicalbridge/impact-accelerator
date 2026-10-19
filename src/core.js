@@ -62,7 +62,7 @@ export function toast(message, isError = false) {
   t.classList.add("show");
   clearTimeout(toastTimer);
   // Errors stay longer, so slower readers can finish them.
-  toastTimer = setTimeout(() => t.classList.remove("show"), isError ? 10000 : 4500);
+  toastTimer = setTimeout(() => t.classList.remove("show"), isError ? 10000 : Math.min(12000, Math.max(4500, String(message).length * 70)));
 }
 
 let lastFocus = null;

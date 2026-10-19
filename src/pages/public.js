@@ -1,4 +1,4 @@
-import { locale, t } from "../i18n.js";
+import { locale, t, tf } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS } from "../core.js";
 import { icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
@@ -272,10 +272,10 @@ function filtersForm(kind, langs) {
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
     <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
-    <label>Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
-    <label>Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
-    <label>Hours<select name="hours"><option value="">Any hours</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
-    <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><button class="link-btn" type="reset">Clear filters</button></div>
+    <label class="more">Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
+    <label class="more">Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
+    <label class="more">Hours<select name="hours"><option value="">Any hours</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
+    <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><span class="row" style="--gap:16px"><button class="link-btn mf-toggle" type="button" data-action="more-filters" aria-expanded="false">More filters</button><button class="link-btn" type="reset">Clear filters</button></span></div>
   </form>`;
 }
 
@@ -481,14 +481,14 @@ export async function profile(id) {
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
       // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
       const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions" title="See contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span></button>`;
-      return `<section class="stats-dark stats-btns stats-5" aria-label="Impact so far and availability">${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "awaiting the organisation’s review") : tile(countries, "countries")}${(() => {
+      return `<section class="stats-dark stats-btns stats-5" aria-label="Impact so far and availability">${contributions.length ? `${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "awaiting the organisation’s review") : tile(countries, "countries")}` : `<div class="stat-new"><strong>New on Handova</strong><span>Profile reviewed by Handova${p.id_status === "approved" ? " · ID verified" : ""}</span><span class="stat-note">Contributions will appear here once an organisation reviews them.</span></div>`}${(() => {
         // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
         const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const used = contributions.filter((c) => { const d = new Date(c.completed || c.completed_at || c.started || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
         const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(locale(), { day: "numeric", month: "long" });
         return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left < per ? `${per} more hours unlock on ${next}` : `Back to ${per} hours on ${next}`) : "Not available right now"}</span>${canInvite && left ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}`;
       })()}</div></section>`; })()}
-    <p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them." : "Only work reviewed by the organisation counts."}</p>
+    ${contributions.length ? `<p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them." : "Only work reviewed by the organisation counts."}</p>` : ""}
     <div class="split left">
       <aside class="stack" style="--gap:18px">
         ${side("About", `${p.bio ? `<p class="prose" style="font-size:1rem" data-no-i18n>${e(p.bio)}</p>` : `<p class="prose" style="font-size:1rem">No introduction yet.</p>`}`)}
@@ -571,8 +571,11 @@ export async function applyDialog(needId) {
   if (!(p.published && p.review_status === "approved")) {
     return openDialog("Your profile needs approval first", `<p>${p.review_status === "pending" ? "Your profile is awaiting approval. We usually review within two working days, and you will get a notification." : "Publish your profile from your workspace. Once approved, you can apply."}</p><div class="row">${btn("Go to your workspace", "#workspace")}</div>`);
   }
+  const nd = await result(db.from("needs").select("languages,organisation:organisations(name)").eq("id", needId).maybeSingle()).catch(() => null);
+  const langs = (nd?.languages || []).map((l) => t(l)).join(", ");
   openDialog("Apply to this need", `<form class="form" data-form="apply" data-id="${e(needId)}">
     <p class="muted">Explain how you would approach the output and when you could do it. Only the organisation will see this.</p>
+    ${langs ? `<p class="small" style="font-weight:600">${e(tf("Write in a language the organisation works in: {langs}.", { langs }))}</p>` : ""}
     ${field("message", "Your plan and availability", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "At least 30 characters. Don’t include confidential information." })}
     ${formEnd("Send application", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
@@ -581,7 +584,7 @@ export async function submitApply(form) {
   await withForm(form, async (fd) => {
     await result(db.from("applications").insert({ need_id: form.dataset.id, user_id: state.user.id, message: val(fd, "message") }));
     document.getElementById("dialog").close();
-    toast("Application sent. You will be notified when the organisation decides.");
+    toast("Application sent. Organisations usually reply within a week, and we’ll email you when they decide.");
     go("#workspace");
   });
 }
