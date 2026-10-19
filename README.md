@@ -19,6 +19,8 @@ Skilled professionals contributing, unpaid, to the needs locally led organisatio
 
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").
 
+If an organisation stops responding, an admin can close the contribution from Admin → Contributions ("Close for them"): hours the organisation already approved stay on the professional's record, marked "Closed by Handova". An account can't be deleted while its owner has a contribution still open, or is the only person managing an organisation with one. Text typed in a dialog is kept as a draft in that browser tab until it is sent.
+
 ## Code
 
 Vanilla ES modules, no framework. `src/` is bundled by esbuild into `app.js`, which is **committed** because GitHub Pages serves the branch root.

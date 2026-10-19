@@ -1,4 +1,4 @@
-import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result, homeFor, e } from "./core.js";
+import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e } from "./core.js";
 import { header, footer, bindLanguagePickers, bindEntryEditors } from "./ui.js";
 import { config } from "./config.js";
 import { loadLang, initialLang, startTranslating, setLang, t } from "./i18n.js";
@@ -120,6 +120,7 @@ const actions = {
   "set-lang": (el) => setLang(el.dataset.id),
   "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
   close: () => closeDialog(),
+  "clear-draft": (el) => { const f = el.closest("form"); if (!f) return; clearDialogDraft(f); f.reset(); el.closest(".draft-note")?.remove(); $("#dialog").removeAttribute("data-dirty"); },
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); el.setAttribute("aria-label", open ? "Close menu" : "Open menu"); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
@@ -200,6 +201,7 @@ const actions = {
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
   "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
   "admin-contrib-delete": (el) => adl.deleteContribDialog(el.dataset.id, el.dataset.title),
+  "admin-contrib-close": (el) => adl.closeContribDialog(el.dataset.id, el.dataset.title),
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
   "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
@@ -215,7 +217,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -269,7 +271,15 @@ document.addEventListener("submit", async (ev) => {
   }
 });
 
-$("#dialog").addEventListener("click", (ev) => { if (ev.target.closest(".dialog-close") || ev.target === $("#dialog")) closeDialog(); });
+// A tap outside a dialog closes it only when nothing has been typed; the close button, Cancel and Esc always close,
+// and typed text stays as a draft (see saveDialogDraft in core.js).
+$("#dialog").addEventListener("click", (ev) => {
+  if (ev.target.closest(".dialog-close")) return closeDialog();
+  if (ev.target === $("#dialog") && !$("#dialog").hasAttribute("data-dirty")) closeDialog();
+});
+const keepDraft = (ev) => { const f = ev.target.closest?.("form[data-form]"); if (!f) return; $("#dialog").setAttribute("data-dirty", "1"); saveDialogDraft(f); };
+$("#dialog").addEventListener("input", keepDraft);
+$("#dialog").addEventListener("change", keepDraft);
 window.addEventListener("hashchange", () => { if ($("#dialog").open) $("#dialog").close(); render(); });
 db.auth.onAuthStateChange(async (event) => {
   if (event === "PASSWORD_RECOVERY") setTimeout(acc.newPasswordDialog, 50);

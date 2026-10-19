@@ -272,6 +272,8 @@ function updateRow(t, r, v) {
     Object.assign(r, v, { updated_at: now() });
     if (r.published && !(r.age_confirmed && r.unpaid_confirmed)) fail("check", "23514");
     if (r.published && !was && ["draft", "changes_requested"].includes(r.review_status)) { r.review_status = "pending"; notifyAdmins("profile_review", "Profile to review", r.name, "#admin"); }
+    // 20261019001100: the owner saves after Handova asked for changes, so it goes back into review.
+    else if (r.published && was && r.review_status === "changes_requested" && own(r.user_id)) { r.review_status = "pending"; notifyAdmins("profile_review", "Profile updated after your request", r.name, "#admin"); }
   } else if (t === "needs") {
     // needs_update policy, then need_guard (20261019000500_audit_fixes.sql)
     const adm = isAdmin(), org = r.organisation_id;
@@ -655,10 +657,38 @@ const rpcs = {
     Object.assign(c, { status: "closed", closed_reason: "Ended by a participant", closed_at: now() });
   },
   public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at })),
+  public_contributions_v2: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at, closed_by_handova: !!e.closed_by_handova })),
+  // 20261019001100_soft_launch_flow_fixes.sql
+  account_deletion_blocker: () => {
+    const u = me(); if (!u) return null;
+    const mine = D.engagements.find((e) => e.user_id === u && ["awaiting_signatures", "active"].includes(e.status));
+    if (mine) return `You have a contribution that is still open (${mine.scope?.need_title || "a contribution"}). Finish it or end it from its agreement page first, so the organisation is not left waiting.`;
+    const org = D.organisations.find((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); return ms.some((m) => m.user_id === u) && ms.every((m) => m.user_id === u) && D.engagements.some((e) => e.organisation_id === o.id && ["awaiting_signatures", "active"].includes(e.status)); });
+    if (org) return `You are the only person managing ${org.name}, and it has a contribution that is still open. Finish or end it first, or write to hello@handova.org so we can help hand the organisation over.`;
+    return null;
+  },
+  admin_close_engagement: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const e = D.engagements.find((x) => x.id === a.p_id);
+    if (!e) fail("Contribution not found.");
+    if (e.status !== "active") fail("Only a contribution in progress can be closed this way.");
+    const reason = String(a.p_reason || "").trim().slice(0, 1000);
+    if (reason.length < 5) fail("Give a short reason. Both sides will see it.");
+    const approved = approvedHours(e), t = now();
+    if (approved > 0) Object.assign(e, { status: "completed", completed_at: t, closed_by_handova: t, end_reason: reason, followup_due: null });
+    else Object.assign(e, { status: "ended", ended_at: t, ended_by: me(), closed_by_handova: t, end_reason: reason });
+    D.conversations.filter((c) => c.need_id === e.need_id && c.user_id === e.user_id && c.status !== "closed").forEach((c) => Object.assign(c, { status: "closed", closed_reason: "Closed by Handova", closed_at: t }));
+    notify(e.user_id, "ended", "Handova closed a contribution", e.scope.need_title + (approved > 0 ? `. The ${approved} hours the organisation approved stay on your record, and you can choose to show it on your impact CV.` : ". No hours had been approved, so it was ended."), "#workspace");
+    notifyOrg(e.organisation_id, "ended", "Handova closed a contribution", `${e.scope.need_title}: ${reason.slice(0, 300)}`, "#org");
+    (D.admin_actions ||= []).push({ id: uid(), admin_id: me(), action: approved > 0 ? "contribution_closed" : "contribution_ended", target_type: "engagement", target_id: e.id, detail: { reason, approved_hours: approved }, created_at: t });
+    return approved > 0 ? "completed" : "ended";
+  },
   // 20261019000600_conversation_retention.sql. Only reachable through the account-delete function below.
   delete_my_account: () => {
     const u = me();
     if (!u) fail("Please sign in first.");
+    const blocker = rpcs.account_deletion_blocker();
+    if (blocker) fail(blocker);
     if (!D.account_deletion_authorizations.some((x) => x.user_id === u && !ago(x.verified_at, 5 / 1440))) fail("Please use Account and privacy to delete your account.");
     D.account_deletion_authorizations = D.account_deletion_authorizations.filter((x) => x.user_id !== u);
     const t = now();
@@ -672,7 +702,7 @@ const rpcs = {
     const gone = new Set(D.conversations.filter((c) => c.user_id === u && !kept.has(c.id)).map((c) => c.id));
     D.conversations = D.conversations.filter((c) => !gone.has(c.id));
     D.messages = D.messages.filter((m) => !gone.has(m.conversation_id));
-    D.organisations.forEach((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); if (ms.length && ms.every((m) => m.user_id === u)) o.status = "suspended"; });
+    D.organisations.forEach((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); if (ms.length && ms.every((m) => m.user_id === u)) { o.status = "suspended"; notifyAdmins("org_without_member", "An organisation no longer has anyone managing it", `${o.name}: its only member deleted their account, so it was suspended.`, "#admin-list/organisations"); } });
     // delete from auth.users: cascades and "on delete set null".
     for (const tb of ["profiles", "applications", "invitations", "saved_needs", "notifications", "organisation_members", "user_settings", "user_private", "id_verifications", "admins", "account_deletion_authorizations"]) D[tb] = D[tb].filter((r) => r.user_id !== u);
     const unset = (rows, ...keys) => rows.forEach((r) => keys.forEach((k) => { if (r[k] === u) r[k] = null; }));

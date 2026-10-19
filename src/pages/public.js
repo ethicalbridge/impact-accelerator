@@ -114,10 +114,12 @@ export function home() {
 
 // The hero "handover": the mark draws itself, the dot passes between the curves, and the story floats around it.
 function stage() {
+  // An example organisation (clearly labelled), never a real partner, until real endorsed work exists.
+  const heroOrg = exampleNeeds[0].organisation;
   return `<div class="hv-stage" aria-hidden="true">
     <div class="hv-ring"></div>
     <svg class="hv-big" viewBox="0 0 100 100"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="#fffdf8" stroke-width="9" stroke-linecap="round" pathLength="1"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="#7fa99b" stroke-width="9" stroke-linecap="round" pathLength="1"/><circle class="hv-dot" cx="50" cy="50" r="9" fill="#e0a07f"/></svg>
-    <div class="hv-float f1 row" style="flex-wrap:nowrap"><span class="hv-orglogo"><img src="${e(exampleContributions[0].org_logo)}" width="44" height="44" alt="" referrerpolicy="no-referrer"></span><div><strong>${e(exampleContributions[0].organisation)}</strong> ${roleTag("Organisation")}<br><span class="small muted">${e(exampleContributions[0].need_title)} · handed over</span><br><span class="small muted">Sukadana, Indonesia</span></div></div>
+    <div class="hv-float f1 row" style="flex-wrap:nowrap"><span class="hv-orglogo"><img src="${e(heroOrg.logo)}" width="44" height="44" alt=""></span><div><strong>${e(heroOrg.name)}</strong> ${roleTag("Organisation")} ${exampleBadge()}<br><span class="small muted">${e(exampleNeeds[0].title)} · handed over</span><br><span class="small muted">${e(heroOrg.city)}, ${e(heroOrg.country)}</span></div></div>
     <div class="hv-float f2 row" style="flex-wrap:nowrap">${avatarFor(exampleProfile, 44)}<div><strong>${e(exampleProfile.name)}</strong> ${roleTag("Talent")}<br><span class="small muted">${e(exampleProfile.headline)}</span></div></div>
     <div class="hv-float f3 hv-pill">${icon("pen", 17, "#fffdf8")}Agreement signed by both</div>
     <div class="hv-float f4"><div class="row between"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}Handed over · still in use</span>${exampleBadge()}</div><p class="serif" style="font-size:1.02rem;margin-top:6px">“Our field team now collects data the same way in every village.”</p></div>
@@ -287,10 +289,10 @@ export async function needs() {
     ${filtersForm("needs", talentLanguages([exampleProfile, ...pros]))}
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
-    <section class="stack" style="--gap:18px;padding-top:24px">
+    ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
       <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already handed over.</h2><p class="lead" style="max-width:680px">Work our founder handed over to organisations in the Ethical Bridge network before Handova opened. The organisations have not reviewed it on Handova yet. The capability stays with each team; the record stays on the impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
       <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
-    </section>
+    </section>` : ""}
     <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p><div class="row">${btn(`Offer your skills ${icon("arrow", 18)}`, "#join?role=professional")}</div></div><div class="card stack band-dark" style="--gap:14px;background:var(--deep);border-color:var(--deep);color:var(--paper)"><span class="serif" style="font-size:1.8rem">Have a need of your own?</span><p style="color:var(--on-deep)">Organisations in the Ethical Bridge directory can publish a need for free and get skilled help.</p><div class="row">${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div></div></div>
   </div>`;
   return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need") };
@@ -394,7 +396,7 @@ export async function talent(params = new URLSearchParams()) {
   const real = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
-  const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length } : exampleProfile;
+  const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length || undefined } : exampleProfile;
   const others = real.filter((p) => p.user_id !== config.founderUserId);
   const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
@@ -449,8 +451,8 @@ export async function profile(id) {
   id = p.user_id;
   const owner = state.user?.id === p.user_id;
   const isPublic = ex || (p.published && p.review_status === "approved");
-  const live = ex ? [] : await result(db.rpc("public_contributions", { p_user: id })).catch(() => []);
-  // The founder's three handovers made before Handova's records began stay on her CV.
+  // public_contributions_v2 also says when Handova closed a contribution; the older function is the fallback.
+  const live = ex ? [] : await result(db.rpc("public_contributions_v2", { p_user: id })).catch(() => result(db.rpc("public_contributions", { p_user: id }))).catch(() => []);
   // Contributions the professional took off their CV: live ones are private, earlier ones are listed in cv_hidden.
   const hiddenIds = new Set(p.cv_hidden || []);
   const vis = owner && live.length ? Object.fromEntries((await result(db.from("engagements").select("id,public").eq("user_id", id)).catch(() => [])).map((x) => [x.id, x.public])) : {};
@@ -480,6 +482,7 @@ export async function profile(id) {
         <button class="btn secondary" type="button" data-action="print">${icon("download", 18)}Save as PDF</button>
       </div>
     </section>
+    <p class="print-only small"><span>Impact CV on Handova</span> · <span data-no-i18n>${e(`${location.origin}${location.pathname}#profile/${founderLive ? exampleProfile.user_id : p.user_id}`)}</span> · <span>${e(tf("Saved on {date}", { date: new Date().toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" }) }))}</span>. <span>Hours and endorsements come from the organisations. The link shows the latest version.</span></p>
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
       // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
       const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions" title="See contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span></button>`;
@@ -512,7 +515,7 @@ export async function profile(id) {
         </div>
         <div role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" class="stack" style="--gap:14px" hidden>
           <div class="row between" style="align-items:baseline"><p class="muted" style="margin:0">${plural(contributions.length, "contribution")} · ${hours} ${hours === 1 ? "hour" : "hours"} handed over to ${plural(orgs, "organisation")}</p><span class="small muted">Open one to see the details</span></div>
-          ${contributions.length || hiddenOnes.length ? [...contributions, ...hiddenOnes].map((c) => contributionCard(c, { example: ex, owner: owner && !ex })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
+          ${contributions.length || hiddenOnes.length ? [...contributions, ...hiddenOnes].map((c) => contributionCard(c, { example: ex, owner: owner && !ex, cvUrl: `${location.origin}${location.pathname}#profile/${founderLive ? exampleProfile.user_id : p.user_id}` })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
         </div>
       </section>
     </div></div>`;
@@ -535,7 +538,7 @@ export async function how(focus = "") {
       <div class="j-lane-label org" aria-hidden="true">Organisation</div><div class="j-lane-label pro" aria-hidden="true">Professional</div>
       ${stages.map(([ic, name, org, pro, both], i) => `<div class="j-stage" role="listitem" style="--col:${i + 2}"><div class="j-head"><span class="j-num">${i + 1}</span>${icon(ic === "handover" ? "gift" : ic, 20, "#0f6f63")}<span>${name}</span></div>${both ? `<div class="j-cell both"><span class="j-who">Together</span><strong>${both[0]}</strong><p>${both[1]}</p></div>` : `${cell("org", org).replace("<strong>", `<span class="j-who">Organisation</span><strong>`)}${cell("pro", pro).replace("<strong>", `<span class="j-who">Professional</span><strong>`)}`}</div>`).join("")}
     </div>`;
-  const vis = [["Your profile (after approval)", "Anyone, including search engines", "You: unpublish or delete at any time"], ["Open needs and organisation summary", "Anyone", "The organisation"], ["Applications and messages", "You and the organisation", "Both of you; either can end a conversation once no contribution is live"], ["Contribution agreement", "You and the organisation", "Signatures are final"], ["Private note from the organisation", "Only the professional", "Nobody can change it"], ["Would the organisation work with you again?", "Only Handova", "Used for matching; we talk to both sides before acting"], ["Endorsements on an impact CV", "Anyone, once the professional publishes them", "The professional"]];
+  const vis = [["Your profile (after approval)", "Anyone with the link (search engines may show it too)", "You: unpublish or delete at any time"], ["Open needs and organisation summary", "Anyone", "The organisation"], ["Applications and messages", "You and the organisation", "Both of you; either can end a conversation once no contribution is live"], ["Contribution agreement", "You and the organisation", "Signatures are final"], ["Private note from the organisation", "Only the professional", "Nobody can change it"], ["Would the organisation work with you again?", "Only Handova", "Used for matching; we talk to both sides before acting"], ["Endorsements on an impact CV", "Anyone, once the professional publishes them", "The professional"]];
   const html = `<div class="wrap how stack" style="--gap:clamp(40px,5vw,64px);padding-bottom:64px">
     <div class="how-hero">
       <div class="stack" style="--gap:16px">${eyebrow("How it works")}<h1>Skilled volunteering, with clear expectations.</h1><p class="lead">Short, well-scoped contributions, agreed in writing and reviewed by the organisation. Here is exactly what happens, and what stays private.</p><div class="row" style="--gap:12px">${btn("Post a need", "#join?role=organisation")}${btn("Offer your skills", "#join?role=professional", "secondary")}</div></div>

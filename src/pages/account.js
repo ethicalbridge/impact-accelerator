@@ -194,7 +194,7 @@ export function profileForm(p = {}) {
     <section class="card stack" style="--gap:14px">
       ${head("Agreement", "Handova only works if organisations can count on the people they find here.")}
       ${agreementBlock()}
-      <div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone can see it, including search engines. You can unpublish at any time.", p.published)}</div>
+      <div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone with the link can see it (search engines may show it too). You can unpublish at any time.", p.published)}</div>
       ${formEnd(edit ? "Save profile" : "Create profile")}
     </section>
   </form>`;
@@ -578,6 +578,9 @@ export async function submitAccount(kind, form) {
 }
 
 export async function deleteAccount() {
+  // Open work can't be left stranded: the server says if something must be finished first (see account_deletion_blocker).
+  const blocker = await result(db.rpc("account_deletion_blocker")).catch(() => null);
+  if (blocker) return openDialog("Finish your open work first", `<p data-no-i18n>${e(blocker)}</p><div class="row"><button class="btn" type="button" data-action="close">OK</button></div>`);
   openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications, messages and Handova identity-check result. It cannot be undone. Signed Handova professional or organisation agreement records are kept for six years after deletion, as explained in the privacy notice.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function confirmDelete(form) {

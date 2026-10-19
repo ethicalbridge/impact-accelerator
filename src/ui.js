@@ -504,12 +504,15 @@ export function talentCard(p) {
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
-    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · awaiting review` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
+    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder && p.contributions ? `${icon("clock", 17)} ${plural(p.contributions, "contribution")} · awaiting review` : p.example && p.contributions ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
   </div></a>`;
 }
 
 // Compact contribution: a small card that opens to show the need, the output, what was delivered and the endorsement.
-export function contributionCard(c, { example = false, owner = false } = {}) {
+export function contributionCard(c, { example = false, owner = false, cvUrl = "" } = {}) {
+  // The owner can add a reviewed contribution to LinkedIn (Licences & certifications), linking back to their impact CV.
+  const d = c.completed ? new Date(c.completed) : null;
+  const linkedin = owner && cvUrl && c.live && !c.pending && d && !isNaN(d) ? "https://www.linkedin.com/profile/add?" + new URLSearchParams({ startTask: "CERTIFICATION_NAME", name: `Handova contribution: ${c.need_title || ""}`.slice(0, 120), organizationName: "Handova", issueYear: String(d.getFullYear()), issueMonth: String(d.getMonth() + 1), certUrl: cvUrl }) : "";
   const when = c.period || (c.completed ? date(c.completed, { month: "short", year: "numeric" }) : "");
   const hasHours = c.hours !== undefined && c.hours !== null;
   const url = safeURL(c.org_url);
@@ -523,9 +526,9 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review", "ochre") : c.closed_by_handova ? pill("Closed by Handova", "grey") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
-    ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
+    ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${c.pending ? (Number(c.hours) === 1 ? "hour logged" : "hours logged") : Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
     ${owner ? `<button type="button" class="c-hide" data-action="cv-hide" data-id="${e(c.id)}" data-live="${c.live ? 1 : ""}" data-hide="${c.public === false ? "" : 1}" title="${c.public === false ? "Add back to my CV" : "Remove from my CV"}">${icon(c.public === false ? "plus" : "eye", 16)}<span>${c.public === false ? "Add back" : "Remove"}</span></button>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>
@@ -534,8 +537,8 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
     ${c.endorsement ? `<blockquote class="endorse"><p data-no-i18n>“${e(c.endorsement)}”</p><span class="small muted">— ${e([c.endorser_name, c.endorsed_by_role || "the organisation"].filter(Boolean).join(", "))}, ${e(c.organisation)}${c.endorsement_language && c.endorsement_language !== "English" ? ` · <span>Written in ${e(c.endorsement_language)}</span>` : ""}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
     ${(c.skills || []).length ? `<div><span class="label-cap">${c.skills_confirmed ? `Skills confirmed by ${e(c.organisation)}` : c.example || example ? "Skills" : "Skills the need asked for"}</span>${tags(c.skills)}</div>` : ""}
-    ${c.signed || c.completed ? `<p class="small muted c-verify">${[c.signed ? `Agreement signed ${date(c.signed)}` : "", hasHours ? `${Number(c.hours || 0)} hours approved by ${e(c.organisation)}` : "", c.completed ? `Completed ${date(c.completed)}` : "", c.still_in_use && c.followup_checked ? `Still in use when checked in ${date(c.followup_checked, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join(" · ")}</p>` : ""}
-    <div class="row between">${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need on ${e(c.organisation)}’s page ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
+    ${c.signed || c.completed ? `<p class="small muted c-verify">${[c.signed ? `Agreement signed ${date(c.signed)}` : "", hasHours ? `${Number(c.hours || 0)} hours approved by ${e(c.organisation)}` : "", c.completed ? `Completed ${date(c.completed)}` : "", c.closed_by_handova ? "Closed by Handova after the organisation stopped responding" : "", c.still_in_use && c.followup_checked ? `Still in use when checked in ${date(c.followup_checked, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join(" · ")}</p>` : ""}
+    <div class="row between">${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need on ${e(c.organisation)}’s page ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}${linkedin ? `<a class="small c-link no-print" href="${e(linkedin)}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 15)}Add to LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
   </div>
 </details>`;
 }

@@ -66,16 +66,62 @@ export function toast(message, isError = false) {
 }
 
 let lastFocus = null;
+// Typed text in a dialog is never lost by accident. A tap outside a dialog with typing doesn't close it, and whatever
+// was typed is kept as a draft for this browser tab, so closing it (or going back) and reopening brings it back.
+// Successful submission clears the draft. Passwords, signatures and "type DELETE" boxes are never kept.
+const DRAFTS = "hv-dialog-drafts";
+const NO_DRAFT = new Set(["signin", "signup", "reset", "new-password", "change-password", "resend-confirm", "confirm-delete", "admin-org-delete", "admin-contrib-delete", "rs-del", "sign"]);
+const draftKey = (f) => (f?.dataset?.form && !NO_DRAFT.has(f.dataset.form) ? `${f.dataset.form}:${f.dataset.id || ""}` : "");
+const readDrafts = () => { try { return JSON.parse(sessionStorage.getItem(DRAFTS)) || {}; } catch { return {}; } };
+const writeDrafts = (d) => { try { sessionStorage.setItem(DRAFTS, JSON.stringify(d)); } catch {} };
+const keepable = (el) => el.name && !el.disabled && !["hidden", "password", "file", "submit", "button"].includes(el.type) && el.name !== "confirm";
+export function saveDialogDraft(form) {
+  const k = draftKey(form);
+  if (!k) return;
+  const vals = {};
+  let typed = false;
+  for (const el of form.elements) {
+    if (!keepable(el)) continue;
+    if (el.type === "checkbox" || el.type === "radio") { (vals[el.name] ||= []); if (el.checked) vals[el.name].push(el.value); }
+    else { vals[el.name] = el.value; if (el.tagName === "TEXTAREA" || el.type === "text") typed ||= el.value.trim().length > 0; }
+  }
+  const d = readDrafts();
+  if (typed) d[k] = vals; else delete d[k];
+  writeDrafts(d);
+}
+export function clearDialogDraft(form) {
+  const k = draftKey(form);
+  if (!k) return;
+  const d = readDrafts();
+  if (k in d) { delete d[k]; writeDrafts(d); }
+}
+function restoreDialogDrafts(root) {
+  const d = readDrafts();
+  root.querySelectorAll("form[data-form]").forEach((f) => {
+    const vals = d[draftKey(f)];
+    if (!vals) return;
+    for (const el of f.elements) {
+      if (!keepable(el) || !(el.name in vals)) continue;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = [].concat(vals[el.name]).includes(el.value);
+      else el.value = vals[el.name];
+    }
+    f.insertAdjacentHTML("afterbegin", `<p class="notice draft-note" role="status"><span>We kept what you typed last time.</span> <button type="button" class="link-btn" data-action="clear-draft">Start again</button></p>`);
+    root.closest("dialog")?.setAttribute("data-dirty", "1");
+  });
+}
 export function openDialog(title, body) {
   const d = $("#dialog");
   lastFocus = document.activeElement;
+  d.removeAttribute("data-dirty");
   $("#dialog-body").innerHTML = `<h2 id="dialog-title">${title}</h2>${body}`;
+  restoreDialogDrafts($("#dialog-body"));
   if (!d.open) d.showModal();
-  (d.querySelector("[autofocus]") || d.querySelector("input, textarea, select, button:not(.dialog-close)"))?.focus();
+  (d.querySelector("[autofocus]") || d.querySelector("input, textarea, select, button:not(.dialog-close, .link-btn)"))?.focus();
 }
 export function closeDialog() {
   const d = $("#dialog");
   if (d.open) d.close();
+  d.removeAttribute("data-dirty");
   lastFocus?.focus?.();
 }
 
@@ -93,7 +139,9 @@ export async function withForm(form, fn) {
   form.querySelectorAll("[aria-invalid]").forEach((x) => x.removeAttribute("aria-invalid"));
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Working…"; }
   try {
-    return await fn(new FormData(form));
+    const out = await fn(new FormData(form));
+    clearDialogDraft(form);
+    return out;
   } catch (error) {
     // Several problems at once: mark each field, then one summary for screen readers.
     const many = Array.isArray(error?.fields) && error.fields.length ? error.fields : null;

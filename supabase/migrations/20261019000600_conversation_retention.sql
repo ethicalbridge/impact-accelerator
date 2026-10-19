@@ -11,9 +11,12 @@ alter table public.conversations drop constraint conversations_user_id_fkey,
 create or replace function public.delete_my_account()
  returns void language plpgsql security definer set search_path to ''
 as $function$
-declare uid uuid := auth.uid();
+declare uid uuid := auth.uid(); blocker text; o record;
 begin
   if uid is null then raise exception 'Please sign in first.'; end if;
+  -- Added with 20261019001100: no deleting while a contribution is still open (account_deletion_blocker).
+  blocker := public.account_deletion_blocker();
+  if blocker is not null then raise exception '%', blocker; end if;
   if not exists (
     select 1 from public.account_deletion_authorizations a
     where a.user_id = uid and a.verified_at > now() - interval '5 minutes'
@@ -39,9 +42,13 @@ begin
   delete from public.conversations c where c.user_id = uid
     and not exists (select 1 from public.engagements e where e.need_id = c.need_id and e.user_id = c.user_id)
     and not exists (select 1 from public.reports r where r.target_type = 'conversation' and r.target_id = c.id);
-  update public.organisations o set status = 'suspended'
-    where exists (select 1 from public.organisation_members m where m.organisation_id = o.id and m.user_id = uid)
-      and not exists (select 1 from public.organisation_members m where m.organisation_id = o.id and m.user_id <> uid);
+  for o in select org.id, org.name from public.organisations org
+    where exists (select 1 from public.organisation_members m where m.organisation_id = org.id and m.user_id = uid)
+      and not exists (select 1 from public.organisation_members m where m.organisation_id = org.id and m.user_id <> uid)
+  loop
+    update public.organisations set status = 'suspended' where id = o.id;
+    perform public.notify_admins('org_without_member', 'An organisation no longer has anyone managing it', o.name || ': its only member deleted their account, so it was suspended.', '#admin-list/organisations');
+  end loop;
   delete from auth.users where id = uid;
 end $function$;
 
