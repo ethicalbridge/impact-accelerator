@@ -81,7 +81,7 @@ export async function workspace(sub) {
             <div><dt>Hours reviewed</dt><dd>${approvedHours}</dd></div>
             <div><dt>Contributions completed</dt><dd>${completed.length}</dd></div>
             <div><dt>Applications waiting</dt><dd>${apps.filter((a) => a.status === "pending").length}</dd></div>
-            <div><dt>Available each month</dt><dd>${p.hours_available} h</dd></div>
+            <div class="impact-hours"><dt>Available each month</dt><dd>${p.hours_available} h</dd><button class="link-btn small" type="button" data-action="hours-change">Change</button></div>
           </dl>
           <p class="small muted">${completed.length ? "Endorsed work you choose to show appears on your public impact CV." : "Your first completed and endorsed contribution will appear on your public impact CV."}</p>
           <div class="row" style="--gap:8px">${btn("View my impact CV", `#profile/${uid}`, "secondary sm")}${btn("Edit profile", "#workspace/profile", "secondary sm")}</div>
@@ -747,5 +747,23 @@ export async function submitFollowup(form) {
     const q = QUESTIONS.six_months.find((x) => x.when === inUse), v = q && fd.get(q.id);
     if (v) await result(db.rpc("submit_survey", { p_engagement: form.dataset.id, p_kind: "six_months", p_status: "submitted", p_answers: { [q.id]: String(v) }, p_short: false, p_version: SURVEY_VERSION, p_lang: getLang() })).catch(() => {});
     closeDialog(); toast("Thank you. Your answer is saved."); go(location.hash);
+  });
+}
+
+// Change the monthly hours from the workspace, without opening the full profile form.
+const HOURS_CHOICES = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40];
+export function hoursDialog() {
+  const cur = Number(state.profile?.hours_available) || 4;
+  openDialog("Hours you can give each month", `<form class="form" data-form="hours-change">
+    <p class="muted">Organisations plan around this number. It shows on your impact CV, and it refills on the 1st of each month.</p>
+    ${select("hours", "Hours each month", HOURS_CHOICES.map((h) => [String(h), `${h} hours a month`]), String(HOURS_CHOICES.includes(cur) ? cur : 4), { required: true })}
+    ${formEnd("Save", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitHours(form) {
+  await withForm(form, async (fd) => {
+    const h = Number(fd.get("hours"));
+    if (!(h >= 4)) throw Error("Choose at least 4 hours a month.");
+    await result(db.from("profiles").update({ hours_available: h }).eq("user_id", state.user.id));
+    await loadSession(); closeDialog(); toast("Saved. Your monthly hours are updated."); go(location.hash);
   });
 }

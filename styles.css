@@ -1358,3 +1358,5 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .pw-toggle.on { color: var(--teal); }
 .pw-toggle.on::after { content: ""; position: absolute; width: 22px; height: 2px; background: currentColor; transform: rotate(-45deg); border-radius: 2px; }
 .pw-toggle:focus-visible { outline: 3px solid var(--ink); outline-offset: 1px; }
+.impact-hours { position: relative; }
+.impact-hours .link-btn { margin-top: 4px; font-weight: 700; color: var(--teal); align-self: flex-start; justify-self: start; text-align: left; padding: 0; }
