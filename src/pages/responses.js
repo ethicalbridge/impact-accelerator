@@ -1,8 +1,8 @@
 // Handova only: the post-contribution questionnaires, summarised.
 // Small-sample rules (from the survey design): under 30 answers show counts, not percentages; with a filter applied,
 // groups under 5 answers are hidden; countries with fewer than 3 organisations are grouped as "Other countries".
-import { db, state, result, e } from "../core.js";
-import { icon, eyebrow, back, empty, pill } from "../ui.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm } from "../core.js";
+import { icon, eyebrow, back, empty, pill, formEnd } from "../ui.js";
 import { date } from "../utils.js";
 import { QUESTIONS, optionsOf, STAFF_SIZES, CAREER_STAGES, SURVEY_VERSION } from "../survey.js";
 
@@ -127,6 +127,21 @@ export async function responses(params) {
     const bar = (lab, k, cls) => `<div class="rs-bar"><span class="rs-bar-l">${lab}</span><span class="rs-bar-t"><span class="${cls}" style="width:${hide || !n ? 0 : ((k / n) * 100).toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round((k / n) * 100)}%` : k}</span></div>`;
     return `<section class="card rs-q"><h3><span class="rs-qn">Q1</span> Are you still using what was delivered?</h3><p class="small muted">${n ? `${n} ${n === 1 ? "answer" : "answers"}` : "No answers yet"}</p>${hide ? `<p class="small muted">Too few answers to show with this filter.</p>` : `<div class="rs-chart">${bar("Yes", yes, "rs-t4")}${bar("No", n - yes, "rs-t1")}</div>`}</section>`;
   };
+  // Every response, with who answered, so Handova can check or delete one.
+  const responsesList = () => {
+    const list = base.filter((r) => got(r)).sort((a, b) => Date.parse(got(b).created_at) - Date.parse(got(a).created_at));
+    const label = (q, v) => { if (v == null || (Array.isArray(v) && !v.length)) return ""; if (q.type === "open") return `<span data-no-i18n>${e(v)}</span>`; const o = optionsOf(q); return (Array.isArray(v) ? v : [v]).map((x) => e((o.find(([c]) => c === x) || [x, x])[1])).join(", "); };
+    const who = (r) => (pro ? r.pro_name : r.org_name) || (pro ? "Professional" : "Organisation");
+    const rowsHtml = list.map((r) => {
+      const resp = got(r), a = resp.answers || {};
+      const answersHtml = tab === "six_months"
+        ? `<dl class="rs-ans"><dt>Q1 Are you still using what was delivered?</dt><dd>${r.still_in_use ? "Yes" : "No"}</dd>${QUESTIONS.six_months.filter((q) => a[q.id] != null).map((q) => `<dt>Q${qNum(q)} ${e(q.q)}</dt><dd>${label(q, a[q.id])}</dd>`).join("")}</dl>`
+        : `<dl class="rs-ans">${QUESTIONS[tab].map((q) => `<dt>Q${qNum(q)} ${e(q.q)}</dt><dd>${label(q, a[q.id]) || '<span class="muted">No answer</span>'}</dd>`).join("")}</dl>`;
+      return `<details class="rs-resp"><summary><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(who(r))}</strong><span class="small muted"><span data-no-i18n>${e(r.need_title || "")}</span> · ${e(date(resp.created_at))}${resp.short_form ? " · <span>short version</span>" : ""}</span></span>${resp.status === "skipped" ? pill("Skipped", "grey") : pill("Answered")}<span class="c-toggle" aria-hidden="true"></span></summary>
+        <div class="rs-resp-body">${resp.status === "skipped" ? '<p class="small muted">They chose to skip the questionnaire.</p>' : answersHtml}<div class="row" style="--gap:8px;margin-top:10px"><button class="btn secondary sm danger-outline" type="button" data-action="rs-del" data-id="${e(resp.id)}" data-who="${e(who(r))}">Delete this response</button></div></div></details>`;
+    }).join("");
+    return `<h2 class="card-title" style="margin-top:8px">Individual responses</h2><p class="small muted">Who answered what. Only Handova sees names; downloads and reports stay anonymous.</p><section class="card">${list.length ? rowsHtml : '<p class="muted">No responses yet.</p>'}</section>`;
+  };
   const concerns = answered.filter((r) => A(r).o_concern === "yes" || A(r).p_concern === "yes");
   const sel = (name, lab, list, v) => `<label class="field rs-filter"><span>${lab}</span><select name="${name}">${list.map(([k, t]) => `<option value="${e(k)}" ${k === v ? "selected" : ""}>${e(t)}</option>`).join("")}</select></label>`;
   const q = (over) => { const p = new URLSearchParams({ tab, ...f, ...over }); [...p.keys()].forEach((k) => { if (!p.get(k) || p.get(k) === "all") p.delete(k); }); return `#admin-responses?${p}`; };
@@ -149,6 +164,7 @@ export async function responses(params) {
     ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
     <div class="rs-grid">${tab === "six_months" ? stillBlock() : ""}${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
     ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
+    ${responsesList()}
   </div></div>`;
   return {
     title: "Questionnaire answers", html,
@@ -207,4 +223,17 @@ export function exportCodebook() {
   out.push(["context", "status", "single", "Questionnaire status", "submitted / skipped / not_answered", "", ""]);
   out.push(["context", "multi-select columns", "", "question_id__code = 1 if chosen, 0 if not, empty if the question was not answered", "", "", ""]);
   download(`handova-questionnaire-codebook-${SURVEY_VERSION}.csv`, out);
+}
+
+export function deleteResponseDialog(id, who) {
+  openDialog("Delete this response?", `<form class="form" data-form="rs-del" data-id="${e(id)}">
+    <p><span>The answers from</span> <strong data-no-i18n>${e(who)}</strong> <span>are removed from the dashboard and downloads. This can’t be undone.</span></p>
+    <label class="check"><input type="checkbox" name="again" checked><span>Ask them to answer again (if the contribution finished in the last 60 days)</span></label>
+    ${formEnd("Delete response", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`).replace('class="btn"', 'class="btn danger"')}</form>`);
+}
+export async function submitDeleteResponse(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("admin_delete_survey_response", { p_id: form.dataset.id, p_ask_again: fd.has("again") }));
+    closeDialog(); toast("Response deleted."); go(location.hash);
+  });
 }
