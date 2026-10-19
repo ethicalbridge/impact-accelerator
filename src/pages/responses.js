@@ -59,7 +59,23 @@ export async function responses(params) {
     return `<svg class="rs-ring" viewBox="0 0 96 96" role="img" aria-label="${e(s.big)}"><circle cx="48" cy="48" r="${r}" class="rs-ring-track"/>${f > 0 ? `<circle cx="48" cy="48" r="${r}" class="rs-ring-fill${warn ? " warn" : ""}" stroke-dasharray="${(f * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 48 48)"/>` : ""}<text x="48" y="${s.big.length > 6 ? 52 : 55}" text-anchor="middle" class="rs-ring-num${s.big.length > 6 ? " sm" : ""}">${e(s.big)}</text></svg>`;
   };
   const share = (key, yes, valid = () => true) => { const list = answered.filter((r) => A(r)[key] != null && valid(A(r)[key])); return show(list.filter((r) => yes(A(r)[key])).length, list.length); };
-  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
+  // Which questionnaire question(s) each headline figure comes from.
+  const REFS = {
+    "Practical value: a lot or a great deal": ["o_value"], "Couldn’t have done it, or only later or less well": ["o_without"], "“First test”: high value they couldn’t reach alone": ["o_value", "o_without"],
+    "Received less than the time they gave": ["o_worth"], "Decided mostly or equally by the organisation": ["o_decided"], "Can use it without outside help": ["o_maintain"],
+    "Need matched the real work (mostly or completely)": ["p_match"], "Got what they needed from the organisation": ["p_support"], "Work took more time than planned": ["p_time"], "Would take on another need": ["p_again"],
+    "Helped them do more or better for the people they serve": ["m_helped"],
+  };
+  const qInfo = (id) => { for (const k of ["organisation", "professional", "six_months"]) { const i = QUESTIONS[k].findIndex((q) => q.id === id); if (i >= 0) return { n: k === "six_months" ? (QUESTIONS[k][i].when === "no" ? "2a" : "2b") : String(i + 1), q: QUESTIONS[k][i].q }; } return null; };
+  const refHtml = (title) => {
+    if (title === "Raised a concern") { const info = qInfo(pro ? "p_concern" : "o_concern"); return `<span class="rs-ref"><span class="rs-qn">Q${info.n}</span><span>${e(info.q)}</span></span>`; }
+    if (title === "Response rate") return `<span class="rs-ref"><span class="rs-qn rs-qn-all">All</span><span>Everyone asked after a finished contribution</span></span>`;
+    if (title === "Students or early career") return `<span class="rs-ref"><span class="rs-qn rs-qn-all">Profile</span><span>Career stage, asked once</span></span>`;
+    if (title === "Still in use after 6 months") return `<span class="rs-ref"><span class="rs-qn">Q1</span><span>Are you still using what was delivered?</span></span>`;
+    const ids = REFS[title] || [];
+    return ids.length ? `<span class="rs-ref">${ids.map((id) => { const info = qInfo(id); return `<span class="rs-qn">Q${info.n}</span>`; }).join("")}<span>${ids.map((id) => e(qInfo(id).q)).join(" + ")}</span></span>` : "";
+  };
+  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${s.sub ? `<span class="small muted">${s.sub}</span>` : ""}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
   let tiles = "";
@@ -70,9 +86,9 @@ export async function responses(params) {
       tile("Practical value: a lot or a great deal", share("o_value", (v) => Number(v) >= 4)),
       tile("Couldn’t have done it, or only later or less well", share("o_without", (v) => ["later", "not_done"].includes(v), (v) => v !== "not_sure"), "Leaves out “Not sure”"),
       tile("“First test”: high value they couldn’t reach alone", first, "Value a lot or more AND later, less well or not done"),
-      tile("Received less than the time they gave", share("o_worth", (v) => Number(v) <= 2), "Warning sign: lower is better", true),
-      tile("Decided mostly or equally by the organisation", share("o_decided", (v) => v !== "professional")),
       tile("Can use it without outside help", share("o_maintain", (v) => v === "yes" || v === "little_help", (v) => v !== "not_sure")),
+      tile("Decided mostly or equally by the organisation", share("o_decided", (v) => v !== "professional")),
+      tile("Received less than the time they gave", share("o_worth", (v) => Number(v) <= 2), "Warning sign: lower is better", true),
       tile("Raised a concern", share("o_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
     ].join("");
   } else if (tab === "professional") {
@@ -83,8 +99,8 @@ export async function responses(params) {
       tile("Got what they needed from the organisation", share("p_support", (v) => Number(v) >= 3)),
       tile("Work took more time than planned", share("p_time", (v) => Number(v) >= 4), "Hidden overwork: lower is better", true),
       tile("Would take on another need", share("p_again", (v) => v === "soon" || v === "later", (v) => v !== "not_sure")),
-      tile("Students or early career", show(staged.filter((r) => ["student", "early"].includes(r.career_stage)).length, staged.length), "Of professionals with a known career stage"),
       tile("Raised a concern", share("p_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
+      tile("Students or early career", show(staged.filter((r) => ["student", "early"].includes(r.career_stage)).length, staged.length), "Of professionals with a known career stage"),
     ].join("");
   } else {
     const fu = base;
