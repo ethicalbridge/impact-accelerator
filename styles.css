@@ -1388,3 +1388,4 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .rs-ref .rs-qn { margin-right: 0; min-width: 30px; font-size: .72rem; }
 .rs-qn-all { background: var(--mint-2) !important; color: var(--teal) !important; }
 .rs-ref > span:last-child { flex-basis: 100%; }
+.rs-crit { font-size: .82rem; line-height: 1.4; color: var(--ink); background: var(--mint-2); border-radius: 8px; padding: 4px 8px; align-self: flex-start; }
