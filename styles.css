@@ -1379,3 +1379,7 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .rs-chart { max-width: 820px; }
 .rs-ring-fill.warn { stroke: #b4552f; }
 .rs-tile.warn .rs-note { color: #8a3d1f; font-weight: 600; }
+.rs-view { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #ece7dc; align-self: flex-start; flex-wrap: wrap; }
+.rs-view a { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font-weight: 700; color: var(--muted); text-decoration: none; }
+.rs-view a strong { font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 999px; background: rgba(0,0,0,.06); }
+.rs-view a[aria-current] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(16,48,44,.12); }
