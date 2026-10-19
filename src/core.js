@@ -56,12 +56,13 @@ export function errorMessage(err) {
 }
 
 let toastTimer;
-export function toast(message) {
+export function toast(message, isError = false) {
   const t = $("#toast");
   t.textContent = message;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 4500);
+  // Errors stay longer, so slower readers can finish them.
+  toastTimer = setTimeout(() => t.classList.remove("show"), isError ? 10000 : 4500);
 }
 
 let lastFocus = null;
@@ -94,9 +95,13 @@ export async function withForm(form, fn) {
   try {
     return await fn(new FormData(form));
   } catch (error) {
-    if (error?.field) showFieldError(error.field, errorMessage(error));
-    if (err) { err.textContent = errorMessage(error); if (!error?.field) err.scrollIntoView({ block: "nearest" }); }
-    else if (!error?.field) toast(errorMessage(error));
+    // Several problems at once: mark each field, then one summary for screen readers.
+    const many = Array.isArray(error?.fields) && error.fields.length ? error.fields : null;
+    if (many) many.forEach(([el, msg], i) => showFieldError(el, msg, i === 0));
+    else if (error?.field) showFieldError(error.field, errorMessage(error), true);
+    const msg = many ? (many.length === 1 ? many[0][1] : `Please fix the ${many.length} highlighted fields.`) : errorMessage(error);
+    if (err) { err.textContent = msg; if (!error?.field && !many) err.scrollIntoView({ block: "nearest" }); }
+    else if (!error?.field && !many) toast(msg, true);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
   }
@@ -109,17 +114,26 @@ export function fieldError(el, message) {
   err.field = el;
   return err;
 }
-function showFieldError(el, message) {
+function showFieldError(el, message, first = true) {
   const box = el.closest(".field, .checkbox-box, .lang-picker") || el.parentElement;
   const control = el.type === "hidden" ? box.querySelector("summary") : el;
   control?.setAttribute("aria-invalid", "true");
   const note = document.createElement("p");
   note.className = "field-error";
-  note.setAttribute("role", "alert");
+  // Announced once, by the form's summary; here it is linked to the field so it is read on focus.
+  note.id = `${control?.id || el.name || "f"}-err`;
   note.textContent = message;
   box.appendChild(note);
+  if (control) control.setAttribute("aria-describedby", [control.getAttribute("aria-describedby"), note.id].filter(Boolean).join(" "));
+  if (!first) return;
   box.scrollIntoView({ block: "center", behavior: "smooth" });
   try { control?.focus({ preventScroll: true }); } catch {}
+}
+// Several field problems found in one pass.
+export function fieldErrors(list) {
+  const err = Error(list[0]?.[1] || "Please check the form.");
+  err.fields = list;
+  return err;
 }
 // Plain, translatable wording for the first invalid field.
 export function fieldProblem(el) {

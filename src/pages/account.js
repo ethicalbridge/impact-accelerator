@@ -448,7 +448,7 @@ export async function account() {
   const html = `<div class="wrap" style="max-width:820px;padding-block:48px 80px"><div class="stack" style="--gap:28px">
     ${eyebrow("Account and privacy")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Your account</h1>
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Change password")}</form></div>
-    <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show only a short title and a link, never message content.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
+    <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show a short title, a one-line summary and a link. They never include what people write in Messages.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
     <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications, messages, uploaded profile photos and identity checks held by Handova and Didit. If a provider deletion fails, we stop and ask you to contact us. Organisations keep a private record of completed work with your name replaced by “Former member”. We keep signed Handova professional or organisation agreement records for six years after deletion, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
@@ -524,8 +524,10 @@ export async function submitAccount(kind, form) {
     const ebu = val(fd, "ethical_bridge_url");
     if (ebu && !EB_URL.test(ebu)) throw Error("Use your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
     await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu, logo_url: val(fd, "logo_url") || null, ...(val(fd, "staff_size") ? { staff_size: val(fd, "staff_size") } : {}) }).eq("id", form.dataset.id));
+    const wasAsked = state.memberships.find((m) => m.organisation_id === form.dataset.id)?.organisation?.status === "changes_requested";
     await loadSession();
-    toast("Organisation profile saved.");
+    toast(wasAsked ? "Thank you. Your organisation is back with Handova for review." : "Organisation profile saved.");
+    if (wasAsked) go("#org");
   });
   if (kind === "profile") return withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
@@ -572,7 +574,7 @@ export async function confirmDelete(form) {
     if (val(fd, "confirm") !== "DELETE") throw Error("Type DELETE in capital letters to confirm.");
     const { data, error } = await db.functions.invoke("account-delete", { body: {} });
     if (error) throw error;
-    if (!data?.ok) throw Error(data?.error || "Could not delete your account. Please contact support.");
+    if (!data?.ok) throw Error(data?.error || "Could not delete your account. Please write to hello@handova.org.");
     await db.auth.signOut().catch(() => {});
     closeDialog();
     await loadSession();

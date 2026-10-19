@@ -34,32 +34,40 @@ Deno.serve(async (req) => {
     if (sessionsError || !page) return json({ error: "Could not check identity records. Please try again." }, 502);
     sessions.push(...page);
     if (page.length < 500) break;
-    if (offset === 10000) return json({ error: "Please contact support to remove your identity records." }, 502);
+    if (offset === 10000) return json({ error: "Please write to hello@handova.org to remove your identity records." }, 502);
   }
-  if (sessions.length && !diditKey) return json({ error: "Identity records cannot be removed right now. Please contact support." }, 503);
+  if (sessions.length && !diditKey) return json({ error: "Identity records cannot be removed right now. Please write to hello@handova.org." }, 503);
   for (const row of sessions) {
     const response = await fetch(`https://verification.didit.me/v3/session/${encodeURIComponent(row.session_id)}/delete/`, {
       method: "DELETE", headers: { "x-api-key": diditKey },
     }).catch(() => null);
     if (!response || (response.status !== 204 && response.status !== 404))
-      return json({ error: "Could not remove an identity check. Your account is still active; please try again or contact support." }, 502);
+      return json({ error: "Could not remove an identity check. Your account is still active; please try again or write to hello@handova.org." }, 502);
   }
 
   const storage = admin.storage.from("avatars");
   const { data: objects, error: listError } = await storage.list(userId, { limit: 1000 });
   if (listError || !objects || objects.length === 1000)
-    return json({ error: "Could not check your uploaded photos. Your account is still active; please contact support." }, 502);
+    return json({ error: "Could not check your uploaded photos. Your account is still active; please write to hello@handova.org." }, 502);
   const photoPaths = objects
     .filter((item) => item.id && /\.(?:jpe?g|png|webp)$/i.test(item.name) && !item.name.includes("/"))
     .map((item) => `${userId}/${item.name}`);
+  // Logos uploaded for experience entries live in a subfolder. An organisation's logo is kept (other members, records).
+  const { data: logos } = await storage.list(`${userId}/logos`, { limit: 1000 });
+  const { data: orgLogos } = await admin.from("organisations").select("logo_url").like("logo_url", `%/${userId}/logos/%`);
+  const inUse = (orgLogos ?? []).map((o) => String(o.logo_url || "")).join(" ");
+  for (const item of logos ?? []) {
+    const stem = item.name.replace(/-original\.png$/i, ".png");
+    if (item.id && /\.(?:jpe?g|png|webp)$/i.test(item.name) && !inUse.includes(`/${userId}/logos/${stem}`)) photoPaths.push(`${userId}/logos/${item.name}`);
+  }
   if (photoPaths.length) {
     const { error: removeError } = await storage.remove(photoPaths);
-    if (removeError) return json({ error: "Could not remove your uploaded photos. Your account is still active; please contact support." }, 502);
+    if (removeError) return json({ error: "Could not remove your uploaded photos. Your account is still active; please write to hello@handova.org." }, 502);
   }
 
   const { error: authorizationError } = await admin.from("account_deletion_authorizations")
     .upsert({ user_id: userId, verified_at: new Date().toISOString() }, { onConflict: "user_id" });
-  if (authorizationError) return json({ error: "Could not finish checking account deletion. Please contact support." }, 502);
+  if (authorizationError) return json({ error: "Could not finish checking account deletion. Please write to hello@handova.org." }, 502);
 
   // Use the member's JWT so the existing SQL function can verify auth.uid().
   const member = createClient(url, anonKey, {
@@ -67,6 +75,6 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { error: deleteError } = await member.rpc("delete_my_account");
-  if (deleteError) return json({ error: "Could not finish deleting your account. Please contact support." }, 502);
+  if (deleteError) return json({ error: "Could not finish deleting your account. Please write to hello@handova.org." }, 502);
   return json({ ok: true });
 });

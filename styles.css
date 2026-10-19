@@ -1445,3 +1445,5 @@ html:has(.consent:not([hidden])) { scroll-padding-bottom: 180px; }
 .chat-row.mine .bubble a:focus-visible { outline-color: #f0c27a; }
 .rs-numbers summary, .list-row a.small { display: inline-flex; min-height: 32px; align-items: center; }
 html.signed-in .ft-join { display: none; }
+html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer { visibility: hidden; }
+.lang-picker > span:first-child, .lp-label { font-weight: 600; font-size: .95rem; }

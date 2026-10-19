@@ -105,7 +105,7 @@ export function home() {
   </div>
   <section class="hv-cta"><span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span>
     <div class="wrap hv-cta-grid">
-      <div class="stack" style="--gap:18px">${eyebrow("Join the founding group")}<h2>Hand over something that lasts.</h2><p class="lead">We are opening Handova to a first group of 20 organisations and 20 professionals. Founding members get personal onboarding from our team and a direct say in what we build next.</p><div class="row">${btn("Offer your skills", "#join?role=professional", "light lg")}${btn("Post a need", "#join?role=organisation", "ghost-light lg")}</div></div>
+      <div class="stack" style="--gap:18px">${eyebrow("Join the founding group")}<h2>Hand over something that lasts.</h2><p class="lead">We are starting with a founding group of organisations and professionals. Founding members get personal onboarding from our team and a direct say in what we build next.</p><div class="row">${btn("Offer your skills", "#join?role=professional", "light lg")}${btn("Post a need", "#join?role=organisation", "ghost-light lg")}</div></div>
       <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
     </div>
   </section>`;
@@ -361,7 +361,7 @@ export async function need(id) {
           <div class="need-sec"><h2>Working languages</h2><p>${e((n.languages || []).map(t).join(", "))}. Support in any one of these is welcome.</p></div>
         </section>
         ${n.example || n.handed ? "" : `<section class="card need-steps"><h2>How it works</h2><ol>
-          <li><strong>Apply</strong><span>Send a short message about why your skills fit this need.</span></li>
+          <li><strong>Apply</strong><span>Send a short plan: how you would approach the output, and when you could do it.</span></li>
           <li><strong>Agree</strong><span>If you are chosen, you and the organisation both sign a contribution agreement before any work starts.</span></li>
           <li><strong>Deliver and hand over</strong><span>Do the work within about ${n.hours} hours, hand it over so the team can keep using it, and receive an endorsement for your impact CV.</span></li>
         </ol></section>`}

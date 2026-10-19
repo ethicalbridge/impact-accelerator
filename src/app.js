@@ -63,12 +63,13 @@ async function page(r) {
 }
 
 let version = 0;
-// Once per sign-in, professionals who have not verified their identity get a short prompt.
+// Professionals who have not verified their identity get a short prompt, at most once a week.
 function idNudge(route) {
   const p = state.profile;
   if (!p || p.id_status === "approved" || ["in_review", "name_mismatch"].includes(p.id_status) || ["verify-done", "signin", "join", "onboarding"].includes(route)) return;
+  // At most once a week, and only before they have an agreement to sign (the agreement page asks then).
   const key = "hv-id-nudge-" + state.user.id;
-  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch { return; }
+  try { const last = Number(localStorage.getItem(key) || 0); if (Date.now() - last < 7 * 864e5) return; localStorage.setItem(key, String(Date.now())); } catch { return; }
   acc.idNudgeDialog();
 }
 
@@ -143,13 +144,14 @@ const actions = {
   },
   introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
-  withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),
+  withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close. You can’t apply to this need again.", "withdraw", el.dataset.id, "", "Withdraw"),
   "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
   "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
   "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", el.dataset.id, "", "Accept"),
   "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Ask for changes", "Explain what needs to change. The professional can send a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
+  "hours-amend": (el) => { const d = el.dataset; const today = new Date().toISOString().slice(0, 10); ws.decisionDialog("Correct this time entry", "Change what the organisation asked for. The entry goes back to them for review.", "hours-amend", d.id, `<div class="form-grid"><label class="field" for="f-ad">Date<input id="f-ad" name="work_date" type="date" required max="${today}" value="${e(d.date)}"></label><label class="field" for="f-ah">Hours<input id="f-ah" name="hours" type="number" required min="0.25" max="12" step="0.25" value="${e(d.hours)}"></label></div><label class="field" for="f-adesc">What you did<textarea id="f-adesc" name="description" required minlength="10" maxlength="2000">${e(d.desc)}</textarea></label><label class="field" for="f-aev">Supporting link (optional)<input id="f-aev" name="evidence" type="url" maxlength="500" placeholder="https://" value="${e(d.evidence)}"></label>`, "Send for review"); },
   complete: (el) => ws.completeDialog(el.dataset.id),
   "mark-delivered": (el) => ws.decisionDialog("Tell the organisation everything is delivered?", "Only do this when everything in the agreement has been handed over. The organisation is asked to check the work, then finish and write your endorsement. They’re reminded after 7 and 14 days, and Handova can see it.", "mark-delivered", el.dataset.id, "", "Yes, everything is delivered"),
   "end-engagement": (el) => ws.decisionDialog("End this contribution?", "Use this if the work can’t go ahead. You are both notified, Handova is told, and the conversation closes. This can’t be undone.", "end-engagement", el.dataset.id, `<label class="field" for="f-reason">Why is it ending?<textarea id="f-reason" name="reason" required minlength="5" maxlength="1000"></textarea><span class="hint">Both of you see this reason, and it is kept with the agreement.</span></label>`, "End contribution", true),
@@ -159,7 +161,7 @@ const actions = {
   "first-call": (el) => ws.firstCallDialog(el.dataset.id),
   "endorse-correction": (el) => ws.correctionDialog(el.dataset.id),
   "endorse-edit": (el) => ws.editEndorsementDialog(el.dataset.id),
-  "insert-starter": (el) => { const ta = el.closest("form")?.querySelector("textarea[name=endorsement]"); if (!ta) return; const add = (el.textContent.trim() || el.dataset.text).replace(/…$/, " "); const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos); ta.value = pre + (pre && !/\s$/.test(pre) ? " " : "") + add + ta.value.slice(pos); ta.focus(); ta.dispatchEvent(new Event("input")); },
+  "insert-starter": (el) => { const ta = el.closest("form")?.querySelector("textarea[name=endorsement]"); if (!ta) return; const add = (el.textContent.trim() || el.dataset.text).replace(/…$/, " "); const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos); const max = Number(ta.getAttribute("maxlength")) || 1200; ta.value = (pre + (pre && !/\s$/.test(pre) ? " " : "") + add + ta.value.slice(pos)).slice(0, max); ta.focus(); ta.dispatchEvent(new Event("input")); },
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
   survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
   "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
@@ -217,6 +219,7 @@ const confirmRpc = {
   "app-accept": ["decide_application", (id) => ({ p_id: id, p_accept: true }), "Application accepted. Please sign the agreement."],
   "app-decline": ["decide_application", (id) => ({ p_id: id, p_accept: false }), "Application declined."],
   "hours-changes": ["review_hours", (id, fd) => ({ p_id: id, p_approve: false, p_note: String(fd.get("note") || "") }), "Changes requested."],
+  "hours-amend": ["amend_hours", (id, fd) => ({ p_id: id, p_date: String(fd.get("work_date") || ""), p_hours: Number(fd.get("hours")), p_description: String(fd.get("description") || ""), p_evidence: String(fd.get("evidence") || "").trim() }), "Corrected and sent for review."],
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
@@ -270,6 +273,10 @@ db.auth.onAuthStateChange(async (event) => {
 $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
 await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
 startTranslating();
+document.documentElement.classList.remove("i18n-wait");
+// Changing language reloads the page: warn first if a form has unsaved typing.
+document.addEventListener("input", (ev) => { if (ev.target.closest?.("form") && !ev.target.closest(".lang-menu")) window.__hvDirty = true; });
+window.addEventListener("hashchange", () => { window.__hvDirty = false; });
 $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 bindHeader();
