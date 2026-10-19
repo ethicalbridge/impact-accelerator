@@ -80,7 +80,7 @@ export async function adminList(kind, params) {
     }
     body = rows.map((x) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#agreement/${x.id}" style="font-weight:700" data-no-i18n>${e(x.scope?.need_title || "Contribution")}</a>${status(x.status)}${kind === "followups" ? (x.followup_answered_at ? pill(x.followup_in_use ? "Still in use" : "Not in use", x.followup_in_use ? "" : "grey") : pill(x.followup_due ? `Due ${date(x.followup_due)}` : "Not scheduled", "ochre")) : ""}</div>
       <span class="small muted"><span data-no-i18n>${e(x.scope?.organisation || "")}</span> · <a href="#profile/${x.user_id}" data-no-i18n>${e(x.scope?.talent || "")}</a> · ${x.scope?.hours || "?"} hours · started ${date(x.created_at)}${x.completed_at ? ` · completed ${date(x.completed_at)}` : ""}${x.ended_at ? ` · ended ${date(x.ended_at)}` : ""}</span>
-      ${x.end_reason ? `<span class="small"><strong>Reason:</strong> <span data-no-i18n>${e(x.end_reason)}</span></span>` : ""}</div><div class="al-actions">${btn("Agreement", `#agreement/${x.id}`, "secondary sm")}</div></div>`).join("");
+      ${x.end_reason ? `<span class="small"><strong>Reason:</strong> <span data-no-i18n>${e(x.end_reason)}</span></span>` : ""}</div><div class="al-actions">${btn("Agreement", `#agreement/${x.id}`, "secondary sm")}${kind === "contributions" ? `<button class="btn secondary sm danger-outline" type="button" data-action="admin-contrib-delete" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Delete</button>` : ""}</div></div>`).join("");
   }
 
   const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:20px">
@@ -102,7 +102,7 @@ export async function adminList(kind, params) {
 
 export function deleteOrgDialog(id, name, blocked) {
   if (blocked) {
-    openDialog("This organisation can’t be deleted", `<p>It has contribution records. Professionals rely on them for their impact CVs, and the signed agreements must be kept for six years. Suspend it instead: its page and needs go offline and its team can’t post new needs.</p><div class="row" style="--gap:8px;margin-top:16px"><button class="btn" type="button" data-action="admin-org" data-id="${e(id)}" data-decision="suspended">Suspend</button><button class="btn secondary" type="button" data-action="close">Cancel</button></div>`);
+    openDialog("This organisation has contributions", `<p><span>Professionals rely on contribution records for their impact CVs, and signed agreements are kept for six years.</span> <span>If its contributions were tests, delete them first in Contributions, then delete the organisation. Otherwise, suspend it: its page and needs go offline and its team can’t post new needs.</span></p><div class="row" style="--gap:8px;margin-top:16px"><a class="btn secondary" href="#admin-list/contributions?q=${encodeURIComponent(name)}">See its contributions</a><button class="btn" type="button" data-action="admin-org" data-id="${e(id)}" data-decision="suspended">Suspend</button><button class="btn secondary" type="button" data-action="close">Cancel</button></div>`);
     return;
   }
   openDialog("Delete this organisation?", `<form class="form" data-form="admin-org-delete" data-id="${e(id)}">
@@ -116,6 +116,25 @@ export async function submitDeleteOrg(form) {
     await result(db.rpc("admin_delete_organisation", { p_org: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason") }));
     closeDialog();
     toast("Organisation deleted.");
+    go(location.hash);
+  });
+}
+
+export function deleteContribDialog(id, title) {
+  openDialog("Delete this contribution?", `<form class="form" data-form="admin-contrib-delete" data-id="${e(id)}">
+    <p><strong data-no-i18n>${e(title)}</strong></p>
+    <p><span>Its hours, completion details and questionnaire answers are deleted, and it disappears from the professional’s impact CV.</span> <span>This can’t be undone.</span></p>
+    ${field("reason", "Reason (optional)", { type: "textarea", attrs: 'maxlength="600"' })}
+    <label class="check"><input type="checkbox" name="test" checked><span>This was a test or example. Also delete its signature records and don’t notify anyone.</span></label>
+    <p class="small muted">Untick for a real contribution: both parties are told, and the signed agreement records are kept for six years.</p>
+    ${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off"' })}
+    ${formEnd("Delete contribution", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`).replace('class="btn"', 'class="btn danger"')}</form>`);
+}
+export async function submitDeleteContrib(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("admin_delete_contribution", { p_id: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason"), p_test: fd.has("test") }));
+    closeDialog();
+    toast("Contribution deleted.");
     go(location.hash);
   });
 }

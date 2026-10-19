@@ -58,3 +58,28 @@ begin
 end $function$;
 revoke all on function public.admin_delete_organisation(uuid, text, text) from public, anon;
 grant execute on function public.admin_delete_organisation(uuid, text, text) to authenticated;
+
+-- Delete a contribution (for example a test). Its hours, private answers and questionnaire answers go with it, and it
+-- disappears from the professional's impact CV. Signed agreement records are kept (unlinked) unless it was a test.
+create or replace function public.admin_delete_contribution(p_id uuid, p_confirm text, p_reason text, p_test boolean)
+ returns void language plpgsql security definer set search_path to ''
+as $function$
+declare e record;
+begin
+  if not public.is_admin() then raise exception 'Administrator access required.'; end if;
+  if upper(trim(coalesce(p_confirm, ''))) <> 'DELETE' then raise exception 'Type DELETE to confirm.'; end if;
+  select * into e from public.engagements where id = p_id for update;
+  if e.id is null then raise exception 'Contribution not found.'; end if;
+  insert into public.admin_actions (admin_id, action, target_type, target_id, detail)
+    values (auth.uid(), 'contribution_deleted', 'contribution', p_id, jsonb_build_object('need_title', e.scope->>'need_title', 'organisation', e.scope->>'organisation',
+      'professional', e.scope->>'talent', 'status', e.status, 'created_at', e.created_at, 'completed_at', e.completed_at, 'reason', coalesce(p_reason, ''), 'test', coalesce(p_test, false)));
+  if coalesce(p_test, false) then delete from public.contribution_signatures where engagement_id = p_id; end if;
+  delete from public.notifications where ref = p_id;
+  delete from public.engagements where id = p_id;
+  if not coalesce(p_test, false) then
+    perform public.notify(e.user_id, 'contribution_removed', 'A contribution was removed by Handova', (e.scope->>'need_title') || coalesce(': ' || nullif(trim(p_reason), ''), ''), '#workspace');
+    perform public.notify_org(e.organisation_id, 'contribution_removed', 'A contribution was removed by Handova', (e.scope->>'need_title') || coalesce(': ' || nullif(trim(p_reason), ''), ''), '#org');
+  end if;
+end $function$;
+revoke all on function public.admin_delete_contribution(uuid, text, text, boolean) from public, anon;
+grant execute on function public.admin_delete_contribution(uuid, text, text, boolean) to authenticated;
