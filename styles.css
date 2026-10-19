@@ -1322,3 +1322,9 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .rs-table th:not(:first-child), .rs-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; width: 90px; }
 .rs-table tfoot td { font-weight: 700; border-bottom: 0; }
 @media (max-width: 560px) { .rs-grid, .rs-grid-open { grid-template-columns: 1fr; } .rs-ring { width: 68px; height: 68px; flex-basis: 68px; } }
+/* Questionnaire layout: cards flow in columns so there are no gaps */
+.rs-grid, .rs-grid-open { display: block; columns: 2 440px; column-gap: 14px; }
+.rs-grid > .rs-q, .rs-grid-open > .rs-q { break-inside: avoid; display: block; margin: 0 0 14px; width: 100%; }
+.rs-qn { display: inline-block; min-width: 34px; margin-right: 6px; padding: 1px 7px; border-radius: 6px; background: var(--deep); color: var(--paper); font: 700 .78rem/1.6 var(--sans); text-align: center; vertical-align: 2px; }
+.rs-when { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: var(--mint-2); color: var(--teal); font: 600 .75rem/1.6 var(--sans); vertical-align: 2px; }
+@media (max-width: 560px) { .rs-grid, .rs-grid-open { columns: 1; } }
