@@ -1383,3 +1383,8 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .rs-view a { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font-weight: 700; color: var(--muted); text-decoration: none; }
 .rs-view a strong { font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 999px; background: rgba(0,0,0,.06); }
 .rs-view a[aria-current] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(16,48,44,.12); }
+.rs-tile { align-items: flex-start; }
+.rs-ref { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: .78rem; line-height: 1.35; color: var(--muted); }
+.rs-ref .rs-qn { margin-right: 0; min-width: 30px; font-size: .72rem; }
+.rs-qn-all { background: var(--mint-2) !important; color: var(--teal) !important; }
+.rs-ref > span:last-child { flex-basis: 100%; }
