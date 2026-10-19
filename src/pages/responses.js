@@ -101,42 +101,58 @@ export async function responses(params) {
   const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg(s, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${critLine(title, s)}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
+  const qNum = (q) => (tab === "six_months" ? (q.when === "no" ? "2a" : "2b") : String(QUESTIONS[tab].indexOf(q) + 1));
+  // One round chart per question, in questionnaire order: every answer option is a slice, with counts beside it.
+  const CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+  const RAMP = { 4: ["#7fc2b2", "#3f9c8b", "#18786a", "#0a4a42"], 5: ["#8fcabc", "#5bb09f", "#2f8f7f", "#146f62", "#0a4a42"] };
+  const NEUTRAL = ["not_sure", "too_early", "nothing_yet", "nothing", "none"];
+  const donut = (slices, total, center, sub) => {
+    const r = 38, c = 2 * Math.PI * r, sum = slices.reduce((t, x) => t + x.k, 0);
+    let off = 0;
+    const gap = slices.filter((x) => x.k).length > 1 ? 2 : 0;
+    const arcs = sum ? slices.filter((x) => x.k).map((x) => { const len = (x.k / sum) * c; const seg = `<circle cx="48" cy="48" r="${r}" fill="none" stroke="${x.color}" stroke-width="14" stroke-dasharray="${Math.max(0, len - gap).toFixed(2)} ${(c - Math.max(0, len - gap)).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 48 48)"><title>${e(x.label)}: ${x.k}</title></circle>`; off += len; return seg; }).join("") : "";
+    return `<svg class="rs-donut" viewBox="0 0 96 96" role="img" aria-label="${e(center)} ${e(sub)}"><circle cx="48" cy="48" r="${r}" fill="none" stroke="#ece7dc" stroke-width="14"/>${arcs}<text x="48" y="48" text-anchor="middle" class="rs-donut-n">${e(center)}</text><text x="48" y="62" text-anchor="middle" class="rs-donut-s">${e(sub)}</text></svg>`;
+  };
+  const qCard = (num, qtext, opts, picked, n, extra = "", isMulti = false) => {
+    const hide = filtered && n > 0 && n < 5;
+    const scale = opts.isScale, ramp = RAMP[opts.list.length];
+    let ci = 0;
+    const slices = opts.list.map(([v, label], i) => ({ v, label, k: picked(v), color: NEUTRAL.includes(v) ? "#b8b2a6" : scale && ramp ? ramp[i] : CAT[ci++ % CAT.length] }));
+    const legend = slices.map((x) => `<li><span class="rs-sw" style="background:${x.color}"></span><span class="rs-lg-l">${e(x.label)}</span><span class="rs-lg-v">${hide ? "" : n >= 30 && !isMulti ? `${Math.round((x.k / n) * 100)}%` : x.k}</span></li>`).join("");
+    return `<div class="rs-qc"><div class="rs-qc-head"><span class="rs-qn">${num}</span><span class="rs-qc-q">${e(qtext)}</span></div>
+      <div class="rs-qc-body">${hide ? `<p class="small muted">Too few answers to show with this filter.</p>` : `${donut(slices, n, String(n), n === 1 ? "answer" : "answers")}<ul class="rs-legend">${legend}</ul>`}</div>${extra}${isMulti ? `<p class="small muted rs-qc-note">People could choose several; the chart shows all choices made.</p>` : ""}</div>`;
+  };
+  const cardFor = (q) => {
+    const list = answered.filter((r) => A(r)[q.id] != null && (q.type !== "multi" || A(r)[q.id].length));
+    const opts = { list: optionsOf(q), isScale: q.type === "scale" };
+    const picked = (v) => list.filter((r) => (q.type === "multi" ? A(r)[q.id].includes(v) : A(r)[q.id] === v)).length;
+    const avg = q.type === "scale" && list.length ? `<p class="small muted rs-qc-note">Average ${(list.reduce((t, r) => t + Number(A(r)[q.id]), 0) / list.length).toFixed(1)} of ${opts.list.length}</p>` : "";
+    return qCard(`Q${qNum(q)}`, q.q, opts, picked, list.length, avg, q.type === "multi");
+  };
+  const rateCard = () => `<div class="rs-qc"><div class="rs-qc-head"><span class="rs-qn rs-qn-all">All</span><span class="rs-qc-q">Response rate: everyone asked after a finished contribution</span></div><div class="rs-qc-body">${donut([{ label: "Answered", k: answered.length, color: "#0f6f63" }, { label: "Skipped", k: skipped, color: "#eb6834" }, { label: "Not answered yet", k: Math.max(0, base.length - answered.length - skipped), color: "#ece7dc" }], base.length, `${answered.length}/${base.length}`, "answered")}<ul class="rs-legend"><li><span class="rs-sw" style="background:#0f6f63"></span><span class="rs-lg-l">Answered</span><span class="rs-lg-v">${answered.length}</span></li><li><span class="rs-sw" style="background:#eb6834"></span><span class="rs-lg-l">Skipped</span><span class="rs-lg-v">${skipped}</span></li><li><span class="rs-sw" style="background:#ece7dc"></span><span class="rs-lg-l">Not answered yet</span><span class="rs-lg-v">${Math.max(0, base.length - answered.length - skipped)}</span></li></ul></div></div>`;
   let tiles = "";
-  if (tab === "organisation") {
-    const first = (() => { const list = answered.filter((r) => A(r).o_value && A(r).o_without && A(r).o_without !== "not_sure"); return show(list.filter((r) => Number(A(r).o_value) >= 4 && ["later", "not_done"].includes(A(r).o_without)).length, list.length); })();
-    tiles = [
-      tile("Response rate", rate, `${skipped} skipped · ${base.length} finished contributions`),
-      tile("Practical value: a lot or a great deal", share("o_value", (v) => Number(v) >= 4)),
-      tile("Couldn’t have done it, or only later or less well", share("o_without", (v) => ["later", "not_done"].includes(v), (v) => v !== "not_sure"), "Leaves out “Not sure”"),
-      tile("“First test”: high value they couldn’t reach alone", first, "Value a lot or more AND later, less well or not done"),
-      tile("Can use it without outside help", share("o_maintain", (v) => v === "yes" || v === "little_help", (v) => v !== "not_sure")),
-      tile("Decided mostly or equally by the organisation", share("o_decided", (v) => v !== "professional")),
-      tile("Received less than the time they gave", share("o_worth", (v) => Number(v) <= 2), "Warning sign: lower is better", true),
-      tile("Raised a concern", share("o_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
-    ].join("");
-  } else if (tab === "professional") {
-    const staged = rows.filter((r) => r.career_stage);
-    tiles = [
-      tile("Response rate", rate, `${skipped} skipped · ${base.length} finished contributions`),
-      tile("Need matched the real work (mostly or completely)", share("p_match", (v) => Number(v) >= 4)),
-      tile("Got what they needed from the organisation", share("p_support", (v) => Number(v) >= 3)),
-      tile("Work took more time than planned", share("p_time", (v) => Number(v) >= 4), "Hidden overwork: lower is better", true),
-      tile("Would take on another need", share("p_again", (v) => v === "soon" || v === "later", (v) => v !== "not_sure")),
-      tile("Raised a concern", share("p_concern", (v) => v === "yes"), "Warning sign: lower is better", true),
-      tile("Students or early career", show(staged.filter((r) => ["student", "early"].includes(r.career_stage)).length, staged.length), "Of professionals with a known career stage"),
-    ].join("");
+  if (tab === "six_months") {
+    const yes = base.filter((r) => r.still_in_use).length;
+    tiles = qCard("Q1", "Are you still using what was delivered?", { list: [["yes", "Yes"], ["no", "No"]] }, (v) => (v === "yes" ? yes : base.length - yes), base.length)
+      + QUESTIONS.six_months.map(cardFor).join("");
   } else {
-    const fu = base;
-    tiles = [
-      tile("Still in use after 6 months", show(fu.filter((r) => r.still_in_use).length, fu.length), "Answered six-month checks"),
-      tile("Helped them do more or better for the people they serve", share("m_helped", (v) => v === "clearly" || v === "somewhat", (v) => v !== "not_sure"), "Only asked when still in use"),
-    ].join("");
+    tiles = rateCard() + QUESTIONS[tab].filter((q) => q.type !== "open").map(cardFor).join("");
+    if (tab === "professional") {
+      const staged = rows.filter((r) => r.career_stage);
+      tiles += qCard("Profile", "Career stage (asked once, private)", { list: CAREER_STAGES }, (v) => staged.filter((r) => r.career_stage === v).length, staged.length);
+    }
+  }
+  // The strategy's "first test" combines two answers, so it sits apart from the questions.
+  let combined = "";
+  if (tab === "organisation") {
+    const list = answered.filter((r) => A(r).o_value && A(r).o_without && A(r).o_without !== "not_sure");
+    const k = list.filter((r) => Number(A(r).o_value) >= 4 && ["later", "not_done"].includes(A(r).o_without)).length;
+    combined = `<div class="rs-combined"><strong>Strategy’s “first test”</strong><span>${list.length ? (filtered && list.length < 5 ? "Too few answers to show with this filter." : `${list.length >= 30 ? `${Math.round((k / list.length) * 100)}%` : `${k} of ${list.length}`} organisations said the work created a lot or a great deal of value (Q1) and that they couldn’t have done it, or only later or less well, without Handova (Q2).`) : "No answers yet."}</span></div>`;
   }
 
   // Answers per question.
   const qs = QUESTIONS[tab];
   // Question numbers as they appear in the questionnaire (six months: Q1 still in use, then Q2a if no / Q2b if yes).
-  const qNum = (q) => (tab === "six_months" ? (q.when === "no" ? "2a" : "2b") : String(QUESTIONS[tab].indexOf(q) + 1));
   const qTitle = (q) => `<h3><span class="rs-qn">Q${qNum(q)}</span> ${e(q.q)}${q.when ? ` <span class="rs-when">${q.when === "no" ? "Asked if not in use" : "Asked if still in use"}</span>` : ""}</h3>`;
   const qBlock = (q) => {
     const list = answered.filter((r) => A(r)[q.id] != null && (q.type !== "multi" || A(r)[q.id].length));
@@ -201,10 +217,9 @@ export async function responses(params) {
     </form>
     <p class="small muted">Under 30 answers we show counts, not percentages. With a filter applied, groups with fewer than 5 answers are hidden. Countries with fewer than 3 ${pro ? "professionals" : "organisations"} are grouped as “Other countries”.</p>
     <nav class="rs-view" aria-label="View"><a href="${q({ view: "" })}" ${individual ? "" : 'aria-current="page"'}>${icon("chart", 16)}<span>Summary and charts</span></a><a href="${q({ view: "individual" })}" ${individual ? 'aria-current="page"' : ""}>${icon("people", 16)}<span>See each response</span> <strong>${nResp}</strong></a></nav>
-    ${individual ? responsesList() : `<div class="rs-tiles">${tiles}</div>
+    ${individual ? responsesList() : `<div class="rs-qcs">${tiles}</div>${combined}
     ${concerns.length && tab !== "six_months" ? `<section class="card"><h2 class="card-title">${icon("shield", 20, "#7a4f0e")} Concerns raised in questionnaires</h2><p class="small muted">Follow up through safeguarding. These are not formal reports unless the person also reported it.</p>${concerns.map((r) => `<div class="list-row"><span class="stack" style="--gap:2px"><strong data-no-i18n>${e(r.need_title || "")}</strong><span class="small muted">${e(date(r.completed_at))} · <span>${A(r).o_concern === "yes" ? "the organisation" : "the professional"}</span></span></span>${pill("Concern", "clay")}</div>`).join("")}</section>` : ""}
     ${answered.length ? "" : `<p class="small muted">${tab === "six_months" ? "No answers yet. Answers appear here after six-month checks." : "No answers yet. Answers appear here after contributions are finished and people answer the questionnaire."}</p>`}
-    <div class="rs-grid">${tab === "six_months" ? stillBlock() : ""}${qs.filter((x) => x.type !== "open").map(qBlock).join("")}</div>
     ${qs.some((x) => x.type === "open") ? `<h2 class="card-title" style="margin-top:8px">Written answers</h2><div class="rs-grid rs-grid-open">${qs.filter((x) => x.type === "open").map(qBlock).join("")}</div>` : ""}
     `}
   </div></div>`;
