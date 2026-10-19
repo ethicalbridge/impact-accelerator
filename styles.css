@@ -1361,3 +1361,15 @@ details.contrib summary:has(.c-hide) { grid-template-columns: 52px minmax(0, 1fr
 .impact-hours { position: relative; }
 .impact-hours .link-btn { margin-top: 4px; font-weight: 700; color: var(--teal); align-self: flex-start; justify-self: start; text-align: left; padding: 0; }
 .account-menu summary .avatar.photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; box-shadow: none; }
+.rs-resp { border-top: 1px solid var(--line); }
+.rs-resp:first-child { border-top: 0; }
+.rs-resp > summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto 30px; gap: 14px; align-items: center; padding: 12px 4px; cursor: pointer; }
+.rs-resp > summary::-webkit-details-marker { display: none; }
+.rs-resp[open] .c-toggle { background: var(--deep); border-color: var(--deep); transform: rotate(180deg); }
+.rs-resp[open] .c-toggle::before, .rs-resp[open] .c-toggle::after { background: var(--paper); }
+.rs-resp[open] .c-toggle::after { transform: rotate(0deg); }
+.rs-resp-body { padding: 0 4px 16px; }
+.rs-ans { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 1.2fr); gap: 6px 18px; margin: 0; font-size: .92rem; }
+.rs-ans dt { color: var(--muted); }
+.rs-ans dd { margin: 0; font-weight: 600; white-space: pre-line; }
+@media (max-width: 640px) { .rs-ans { grid-template-columns: 1fr; } .rs-ans dd { margin-bottom: 8px; } }
