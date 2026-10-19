@@ -194,11 +194,12 @@ export async function about(sub = "mission") {
 // ---------- Organisation page ----------
 // The single home of an organisation's needs on Handova: open needs and needs already handed over.
 // The impact CV and the Needs list only link here; nothing is stored twice.
+const STAFF_LABEL = { "1-5": "1–5", "6-20": "6–20", "21-50": "21–50", "50+": "More than 50" };
 export async function orgPage(id) {
   let o = handovaOrgs.find((x) => x.id === id), open = [], handed = [];
   if (o) handed = solvedNeeds.filter((n) => n.org_id === id);
   else {
-    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status,logo_url").eq("id", id).maybeSingle()).catch(() => null);
+    o = await result(db.from("organisations").select("id,name,city,country,website,summary,org_type,ethical_bridge_url,status,logo_url,staff_size").eq("id", id).maybeSingle()).catch(() => null);
     if (o) open = await result(db.from("needs").select(NEED_SELECT).eq("organisation_id", id).eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
   }
   if (!o) return notFound("This organisation isn’t on Handova", "It may not be approved yet, or the link may be wrong.");
@@ -215,7 +216,7 @@ export async function orgPage(id) {
     ${back("All needs", "#needs")}
     <section class="org-head">
       ${logo}
-      <div class="stack" style="--gap:10px">${eyebrow("Organisation on Handova")}<h1 style="font-size:clamp(2.4rem,4.6vw,4rem)">${e(o.name)}</h1>${o.city || o.country ? `<p class="muted">${icon("map", 18, "#0f6f63")} ${e([o.city, o.country].filter(Boolean).join(", "))}</p>` : ""}${o.summary ? `<p class="lead" style="max-width:760px">${e(o.summary)}</p>` : ""}
+      <div class="stack" style="--gap:10px">${eyebrow("Organisation on Handova")}<h1 style="font-size:clamp(2.4rem,4.6vw,4rem)">${e(o.name)}</h1>${o.city || o.country || o.staff_size ? `<p class="muted org-facts">${o.city || o.country ? `<span>${icon("map", 18, "#0f6f63")} <span data-no-i18n>${e([o.city, o.country].filter(Boolean).join(", "))}</span></span>` : ""}${o.staff_size ? `<span>${icon("people", 18, "#0f6f63")} <span>${o.staff_size === "none" ? "Run by volunteers" : `${STAFF_LABEL[o.staff_size] || e(o.staff_size)} paid staff`}</span></span>` : ""}</p>` : ""}${o.summary ? `<p class="lead" style="max-width:760px">${e(o.summary)}</p>` : ""}
         <div class="row">${safeURL(o.ethical_bridge_url) ? `<a class="btn secondary" href="${e(safeURL(o.ethical_bridge_url))}" target="_blank" rel="noopener">Full profile on Ethical Bridge ${icon("arrow", 18)}<span class="visually-hidden">(opens in a new tab)</span></a>` : `<span class="small muted">Not yet in the Ethical Bridge directory.</span>`}</div></div>
     </section>
     ${handed.length ? `<section class="stats-dark"><div><strong data-counter="${hours}">${hours}</strong><span>hours handed over</span></div><div><strong data-counter="${handed.length}">${handed.length}</strong><span>${handed.length === 1 ? "need solved" : "needs solved"}</span></div><div><strong data-counter="${open.length}">${open.length}</strong><span>open needs</span></div><div><strong data-counter="${new Set(handed.map((n) => n.contributor.id)).size}">${new Set(handed.map((n) => n.contributor.id)).size}</strong><span>${new Set(handed.map((n) => n.contributor.id)).size === 1 ? "professional" : "professionals"}</span></div></section>` : ""}
@@ -450,7 +451,13 @@ export async function profile(id) {
   const isPublic = ex || (p.published && p.review_status === "approved");
   const live = ex ? [] : await result(db.rpc("public_contributions", { p_user: id })).catch(() => []);
   // The founder's three handovers made before Handova's records began stay on her CV.
-  const contributions = ex ? exampleContributions : founderLive ? [...live, ...exampleContributions] : live;
+  // Contributions the professional took off their CV: live ones are private, earlier ones are listed in cv_hidden.
+  const hiddenIds = new Set(p.cv_hidden || []);
+  const vis = owner && live.length ? Object.fromEntries((await result(db.from("engagements").select("id,public").eq("user_id", id)).catch(() => [])).map((x) => [x.id, x.public])) : {};
+  const all = (ex ? exampleContributions : founderLive ? [...live, ...exampleContributions] : live)
+    .map((c) => (live.includes(c) ? { ...c, live: true, public: owner ? vis[c.id] !== false : true } : { ...c, public: !hiddenIds.has(String(c.id)) }));
+  const contributions = all.filter((c) => c.public !== false);
+  const hiddenOnes = owner && !ex ? all.filter((c) => c.public === false) : [];
   const hours = contributions.reduce((s, c) => s + Number(c.hours || 0), 0);
   const orgs = new Set(contributions.map((c) => c.organisation)).size;
   const countries = new Set(contributions.map((c) => c.organisation_country).filter(Boolean)).size;
@@ -503,7 +510,7 @@ export async function profile(id) {
         </div>
         <div role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" class="stack" style="--gap:14px" hidden>
           <div class="row between" style="align-items:baseline"><p class="muted" style="margin:0">${plural(contributions.length, "contribution")} · ${hours} ${hours === 1 ? "hour" : "hours"} handed over to ${plural(orgs, "organisation")}</p><span class="small muted">Open one to see the details</span></div>
-          ${contributions.length ? contributions.map((c) => contributionCard(c, { example: ex, owner })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
+          ${contributions.length || hiddenOnes.length ? [...contributions, ...hiddenOnes].map((c) => contributionCard(c, { example: ex, owner: owner && !ex })).join("") : empty(owner ? "Your first contribution will appear here" : "No published contributions yet", owner ? "When an organisation completes and endorses your work, you can publish it here." : "Contributions appear once an organisation has reviewed the work and the professional publishes it.", owner ? btn("Browse needs", "#needs", "secondary sm") : "")}
         </div>
       </section>
     </div></div>`;

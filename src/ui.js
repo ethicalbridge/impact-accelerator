@@ -21,6 +21,7 @@ const IC = {
   bookmark: '<path d="M7 4h10v17l-5-3.5L7 21z"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   download: '<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>',
+  chart: '<path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/>',
   gift: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M12 9v11M4 13h16M12 9c-1.5-3-5-3.5-5-1.2C7 9 12 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 12 9 12 9z"/>',
   home: '<path d="M4 11l8-6.5 8 6.5V20h-5v-5.5H9V20H4z"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
@@ -511,15 +512,16 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     ? `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}<img src="${e(safeURL(c.org_logo))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`
     : `<span class="c-logo">${avatar(c.organisation || "Organisation", 48)}</span>`;
   const org = `${c.org_page ? `<a href="${e(c.org_page)}">${e(c.organisation)}</a>` : e(c.organisation)}${c.organisation_country ? `<span class="muted"> · ${e(t(c.organisation_country))}</span>` : ""}`;
-  return `<details class="contrib">
+  return `<details class="contrib${owner && c.public === false ? " is-hidden" : ""}">
   <summary>
     ${logo}
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public ? "Public" : "Private", c.public ? "" : "grey") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
     ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
+    ${owner ? `<button type="button" class="c-hide" data-action="cv-hide" data-id="${e(c.id)}" data-live="${c.live ? 1 : ""}" data-hide="${c.public === false ? "" : 1}" title="${c.public === false ? "Add back to my CV" : "Remove from my CV"}">${icon(c.public === false ? "plus" : "eye", 16)}<span>${c.public === false ? "Add back" : "Remove"}</span></button>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>
   <div class="c-body">

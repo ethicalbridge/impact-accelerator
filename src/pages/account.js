@@ -5,6 +5,7 @@ import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
+import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
@@ -131,6 +132,7 @@ export function orgForm(o = {}, fullName = "", role = "") {
     ${countrySelect("country", "Country where your organisation is based", o.country || "", { required: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
     ${field("city", "City or region", { value: o.city, attrs: 'maxlength="120"' })}
     ${select("org_type", "Type of organisation", ORG_TYPES, o.org_type || ORG_TYPES[0])}
+    ${select("staff_size", "Paid staff", [["", "Choose…"], ...STAFF_SIZES], o.staff_size || "", { required: true })}
     ${field("website", "Website or social page", { value: o.website, attrs: 'maxlength="300" inputmode="url" autocomplete="url" placeholder="e.g. www.yourorganisation.org"', hint: "Optional. A website, Facebook or Instagram page." })}
     ${field("ethical_bridge_url", "Ethical Bridge directory page", { value: o.ethical_bridge_url, type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova supports organisations listed in the Ethical Bridge directory. Not listed yet? <a href="${"https://ethicalbridge.org/organisation-register.html"}" target="_blank" rel="noopener">Join the directory</a>, it is free.` })}
     ${field("summary", "What your organisation does", { value: o.summary, type: "textarea", required: true, full: true, attrs: 'maxlength="600" minlength="20"', hint: "Two or three sentences. This appears on your needs." })}
@@ -171,6 +173,7 @@ export function profileForm(p = {}) {
           ${dropdown("location", "Time zone", TIMEZONES, p.location || "", { required: true, empty: "Choose a time zone" })}
           ${dropdown("hours_available", "Hours you commit each month", HOURS_MONTH, String(Math.max(Number(p.hours_available) || 4, 4)), { required: true, empty: "", hint: "At least 4. Organisations plan around it." })}
         </div>
+        <div class="pf-private">${select("career_stage", "Career stage", [["", "Choose…"], ...CAREER_STAGES], p.career_stage || "", { required: true })}<span class="small muted">${icon("lock", 14, "#0f6f63")} Private: only Handova sees this. We use it, without names, to report who contributes.</span></div>
         ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
         <p class="small muted" style="margin:0">${icon("globe", 16, "#0f6f63")} All contributions on Handova are remote.</p>
       </div>
@@ -501,7 +504,7 @@ export async function submitAccount(kind, form) {
     if (!["locally_led", "authorised", "org_declare", "org_agree"].every((k) => fd.has(k))) throw Error("Read the organisation agreement and tick all four boxes to sign it.");
     await result(db.rpc("sign_org_agreement", { p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
     const newOrg = await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
-    if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url"), logo_url: val(fd, "logo_url") || null }).eq("id", newOrg));
+    if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url"), logo_url: val(fd, "logo_url") || null, staff_size: val(fd, "staff_size") || null }).eq("id", newOrg));
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
     await loadSession();
     toast("Submitted for review. You can write your first need now.");
@@ -512,7 +515,7 @@ export async function submitAccount(kind, form) {
     if (website && !safeURL(website)) throw Error("Check the website address, for example www.yourorganisation.org");
     const ebu = val(fd, "ethical_bridge_url");
     if (ebu && !EB_URL.test(ebu)) throw Error("Use your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
-    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu, logo_url: val(fd, "logo_url") || null }).eq("id", form.dataset.id));
+    await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu, logo_url: val(fd, "logo_url") || null, ...(val(fd, "staff_size") ? { staff_size: val(fd, "staff_size") } : {}) }).eq("id", form.dataset.id));
     await loadSession();
     toast("Organisation profile saved.");
   });
@@ -529,6 +532,7 @@ export async function submitAccount(kind, form) {
     if (!row.experience_items.length) throw Error("Add at least one role under Experience.");
     if (!row.education_items.length) throw Error("Add at least one qualification under Education.");
     if (row.hours_available < 4) throw Error("Choose at least 4 hours a month.");
+    if (!val(fd, "career_stage")) throw Error("Choose your career stage.");
     if (!signedCurrent()) {
       if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) throw Error("Read the agreement and tick all four boxes to sign it.");
       const signName = val(fd, "sign_name");
@@ -541,6 +545,7 @@ export async function submitAccount(kind, form) {
     if (exists) { const { user_id, ...upd } = row; await result(db.from("profiles").update(upd).eq("user_id", state.user.id)); }
     else await result(db.from("profiles").insert(row));
     if (!exists && state.user.user_metadata?.role !== "professional") await db.auth.updateUser({ data: { role: "professional" } });
+    await result(db.rpc("set_career_stage", { p_stage: val(fd, "career_stage") }));
     // Tidy up the previous photo once the new one is saved (best effort).
     const oldPath = oldPhoto && oldPhoto !== row.photo_url ? ownAvatarPath(oldPhoto) : null;
     if (oldPath) db.storage.from("avatars").remove([oldPath]).catch(() => {});
