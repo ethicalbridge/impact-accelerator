@@ -172,6 +172,7 @@ grant execute on function public.admin_survey_data() to authenticated;
 
 -- Professionals can take any contribution off their public impact CV (including ones recorded before Handova).
 alter table public.profiles add column if not exists cv_hidden text[] not null default '{}';
+grant select (cv_hidden) on public.profiles to anon, authenticated;
 grant update (cv_hidden) on public.profiles to authenticated;
 
 -- Daily reminders, now including the questionnaire reminder.
