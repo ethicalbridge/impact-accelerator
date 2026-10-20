@@ -1541,7 +1541,7 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 /* Team (O2). */
 .team-add { align-items: flex-end; flex-wrap: wrap; gap: 10px; }
 .team-add .field { flex: 1 1 260px; margin: 0; }
-.team-form code { overflow-wrap: anywhere; word-break: break-all; }
+.team-form code { display: block; margin-top: 4px; overflow-wrap: anywhere; word-break: break-all; }
 .team-row .row { flex-wrap: wrap; }
 .silent-org { margin-top: 8px; }
 .id-card.hero .link-btn { color: #fff; text-decoration-color: currentColor; }

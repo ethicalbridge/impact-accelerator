@@ -129,7 +129,7 @@ export async function reset(params = new URLSearchParams()) {
   }
   if (params.get("expired")) return resetExpired();
   if (params.get("new") && state.user) {
-    return { title: "Choose a new password", html: shell("Choose a new password.", "You are signed in with the link we emailed. Choose a password of at least 12 characters.", `<form class="form" data-form="new-password" data-page="1" novalidate><h2 style="font-size:2.3rem">Choose a new password</h2><p class="muted">For ${e(state.user.email || "your account")}</p>${newPasswordFields()}${formEnd("Save new password", `<a href="${homeFor()}" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Skip for now</a>`)}</form>`) };
+    return { title: "Choose a new password", html: shell("Choose a new password.", "You are signed in with the link we emailed. Choose a password of at least 12 characters.", `<form class="form" data-form="new-password" data-page="1" novalidate><h2 style="font-size:2.3rem">Choose a new password</h2><p class="muted">${tf("For {email}", { email: `<span data-no-i18n>${e(state.user.email || "")}</span>` })}</p>${newPasswordFields()}${formEnd("Save new password", `<a href="${homeFor()}" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Skip for now</a>`)}</form>`) };
   }
   return { title: "Reset your password", html: shell("Forgotten your password?", "It happens. We will send a secure link to the email address on your account.", resetRequestForm()) };
 }
@@ -308,7 +308,7 @@ export async function loadPersonState() {
   state.personFor = uid;
 }
 // A suspended or removed person sees why their tools stopped working (A15).
-export const suspendedBanner = () => (state.suspension ? `<div class="banner alert" role="status">${icon("alert", 22)}<p><strong>Your account is suspended while Handova looks into a concern.</strong> <span>Write to <a href="mailto:safeguarding@handova.org">safeguarding@handova.org</a>.</span></p></div>` : "");
+export const suspendedBanner = () => (state.suspension ? `<div class="banner alert" role="status">${icon("alert", 22)}<p><strong>Your account is suspended while Handova looks into a concern.</strong> <span>Write to safeguarding@handova.org.</span></p></div>` : "");
 export async function idNudgeDialog() {
   // Already asked for a video call: no reminder to use Didit.
   if (/^#(reset|account)\b/.test(location.hash)) return;
