@@ -37,7 +37,10 @@ export async function loadSession() {
     result(db.from("agreement_signatures").select("version,signed_at,full_name,hours_committed").eq("user_id", uid).eq("kind", "professional").order("signed_at", { ascending: false }).limit(1)).then((r) => r?.[0] || null).catch(() => null),
     result(db.from("app_settings").select("value").eq("key", "require_id_verification").maybeSingle()).catch(() => null),
   ]);
-  Object.assign(state, { profile, memberships: memberships || [], isAdmin: !!admin, unread: unread?.count || 0, proAgreement, idRequired: idSetting?.value === "true", ready: true });
+  // Admins with two-step sign-in need the code from their app before admin access works (aal2).
+  const aal = await db.auth.mfa?.getAuthenticatorAssuranceLevel?.().then((r) => r?.data).catch(() => null);
+  const needsMfa = !!aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2";
+  Object.assign(state, { profile, memberships: memberships || [], isAdmin: !!admin, unread: unread?.count || 0, proAgreement, idRequired: idSetting?.value === "true", needsMfa, ready: true });
 }
 
 export const role = () => state.user?.user_metadata?.role || (state.memberships.length ? "organisation" : "professional");

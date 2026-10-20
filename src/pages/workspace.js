@@ -41,7 +41,7 @@ export async function workspace(sub) {
   const todo = [
     ...fresh.map((x) => todoRow(`${e(x.organisation?.name || "The organisation")} has finished and endorsed your work`, `${quoted(x.scope?.need_title || "")} · <span>read it and choose whether it appears on your impact CV</span>`, `<button class="btn sm" type="button" data-action="goto-focus" data-target="done-${x.id}">Read it</button>`)),
     ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
-    ...pendingInv.map((i) => { const intro = /^\[Introduced by Handova\]\s*/.test(i.message || ""), msg = (i.message || "").replace(/^\[Introduced by Handova\]\s*/, ""); return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${intro ? `Handova introduced you to ${quoted(i.need?.title || "")} from ${e(i.need?.organisation?.name || "an organisation")}` : `${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}`}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${msg ? `<p class="small invite-msg" data-no-i18n>“${e(msg)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`; }),
+    ...pendingInv.map((i) => { const intro = /^\[Introduced by Handova\]\s*/.test(i.message || ""), msg = (i.message || "").replace(/^\[Introduced by Handova\]\s*/, ""); return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${intro ? `Handova introduced you to ${quoted(i.need?.title || "")} from ${e(i.need?.organisation?.name || "an organisation")}` : `${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}`}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${msg ? `<p class="small invite-msg" data-no-i18n>“${e(msg)}”</p>` : ""}${i.conflict_note ? `<p class="small notice" role="note"><strong>The organisation declared a link with you:</strong> <span data-no-i18n>${e(i.conflict_note)}</span></p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`; }),
     ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Correct the entry", `#agreement/${h.engagement_id}`, "sm")); }),
     ...active.filter((x) => !x.first_call_at).map((x) => todoRow(`Plan your first call with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · 30–45 minutes to meet and agree how you’ll work`, `${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`)),
     ...active.map((x) => (x.talent_delivered_at || hoursReadyAt(x, hours))
@@ -208,6 +208,7 @@ export async function org(sub, id) {
     const n = id ? await result(db.from("needs").select("*").eq("id", id).maybeSingle()) : null;
     // A need Handova has approved can't be edited: what people applied to must stay the same.
     if (n && (n.status === "open" || n.status === "closed")) return { redirect: `#org/needs/${n.id}` };
+    if (n) { const sn = await result(db.from("need_safety_notes").select("personal_data_note,leak_risk_note").eq("need_id", n.id).maybeSingle()).catch(() => null); n.safeguarding = { ...(n.safeguarding || {}), ...(sn || {}) }; }
     const note = n?.review_note && n.status === "draft" ? `<div class="banner alert">${icon("alert", 22)}<p><strong>Handova asked for changes:</strong> <span data-no-i18n>${quoted(n.review_note)}</span> Update the need and send it again.</p></div>` : "";
     const info = n && (n.status === "open" || n.status === "closed") ? "" : `<div class="banner">${icon("check", 22, "#0f6f63")}<p>${approved ? "Handova checks every need before it goes live. We usually reply within two working days." : "You can write your need and send it for review now. It goes live once Handova has approved your organisation and the need."}</p></div>`;
     return shell(`<div class="stack" style="--gap:20px">${back(n ? "Back to the need" : "All needs", n ? `#org/needs/${n.id}` : "#org/needs")}${head(n ? "Edit need" : "Post a need")}${note}${info}${needForm(n, o, approved, await talentLanguages(), data ? placesInUse(data.needs, data.engs) >= 3 : false)}</div>`);
@@ -319,7 +320,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   else meta = parts([`${n.hours} hours`, `${plural(n.places || 1, "person", "people")} needed`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"]);
 
   // ---- Next step: the one thing to do now ----
-  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? `Works in ${e(a.person.languages.join(", "))}` : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p></div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
+  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? `Works in ${e(a.person.languages.join(", "))}` : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p>${a.conflict_note ? `<p class="small notice" role="note"><strong>Declared link:</strong> <span data-no-i18n>${e(a.conflict_note)}</span> <span>Agree with Handova how it is managed before you accept.</span></p>` : ""}</div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
   const boxes = [];
   if (st === "draft") {
     if (n.review_note) boxes.push(box("alert", "alert", "Handova asked for changes", `<span data-no-i18n>${quoted(n.review_note)}</span> <span>Update the need and send it again.</span>`, btn("Update need", `#org/need/${n.id}`, "sm")));
@@ -405,8 +406,10 @@ export function reviseDialog(id) {
 export async function submitRevise(form) {
   await withForm(form, async () => {
     const n = await result(db.from("needs").select("*").eq("id", form.dataset.id).single());
-    const copy = { organisation_id: n.organisation_id, title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline && n.deadline >= today() ? n.deadline : null, places: n.places, status: "draft", no_vulnerable_contact: true };
+    const copy = { organisation_id: n.organisation_id, title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline && n.deadline >= today() ? n.deadline : null, places: n.places, status: "draft", no_vulnerable_contact: true, safeguarding: n.safeguarding || {} };
     const made = await result(db.from("needs").insert(copy).select("id").single());
+    const sn = await result(db.from("need_safety_notes").select("personal_data_note,leak_risk_note").eq("need_id", n.id).maybeSingle()).catch(() => null);
+    if (sn && made?.id) await result(db.from("need_safety_notes").insert({ need_id: made.id, ...sn })).catch(() => {});
     if (n.status === "open") await result(db.from("needs").update({ status: "closed" }).eq("id", n.id));
     closeDialog();
     toast("Applications stopped. Edit your copy and send it for review.");
@@ -478,8 +481,40 @@ function needForm(n, o, approved, langs, full = false) {
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     <input type="hidden" name="status" value="${e(n.status || "pending")}">
-    <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or adults at risk, and no access to their personal information. *", n.no_vulnerable_contact, true)}</div>
+    ${safetyQuestions(n.safeguarding || {})}
   </div>${needButtons(n, full)}</form>`;
+}
+// Safety questions on every need (Safeguarding Policy, section 7). Handova checks the answers before the need opens.
+const SAFETY_TICKS = [
+  ["remote", "All the work is remote."],
+  ["no_contact", "The professional won’t contact the people we serve: no messages, calls, surveys, interviews, testing, groups or helplines. Our own staff run anything like that."],
+  ["no_child_images", "We won’t share images or stories of children, or of adults without our own consent process."],
+  ["no_money", "No fees or payments are involved, and the professional won’t receive, hold or move our money."],
+];
+const SAFETY_CHOICES = [
+  ["personal_data", "Will the professional see personal information about the people you serve?", [["none", "No. They work with anonymised or summary information."], ["exception", "Yes, the work can’t be done without some. We will agree it in writing in Messages before sharing."]], "exception", "Which information, why it is needed, and how it will be kept safe", "Never children’s data, case files, identity documents, shelter locations or anyone’s immigration, health, survivor or sexual orientation status."],
+  ["leak_risk", "Could the work put people at risk if it leaked? For example, a map of a shelter or a list of people without documents.", [["no", "No"], ["yes", "Yes"]], "yes", "How the risk is designed out", ""],
+  ["distressing", "Will the professional see distressing content, such as testimonies of violence?", [["no", "No"], ["yes", "Yes. We will warn professionals on the need."]], "", "", ""],
+  ["regulated", "Does the work need regulated advice, such as legal, medical, financial or tax advice?", [["no", "No"], ["yes", "Yes"]], "yes", "Which qualification it needs", ""],
+];
+function safetyQuestions(sg) {
+  const ticks = SAFETY_TICKS.map(([k, label]) => check(`sg_${k}`, label, sg[k] === "yes")).join("");
+  const choices = SAFETY_CHOICES.map(([k, q, opts, noteWhen, noteLabel, hint]) => `<fieldset class="sg-q" data-sg="${k}"><legend>${q}</legend><div class="sg-opts">${opts.map(([v, l]) => `<label class="check"><input type="radio" name="sg_${k}" value="${v}" ${sg[k] === v ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>${hint ? `<p class="small muted">${hint}</p>` : ""}${noteWhen ? `<div class="field sg-note" data-when="${noteWhen}" ${sg[k] === noteWhen ? "" : "hidden"}><label for="f-sg-${k}">${noteLabel}</label><textarea id="f-sg-${k}" name="sg_${k}_note" rows="3" maxlength="1000">${e(sg[`${k}_note`] || "")}</textarea></div>` : ""}</fieldset>`).join("");
+  return `<div class="full sg-box"><div class="form-sec"><h2>Safety</h2><p class="muted small">Handova checks every need before it opens. Answer honestly: a “yes” doesn’t stop a need, it helps us make it safe. See our <a href="#policies/safeguarding" target="_blank">Safeguarding Policy</a>.</p></div><div class="checkbox-box">${ticks}</div>${choices}</div>`;
+}
+// Reads the safety answers. When the need goes for review, every question must be answered.
+function readSafety(form, fd, sending) {
+  const sg = {};
+  SAFETY_TICKS.forEach(([k]) => { sg[k] = fd.has(`sg_${k}`) ? "yes" : ""; });
+  SAFETY_CHOICES.forEach(([k, , , noteWhen]) => { sg[k] = val(fd, `sg_${k}`); if (noteWhen) sg[`${k}_note`] = sg[k] === noteWhen ? val(fd, `sg_${k}_note`) : ""; });
+  if (!sending) return sg;
+  const missingTick = SAFETY_TICKS.find(([k]) => sg[k] !== "yes");
+  if (missingTick) throw fieldError(form.querySelector(`[name="sg_${missingTick[0]}"]`), "Needs on Handova must meet all four of these. Tick each one, or change the need so it does.");
+  for (const [k, , , noteWhen] of SAFETY_CHOICES) {
+    if (!sg[k]) throw fieldError(form.querySelector(`[name="sg_${k}"]`), "Please answer this question.");
+    if (noteWhen && sg[k] === noteWhen && sg[`${k}_note`].length < (k === "regulated" ? 10 : 20)) throw fieldError(form.querySelector(`[name="sg_${k}_note"]`), "Please add a short explanation.");
+  }
+  return sg;
 }
 // Drafts and new needs: save as a draft or send for review. Live needs: save changes (and reopen a closed one).
 function needButtons(n, full = false) {
@@ -495,14 +530,25 @@ function needButtons(n, full = false) {
 export async function submitNeed(form) {
   await withForm(form, async (fd) => {
     // Check top to bottom, and show each problem right under its field.
-    const bad = form.querySelector("input:invalid:not([name=no_vulnerable_contact]), textarea:invalid, select:invalid");
+    const bad = form.querySelector("input:invalid, textarea:invalid, select:invalid");
     if (bad) throw fieldError(bad, fieldProblem(bad));
     if (!val(fd, "skills")) throw fieldError(form.querySelector('[name="skills"]'), "Choose at least one skill. It helps the right professionals find this need.");
     if (!val(fd, "languages")) throw fieldError(form.querySelector('[name="languages"]'), "Choose at least one working language.");
-    if (!fd.has("no_vulnerable_contact")) throw fieldError(form.querySelector('[name="no_vulnerable_contact"]'), "Tick the safeguarding confirmation to continue. Needs on Handova never involve direct contact with children or adults at risk.");
-    const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
-    if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
-    else form.dataset.id = (await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }).select("id").single()))?.id || "";
+    const sending = val(fd, "status") === "pending";
+    const safeguarding = readSafety(form, fd, sending);
+    const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: true, safeguarding };
+    // Sensitive explanations live in their own table (org members and Handova only), not on the public need.
+    const notes = { personal_data_note: safeguarding.personal_data_note || "", leak_risk_note: safeguarding.leak_risk_note || "" };
+    delete safeguarding.personal_data_note; delete safeguarding.leak_risk_note;
+    const saveNotes = (id) => result(db.from("need_safety_notes").upsert({ need_id: id, ...notes, updated_at: new Date().toISOString() }));
+    if (form.dataset.id) { await saveNotes(form.dataset.id); await result(db.from("needs").update(row).eq("id", form.dataset.id)); }
+    else {
+      // Save as a draft first so the notes can be attached, then send it for review if asked.
+      const id = (await result(db.from("needs").insert({ ...row, status: "draft", organisation_id: form.dataset.org }).select("id").single()))?.id || "";
+      form.dataset.id = id;
+      await saveNotes(id);
+      if (row.status !== "draft") await result(db.from("needs").update({ status: row.status }).eq("id", id));
+    }
     const was = form.dataset.was;
     toast(row.status === "pending" && was !== "pending" ? "Sent to Handova. We usually check new needs within two working days, and we’ll email you when it’s live." : row.status === "draft" ? "Draft saved." : row.status === "open" && was === "closed" ? "Your need is open again." : "Changes saved.");
     go(form.dataset.id ? `#org/needs/${form.dataset.id}` : "#org/needs");
@@ -525,7 +571,7 @@ export async function inviteDialog(userId) {
     open = open.filter((n) => !taken.has(n.id));
   }
   if (!open.length) return openDialog("Open a need first", `<p>An invitation connects a professional to one specific need. Post or open a need, then come back.</p>${btn("Post a need", "#org/need")}`);
-  openDialog("Invite to a need", `<form class="form" data-form="invite" data-id="${e(userId)}">${select("need_id", "Need", open.map((n) => [n.id, n.title]), "", { required: true })}${field("message", "Personal message", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "Why their work fits, and what you need. At least 30 characters." })}${formEnd("Send invitation", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Invite to a need", `<form class="form" data-form="invite" data-id="${e(userId)}">${select("need_id", "Need", open.map((n) => [n.id, n.title]), "", { required: true })}${field("message", "Personal message", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "Why their work fits, and what you need. At least 30 characters." })}    <fieldset class="field full sg-q" data-sg="conflict"><legend>Do you have a personal, family, financial or work link to this professional?</legend><div class="sg-opts"><label class="check"><input type="radio" name="conflict" value="no" required><span>No</span></label><label class="check"><input type="radio" name="conflict" value="yes"><span>Yes, I’ll describe it</span></label></div><div class="field sg-note" data-when="yes" hidden><label for="f-iconflict">The link, briefly</label><textarea id="f-iconflict" name="conflict_note" rows="2" maxlength="600"></textarea><span class="hint">The professional and Handova see this. A link doesn’t rule you out; we agree how it is managed.</span></div></fieldset>${formEnd("Send invitation", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function introduceDialog(userId, name) {
   const open = await result(db.from("needs").select("id,title,organisation:organisations(name)").eq("status", "open").order("created_at", { ascending: false })).catch(() => []);
@@ -541,7 +587,10 @@ export async function submitIntroduce(form) {
 }
 export async function submitInvite(form) {
   await withForm(form, async (fd) => {
-    await result(db.from("invitations").insert({ need_id: val(fd, "need_id"), user_id: form.dataset.id, message: val(fd, "message") }));
+    if (!fd.get("conflict")) throw fieldError(form.querySelector('[name="conflict"]'), "Please answer this question.");
+    const conflict_note = fd.get("conflict") === "yes" ? val(fd, "conflict_note") : "";
+    if (fd.get("conflict") === "yes" && conflict_note.length < 5) throw fieldError(form.querySelector('[name="conflict_note"]'), "Describe the link briefly.");
+    await result(db.from("invitations").insert({ need_id: val(fd, "need_id"), user_id: form.dataset.id, message: val(fd, "message"), conflict_note }));
     closeDialog();
     toast("Invitation sent. Most people reply within a week, and we’ll email you when they do.");
   });
@@ -549,20 +598,22 @@ export async function submitInvite(form) {
 
 export function reportDialog(type, id) {
   if (!state.user) return go("#report");
-  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p>${select("reason", "What is the concern?", [["exploitation", "Sexual exploitation or abuse"], ["safety", "A child or adult at risk, or another safety concern"], ["harassment", "Harassment or inappropriate behaviour"], ["fraud", "Fraud, payment requests or false hours"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first. If your concern is about Handova’s founder, see <a href="#report">Report a concern</a> for the independent route.</p>${select("reason", "What is the concern?", [["exploitation", "Sexual exploitation or abuse"], ["safety", "A child or adult at risk, or another safety concern"], ["harassment", "Harassment or inappropriate behaviour"], ["fraud", "Fraud, payment requests or false hours"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function submitReport(form) {
   await withForm(form, async (fd) => {
     const base = { target_type: form.dataset.type || "other", target_id: form.dataset.id || null, reason: val(fd, "reason"), details: val(fd, "details") };
-    try { await result(db.from("reports").insert(base)); }
+    let ref = "";
+    try { ref = (await result(db.from("reports").insert(base).select("id").single()))?.id || ""; }
     catch (err) {
       // Until the database accepts the newer reasons, file them under the closest older one, with the reason in the text.
       const older = { exploitation: ["safety", "[Sexual exploitation or abuse] "], fraud: ["misleading", "[Fraud] "] }[base.reason];
       if (!older || !/check|violat|23514/i.test(String(err?.message || err?.code || ""))) throw err;
-      await result(db.from("reports").insert({ ...base, reason: older[0], details: (older[1] + base.details).slice(0, 4000) }));
+      ref = (await result(db.from("reports").insert({ ...base, reason: older[0], details: (older[1] + base.details).slice(0, 4000) }).select("id").single()))?.id || "";
     }
     closeDialog();
-    toast("Thank you. We have received your report. Our safeguarding lead reads every report and will contact you if we need more information. If someone is in immediate danger, contact local emergency services first.");
+    const code = String(ref).slice(0, 8).toUpperCase();
+    openDialog("We received your report", `<div class="stack" style="--gap:12px">${code ? `<p>Your reference is <strong data-no-i18n>${e(code)}</strong>. We have also sent it to your notifications.</p>` : ""}<p>Our safeguarding lead reads every report and will contact you if we need more information. If someone is in immediate danger, contact local emergency services first.</p><div class="row"><button class="btn" type="button" data-action="close">Close</button></div></div>`);
   });
 }
 
@@ -614,6 +665,7 @@ export async function completeDialog(id) {
       ${field("work_again_note", "Anything Handova should know? (optional)", { type: "textarea", attrs: 'maxlength="600"' })}
       <span class="hint">${first} never sees this. We use it to make better matches, and we always talk to both sides before acting on a “No”.</span></fieldset>
     ${check("confirm", "This is accurate and in our own words. It names no one we serve, includes no personal details about them, and nothing confidential.", false, true)}
+    ${check("confirm_independent", `I wrote this myself, based on work I saw. I am not a family member or close friend of ${first}, and ${first} doesn’t lead or work for our organisation.`, false, true)}
     ${formEnd(`Complete and send to ${first}`, `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
   const ta = document.getElementById("f-endorsement"), ctr = document.querySelector('[data-counter-for="f-endorsement"]');
   ta?.addEventListener("input", () => { if (ctr) ctr.textContent = `${ta.value.length} / 1200`; });
@@ -648,6 +700,7 @@ export async function submitComplete(form) {
     if (val(fd, "role").length < 2) problems.push([form.querySelector('[name="role"]'), "Add your role."]);
     if (!fd.get("work_again")) problems.push([form.querySelector('[name="work_again"]'), "Please answer this question for Handova."]);
     if (!fd.has("confirm")) problems.push([form.querySelector('[name="confirm"]'), "Please tick this box to continue."]);
+    if (!fd.has("confirm_independent")) problems.push([form.querySelector('[name="confirm_independent"]'), "Please tick this box to continue. If it isn’t true, write to safeguarding@handova.org before endorsing: an endorsement must come from someone independent."]);
     const found = problems.filter(([el]) => el);
     if (found.length) throw fieldErrors(found);
     await result(db.rpc("complete_engagement", { p_id: form.dataset.id, p_delivered: delivered, p_deliverables: val(fd, "deliverables"), p_skills: skills, p_endorsement: endorsement, p_language: val(fd, "language"), p_role: val(fd, "role"), p_name: val(fd, "name"), p_show_name: fd.has("show_name"), p_note: val(fd, "note"), p_work_again: String(fd.get("work_again")), p_work_again_note: val(fd, "work_again_note"), p_confirm: true }));
