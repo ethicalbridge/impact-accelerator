@@ -1463,9 +1463,27 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
   body:has(.consent:not([hidden])) { padding-bottom: 120px; }
 }
 #dialog form > .row:has(> [type=submit]) { position: sticky; bottom: 0; background: var(--paper); padding-block: 12px; margin-bottom: -12px; z-index: 1; box-shadow: 0 -10px 16px -12px rgba(16,48,44,.25); }
-@media (max-width: 1480px) { .ws-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .ws-btn { padding-inline: 12px; min-width: 44px; justify-content: center; } }
+/* Header fit (D15): ui.js fitHeader() adds .hdr-snug (tighter spacing), .hdr-tight (no "My workspace" text) and .hdr-compact (☰ menu) only when the bar would not fit. */
+.site-header.hdr-snug .wrap { gap: 14px; } .site-header.hdr-snug .main-nav { gap: 14px; } .site-header.hdr-snug .header-actions { gap: 6px; }
+.hdr-tight .ws-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .hdr-tight .ws-btn { padding-inline: 12px; min-width: 44px; justify-content: center; }
 @media (max-width: 1180px) and (min-width: 961px) { .site-header .wrap { gap: 14px; } .main-nav { gap: 12px; } .header-actions { gap: 6px; } }
-@media (max-width: 1080px) and (min-width: 961px) { .brand > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .main-nav { gap: 10px; } .main-nav a, .main-nav .nav-drop summary { font-size: .92rem; } }
+@media (max-width: 1080px) and (min-width: 961px) { .main-nav { gap: 10px; } .main-nav a, .main-nav .nav-drop summary { font-size: .92rem; } }
+.site-header.hdr-compact .main-nav .nav-signin { display: flex; }
+.site-header.hdr-compact .menu-toggle { display: inline-flex; }
+.site-header.hdr-compact .main-nav { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 8px max(var(--gutter), calc((100% - var(--max)) / 2)) 20px; background: var(--ivory); border-bottom: 1px solid var(--line); max-height: calc(100vh - 80px); overflow-y: auto; }
+.site-header.hdr-compact .main-nav.open { display: flex; }
+.site-header.hdr-compact .main-nav a { min-height: 52px; border-bottom: 1px solid var(--line); font-size: 1rem; }
+.site-header.hdr-compact .main-nav a[aria-current="page"] { border-bottom-color: var(--line); color: var(--teal); }
+.site-header.hdr-compact .nav-drop summary { display: flex; justify-content: space-between; width: 100%; min-height: 52px; border-bottom: 1px solid var(--line); font-size: 1rem; }
+.site-header.hdr-compact .nav-drop summary.current { border-bottom-color: var(--line); color: var(--teal); }
+.site-header.hdr-compact .nav-drop .menu { position: static; min-width: 0; padding: 4px 0 8px 12px; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.site-header.hdr-compact .main-nav .nav-drop .menu a { border-bottom: 0; min-height: 48px; }
+.site-header.hdr-compact .header-actions .hide-sm:not(.btn) { display: none; }
+@media (max-width: 960px) { .main-nav { max-height: calc(100vh - 80px); overflow-y: auto; } }
+/* ☰ becomes × while the menu is open (D20). */
+.menu-toggle .mt-open, .menu-toggle .mt-close { display: inline-flex; }
+.menu-toggle .mt-close, .menu-toggle[aria-expanded="true"] .mt-open { display: none; }
+.menu-toggle[aria-expanded="true"] .mt-close { display: inline-flex; }
 .invited-pill { white-space: normal; padding: 10px 14px; font-size: .9rem; background: var(--ochre-bg); color: var(--ochre-ink); }
 /* Printed impact CV: a line with the link and date; screen-only controls are left out. */
 .print-only { display: none; }
@@ -1517,3 +1535,98 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 .concern-bar { border-color: #e6b9a6; margin: 8px 0 28px; }
 .policy-links a { white-space: nowrap; }
 .faq-contact { text-align: center; padding: 22px; border-top: 1px solid var(--line); color: var(--muted); }
+
+/* Fix sprint 20 Oct 2026 (public pages) */
+/* M11: two compact buttons straight under the headline on phones; the doors stay below for larger screens. */
+.hero-quick { display: none; }
+.watch-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 700; color: var(--paper); text-decoration: underline; text-underline-offset: 3px; }
+.watch-link:hover { color: #f3c9b1; }
+.hero-watch { margin: -6px 0 0; }
+@media (max-width: 640px) {
+  .hero-quick { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 4px; }
+  .hero-quick .btn { flex: 1 1 140px; min-height: 44px; padding: 8px 14px; }
+  .hero-quick .watch-link { flex-basis: 100%; }
+  .hero-watch { display: none; }
+  .hv-hero h1 { font-size: clamp(2.1rem, 9vw, 2.5rem); }
+}
+/* M6: the strongest line of the video, as text beside it. */
+.video-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.1fr); gap: clamp(20px, 3vw, 40px); align-items: center; }
+.video-quote { margin: 0; padding: 0 0 0 20px; border-left: 4px solid var(--clay, #b85c38); }
+.video-quote p { font: 500 clamp(1.3rem, 2.2vw, 1.75rem)/1.25 var(--serif); color: var(--ink); margin: 0; }
+.video-quote p span { color: var(--teal); }
+.video-quote footer { margin-top: 12px; font-size: .88rem; font-weight: 600; color: var(--muted); }
+@media (max-width: 860px) { .video-row { grid-template-columns: minmax(0, 1fr); } }
+/* M7: example impact CV entry in the "What stays with the professional" panel. */
+.ex-cv { margin: 14px 0 0; display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 14px; background: var(--paper); color: var(--ink); box-shadow: 0 12px 30px rgba(0, 0, 0, .18); max-width: 420px; }
+.ex-cv-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ex-cv-cap { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hv-ex-side .ex-cv strong.ex-cv-title { font: 600 1.05rem/1.25 var(--sans); color: var(--ink); }
+.ex-cv-org { font-size: .9rem; color: var(--muted); }
+.ex-cv-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ex-cv-hours { font-size: .88rem; color: var(--muted); } .ex-cv-hours b { color: var(--ink); }
+.ex-cv blockquote { margin: 4px 0 0; padding-left: 12px; border-left: 3px solid var(--mint, #dcebe6); }
+.ex-cv blockquote p { margin: 0; font: 500 1rem/1.35 var(--serif); color: var(--ink); }
+.ex-cv blockquote footer { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+/* D18: jump links under the concern bar, and the six policies. */
+.jump-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: -12px 0 8px; font-weight: 700; }
+.jump-links a { display: inline-flex; align-items: center; min-height: 44px; }
+.jump-links span { color: var(--muted); }
+.policy-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 2px 20px; }
+.policy-list a { display: inline-flex; min-height: 32px; align-items: center; }
+/* D19: policy section lists. Laptop: scrolls within the screen. Phone: an "On this page" button. */
+.legal-toc { max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
+.toc-m { display: none; }
+@media (max-width: 960px) {
+  .legal-toc { display: none; }
+  .toc-m { display: block; border: 1px solid var(--line); border-radius: var(--radius-sm, 12px); background: var(--paper); }
+  .toc-m > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; cursor: pointer; font-weight: 700; list-style: none; }
+  .toc-m > summary::-webkit-details-marker { display: none; }
+  .toc-m > summary::after { content: "+"; margin-left: auto; font-weight: 700; }
+  .toc-m[open] > summary::after { content: "−"; }
+  .toc-m .toc-n { font-size: .8rem; font-weight: 600; color: var(--muted); }
+  .toc-m ol { list-style: none; margin: 0; padding: 0 8px 10px; }
+  .toc-m button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 10px 8px; min-height: 44px; font: 500 .95rem/1.35 var(--sans); color: var(--teal); cursor: pointer; }
+}
+.reading h2[tabindex="-1"]:focus:not(:focus-visible), #main h2[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+/* D11: filters. Desktop keeps the one-line grid; phones show the search and a "Filters" button. */
+.filters .f-search, .filters .f-more { display: contents; }
+@media (min-width: 1101px) { .filters { grid-template-columns: 2fr repeat(3, minmax(0, 1fr)); } }
+.filters .f-toggle { display: none; }
+@media (max-width: 1100px) { .filters label:first-child { grid-column: auto; } .filters .f-search > label { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+  .filters { grid-template-columns: minmax(0, 1fr); }
+  .filters .f-search { display: flex; align-items: flex-end; gap: 10px; }
+  .filters .f-search > label { flex: 1 1 auto; min-width: 0; }
+  .filters .f-toggle { display: inline-flex; min-height: 50px; padding: 8px 14px; gap: 6px; flex: none; }
+  .filters .f-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--teal); color: #fff; font-size: .8rem; }
+  .filters .f-count[hidden] { display: none; }
+  .filters .f-more { display: none; }
+  .filters.show-more .f-more { display: grid; gap: 10px; }
+  .filters.show-more label.more { display: flex; }
+}
+/* W4 and M16 */
+.load-error { flex-wrap: wrap; } .load-error p { flex: 1 1 260px; margin: 0; }
+.share-box { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
+.share-box .btn { gap: 6px; }
+/* D12: on phones the contributions come before About and Skills on an impact CV. */
+@media (max-width: 960px) { .split.left > #profile-main { order: -1; } }
+/* D22: dialog footer matches the dialog; the report button keeps its normal width. */
+#dialog form > .row:has(> [type=submit]) { background: var(--ivory); }
+/* L17: public report form */
+.public-report { display: flex; flex-direction: column; gap: 16px; }
+.hp-field { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.report-alt { padding-top: 18px; border-top: 1px solid var(--line); } .report-alt[hidden] { display: none; }
+.public-report-done h2:focus { outline: none; }
+/* M11: a slimmer cookie bar that leaves the main buttons visible. */
+.consent { max-width: 760px; padding: 8px 12px; gap: 6px 12px; flex-wrap: nowrap; }
+.consent p { flex: 1 1 auto; font-size: .82rem; line-height: 1.3; }
+.consent .row { flex: none; gap: 6px; flex-wrap: nowrap; }
+.consent .btn { min-height: 36px; padding: 4px 12px; }
+body:has(.consent:not([hidden])) { padding-bottom: 72px; }
+@media (max-width: 640px) {
+  .consent { flex-wrap: wrap; left: 0; right: 0; bottom: 0; border-radius: 12px 12px 0 0; border-width: 1px 0 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  .consent p { flex-basis: 100%; font-size: .78rem; }
+  .consent .row { width: 100%; }
+  .consent .btn { flex: 1 1 0; min-height: 36px; }
+  body:has(.consent:not([hidden])) { padding-bottom: 104px; }
+}

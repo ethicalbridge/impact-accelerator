@@ -268,7 +268,7 @@ function insertRow(t, v) {
     notifyOrg(e.organisation_id, "hours", "Hours to review", e.scope.need_title, "#org");
   }
   if (t === "reports") {
-    Object.assign(row, { reporter_id: u, status: "open", admin_note: "", resolved_at: null });
+    Object.assign(row, { reporter_id: u, status: "open", admin_note: "", resolved_at: null, source: "platform", contact_email: "" });
     if (v.target_type === "conversation" && !isParty(D.conversations.find((c) => c.id === v.target_id))) RLS();
     if (D.reports.filter((r) => r.reporter_id === u && !ago(r.created_at, 1)).length >= 10) RLS();
     const details = trimmed(v.details);
@@ -344,6 +344,20 @@ function updateRow(t, r, v) {
 
 // ---------- server functions ----------
 const rpcs = {
+  // 20261020122000_public_reports: a report from someone without an account (rate limit: 3 an hour in this browser).
+  submit_public_report({ p_reason, p_details, p_email = "" }) {
+    const d = trimmed(p_details), em = trimmed(p_email).toLowerCase();
+    if (!REPORT_REASONS.includes(p_reason)) fail("Choose what the concern is about.", "22023");
+    if (d.length < 10 || d.length > 4000) fail("Describe what happened in 10 to 4,000 characters.", "22023");
+    if (em && (em.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em))) fail("Check the email address, or leave it empty.", "22023");
+    D.public_report_throttle = (D.public_report_throttle || []).filter((t) => !ago(t.created_at, 1));
+    if (D.public_report_throttle.filter((t) => Date.parse(t.created_at) > Date.now() - 36e5).length >= 3) fail("Too many reports have been sent from here. Please try again later, or write to safeguarding@handova.org.", "P0001");
+    D.public_report_throttle.push({ created_at: now() });
+    const row = { id: uid(), reporter_id: me(), target_type: "other", target_id: null, reason: p_reason, details: d, source: "public", contact_email: em, status: "open", admin_note: "", resolved_at: null, created_at: now() };
+    D.reports.push(row);
+    notifyAdmins("report", p_reason === "exploitation" ? "Urgent: sexual exploitation or abuse reported" : "New concern reported", `${p_reason} · other`, "#admin");
+    return String(row.id).slice(0, 8).toUpperCase();
+  },
   sign_org_agreement({ p_version, p_name, p_role, p_text }) {
     if (!me()) throw Error("Please sign in first.");
     if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");

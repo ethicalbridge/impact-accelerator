@@ -562,7 +562,61 @@ export function header(active) {
   } else {
     right = `${langMenu()}<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
   }
-  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? `<a class="nav-signin" href="${state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding"}">My workspace</a>` : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
+  scheduleHeaderFit();
+  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? `<a class="nav-signin" href="${state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding"}">My workspace</a>` : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu"><span class="mt-open">${icon("menu", 22)}</span><span class="mt-close">${icon("x", 22)}</span></button></div></div>`;
+}
+
+// The header has to fit in four languages, signed in or out. Above 960px (below it, the ☰ menu always shows),
+// we measure instead of guessing breakpoints: first the full bar, then with tighter spacing, then without the
+// "My workspace" text, then the ☰ menu (with, then without, that text). The first one that fits wins.
+const FIT_STATES = [[], ["hdr-snug"], ["hdr-snug", "hdr-tight"], ["hdr-compact"], ["hdr-compact", "hdr-tight"]];
+export function fitHeader() {
+  const h = typeof document !== "undefined" && document.getElementById("site-header");
+  const wrap = h && h.querySelector(".wrap");
+  if (!wrap) return;
+  for (const s of FIT_STATES) {
+    h.classList.remove("hdr-snug", "hdr-tight", "hdr-compact");
+    if (s.length) h.classList.add(...s);
+    if (window.innerWidth <= 960 || wrap.scrollWidth <= wrap.clientWidth + 1) break;
+  }
+  // Closing the ☰ menu when the full bar comes back keeps the button and the menu in step.
+  if (!h.classList.contains("hdr-compact") && window.innerWidth > 960) {
+    const nav = document.getElementById("main-nav"), b = h.querySelector(".menu-toggle");
+    if (nav?.classList.contains("open")) { nav.classList.remove("open"); b?.setAttribute("aria-expanded", "false"); b?.setAttribute("aria-label", "Open menu"); }
+  }
+}
+let fitQueued = false, fitBound = false;
+function scheduleHeaderFit() {
+  if (typeof window === "undefined" || typeof requestAnimationFrame === "undefined") return;
+  // After the header is in the page and translated (translation runs on the next microtask).
+  if (!fitQueued) { fitQueued = true; requestAnimationFrame(() => { fitQueued = false; fitHeader(); }); }
+  if (fitBound) return;
+  fitBound = true;
+  let raf = 0;
+  window.addEventListener("resize", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitHeader); });
+  document.fonts?.ready?.then(fitHeader).catch(() => {});
+}
+
+// The ☰ menu: opening it moves focus to its first item, and the icon shows × while it is open.
+export function toggleMenu(btn) {
+  const nav = document.getElementById("main-nav");
+  if (!nav) return;
+  const open = nav.classList.toggle("open");
+  btn?.setAttribute("aria-expanded", String(open));
+  btn?.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  if (open) nav.querySelector("summary, a")?.focus();
+}
+
+// In-page links (section lists, jump links): scroll to the section and move keyboard focus to its heading,
+// so the next Tab continues from there.
+export function jumpTo(id) {
+  const target = typeof id === "string" ? document.getElementById(id) : id;
+  if (!target) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  const heading = /^H[1-6]$/.test(target.tagName) ? target : target.querySelector("h1, h2, h3") || target;
+  if (!heading.hasAttribute("tabindex") && !heading.matches("a[href], button, input, select, textarea, summary")) heading.setAttribute("tabindex", "-1");
+  heading.focus({ preventScroll: true });
 }
 
 export function footer(cfg) {
