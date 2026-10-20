@@ -395,7 +395,6 @@ const rpcs = {
     return String(row.id).slice(0, 8).toUpperCase();
   },
   // Browser error counter (W8): the real function stores the message, page and version; here it is a no-op.
-  log_client_error() { return null; },
   sign_org_agreement({ p_version, p_name, p_role, p_text }) {
     if (!me()) throw Error("Please sign in first.");
     if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");
@@ -924,13 +923,6 @@ const rpcs = {
     const org = D.organisations.find((o) => o.id === a.p_org);
     notify(a.p_user, "team", "You are now the owner of an organisation on Handova", org.name, "#org/details");
     notifyAdmins("team", "Organisation ownership transferred", org.name, "#admin-list/organisations");
-  },
-  // L18 (db team builds the real one): everything about the signed-in person, as one JSON document.
-  export_my_data: () => {
-    const u = me(); if (!u) fail("Please sign in first.");
-    const user = D.users.find((x) => x.id === u);
-    const mine = (t) => (D[t] || []).filter((r) => r.user_id === u);
-    return { exported_at: now(), format: "Handova data export (sample from the local test backend)", account: { id: u, email: user?.email, created_at: user?.created_at || null }, profile: D.profiles.find((p) => p.user_id === u) || null, organisations: D.organisation_members.filter((m) => m.user_id === u), applications: mine("applications"), invitations: mine("invitations"), engagements: mine("engagements"), hours: mine("hours"), messages: D.messages.filter((m) => m.sender_id === u), notifications: mine("notifications"), agreement_signatures: mine("agreement_signatures").map(({ agreement_text, ...r }) => r), id_consents: mine("id_consents") };
   },
   delete_my_account: () => {
     const u = me();
