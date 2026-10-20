@@ -91,7 +91,7 @@ function chatHtml(msgs, c, orgName, personName) {
     const day = dayKey(m.created_at), sep = day !== last ? `<div class="chat-day"><span>${e(dayLabel(m.created_at))}</span></div>` : "";
     if (day !== last) prevSender = "";
     last = day;
-    if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${linkCalls(e(m.body))}</p></div>`; }
+    if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${String(m.body || "").split("\n").map((l) => `<span>${linkCalls(e(l))}</span>`).join("\n")}</p></div>`; }
     const mine = m.sender_id === state.user.id;
     const name = m.kind === "former" ? t("Former member") : m.sender_id === c?.user_id ? personName : orgName;
     const cont = prevSender === (m.sender_id || m.kind);
