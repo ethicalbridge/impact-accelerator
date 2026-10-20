@@ -29,7 +29,7 @@ function seed() {
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks"];
+const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -57,6 +57,8 @@ const acceptTerms = (user_id, terms_version, privacy_version, source, extra = {}
 const agreementTerms = (sig) => { if (sig.version === CURRENT_AGREEMENT[sig.kind]) acceptTerms(sig.user_id, TERMS, PRIVACY, "agreement " + sig.version); };
 // An open report about something (status open or reviewing).
 const openReport = (f) => D.reports.some((r) => r.status !== "resolved" && f(r));
+// The owner, or any member when nobody is the owner (20261020123000_org_team.sql, is_org_owner).
+const orgOwner = (org, u = me()) => isMember(org, u) && (D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u && m.role === "owner") || !D.organisation_members.some((m) => m.organisation_id === org && m.role === "owner"));
 // need_safety_guard (20261020100000): every safety question answered before a need goes for review.
 const safetyCheck = (sg = {}) => {
   if (["remote", "no_contact", "no_child_images", "no_money"].some((k) => sg[k] !== "yes")) fail("Confirm the safety questions before sending the need for review: all work is remote, no contact with the people you serve, no images of children, and no handling of your money.");
@@ -139,6 +141,8 @@ function visible(table, r) {
     case "terms_acceptances": return own(r.user_id) || admin;
     case "client_errors": return admin;
     case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
+    // 20261020123000_org_team.sql
+    case "org_member_invites": return isMember(r.organisation_id) || admin;
     default: return ["report_case_versions", "integrity_signal_checks", "client_errors"].includes(table) ? admin : false;
   }
 }
@@ -239,6 +243,7 @@ function insertRow(t, v) {
   if (t === "id_consents") row.user_id = u;
   if (["messages", "applications", "invitations", "hours", "needs", "need_safety_notes"].includes(t)) suspensionGuard();
   if (["terms_acceptances", "client_errors", "user_suspensions", "removed_identities", "id_video_requests"].includes(t)) fail(`permission denied for table ${t}`, "42501");
+  if (t === "id_consents") { row.user_id = u; if (localStorage.getItem("mock-fail-consent")) fail("permission denied for table id_consents", "42501"); }
   if (["need_safety_notes", "report_cases"].includes(t)) delete row.id;
   if (t === "profiles") {
     if (v.user_id !== u) fail("permission", "42501");
@@ -855,6 +860,76 @@ const rpcs = {
     return approved > 0 ? "completed" : "ended";
   },
   // 20261019000600_conversation_retention.sql. Only reachable through the account-delete function below.
+  // ---------- 20261020123000_org_team.sql (O2): team members and ownership ----------
+  invite_org_member: (a) => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    if (!orgOwner(a.p_org)) fail("Only the organisation’s owner can add team members.");
+    if (orgBlocked(a.p_org)) fail("This organisation can’t add team members at the moment.");
+    const email = trimmed(a.p_email).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) fail("Type a full email address.");
+    const members = D.organisation_members.filter((m) => m.organisation_id === a.p_org);
+    const existing = D.users.find((x) => x.email.toLowerCase() === email);
+    if (existing && members.some((m) => m.user_id === existing.id)) fail("This person is already on the team.");
+    if (D.org_member_invites.some((i) => i.organisation_id === a.p_org && i.email === email)) fail("This email address has already been invited.");
+    if (members.length + D.org_member_invites.filter((i) => i.organisation_id === a.p_org).length >= 3) fail("An organisation can have up to 3 team members, including invitations.");
+    const org = D.organisations.find((o) => o.id === a.p_org);
+    if (existing) {
+      if (D.organisation_members.filter((m) => m.user_id === existing.id).length >= 3) fail("This person already manages three organisations, the most Handova allows.");
+      D.organisation_members.push({ organisation_id: a.p_org, user_id: existing.id, role: "member", full_name: existing.user_metadata?.full_name || "", created_at: now() });
+      notify(existing.id, "team", "You were added to an organisation’s team", org.name, "#org");
+      notifyAdmins("team", "Team member added", org.name, "#admin-list/organisations");
+      return "added";
+    }
+    D.org_member_invites.push({ id: uid(), organisation_id: a.p_org, email, invited_by: u, created_at: now() });
+    notifyAdmins("team", "Team member invited", org.name, "#admin-list/organisations");
+    return "invited";
+  },
+  claim_org_invites: () => {
+    const u = me(); if (!u) return 0;
+    const email = (D.users.find((x) => x.id === u)?.email || "").toLowerCase();
+    let n = 0;
+    for (const i of D.org_member_invites.filter((x) => x.email === email)) {
+      if (D.organisation_members.filter((m) => m.user_id === u).length >= 3) break;
+      if (!D.organisation_members.some((m) => m.organisation_id === i.organisation_id && m.user_id === u) && D.organisation_members.filter((m) => m.organisation_id === i.organisation_id).length < 3) {
+        D.organisation_members.push({ organisation_id: i.organisation_id, user_id: u, role: "member", full_name: D.users.find((x) => x.id === u)?.user_metadata?.full_name || "", created_at: now() });
+        notifyOrg(i.organisation_id, "team", "A colleague joined your organisation’s team", D.users.find((x) => x.id === u)?.user_metadata?.full_name || email, "#org/details");
+        n++;
+      }
+      D.org_member_invites = D.org_member_invites.filter((x) => x.id !== i.id);
+    }
+    return n;
+  },
+  cancel_org_invite: (a) => { const i = D.org_member_invites.find((x) => x.id === a.p_id); if (!i || !orgOwner(i.organisation_id)) fail("Invitation not found."); D.org_member_invites = D.org_member_invites.filter((x) => x.id !== a.p_id); },
+  remove_org_member: (a) => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    const target = D.organisation_members.find((m) => m.organisation_id === a.p_org && m.user_id === a.p_user);
+    if (!target) fail("This person is not on the team.");
+    if (a.p_user !== u && !orgOwner(a.p_org)) fail("Only the owner can remove team members.");
+    if (target.role === "owner") fail("Make someone else the owner first.");
+    if (D.organisation_members.filter((m) => m.organisation_id === a.p_org).length <= 1) fail("An organisation needs at least one person managing it.");
+    D.organisation_members = D.organisation_members.filter((m) => m !== target);
+    const org = D.organisations.find((o) => o.id === a.p_org);
+    if (a.p_user !== u) notify(a.p_user, "team", "You were removed from an organisation’s team", org.name, "#workspace");
+    notifyOrg(a.p_org, "team", a.p_user === u ? "A team member left" : "A team member was removed", org.name, "#org/details");
+  },
+  transfer_org_ownership: (a) => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    if (!orgOwner(a.p_org)) fail("Only the owner can hand over ownership.");
+    const target = D.organisation_members.find((m) => m.organisation_id === a.p_org && m.user_id === a.p_user);
+    if (!target || a.p_user === u) fail("Choose another member of the team.");
+    D.organisation_members.filter((m) => m.organisation_id === a.p_org && m.role === "owner").forEach((m) => { m.role = "member"; });
+    target.role = "owner";
+    const org = D.organisations.find((o) => o.id === a.p_org);
+    notify(a.p_user, "team", "You are now the owner of an organisation on Handova", org.name, "#org/details");
+    notifyAdmins("team", "Organisation ownership transferred", org.name, "#admin-list/organisations");
+  },
+  // L18 (db team builds the real one): everything about the signed-in person, as one JSON document.
+  export_my_data: () => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    const user = D.users.find((x) => x.id === u);
+    const mine = (t) => (D[t] || []).filter((r) => r.user_id === u);
+    return { exported_at: now(), format: "Handova data export (sample from the local test backend)", account: { id: u, email: user?.email, created_at: user?.created_at || null }, profile: D.profiles.find((p) => p.user_id === u) || null, organisations: D.organisation_members.filter((m) => m.user_id === u), applications: mine("applications"), invitations: mine("invitations"), engagements: mine("engagements"), hours: mine("hours"), messages: D.messages.filter((m) => m.sender_id === u), notifications: mine("notifications"), agreement_signatures: mine("agreement_signatures").map(({ agreement_text, ...r }) => r), id_consents: mine("id_consents") };
+  },
   delete_my_account: () => {
     const u = me();
     if (!u) fail("Please sign in first.");
@@ -1052,6 +1127,8 @@ const auth = {
   async signOut() { localStorage.removeItem(SKEY); emit("SIGNED_OUT"); return { error: null }; },
   async updateUser({ data, password }) { D = load(); const user = D.users.find((x) => x.id === me()); if (data) user.user_metadata = { ...user.user_metadata, ...data }; if (password) user.password = password; save(); localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); return { data: { user }, error: null }; },
   async resetPasswordForEmail() { return { data: {}, error: null }; },
+  // Reset links (W1): token_hash "expired" fails; otherwise it is the email address of the account to sign in.
+  async verifyOtp({ token_hash, type }) { D = load(); const user = D.users.find((x) => x.email === token_hash); if (!user || type !== "recovery") return { data: {}, error: { message: "Email link is invalid or has expired", code: "otp_expired" } }; localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); emit("PASSWORD_RECOVERY"); return { data: { user, session: session() }, error: null }; },
 };
 
 // Edge functions. Identity checks: the mock approves straight away, as if Didit had approved the document.
@@ -1119,4 +1196,5 @@ export function createClient() {
     rpc: (fn, args = {}) => ({ then(res, rej) { return Promise.resolve().then(() => { try { D = load(); if (!Object.hasOwn(rpcs, fn)) fail(`Could not find the function public.${fn} in the schema cache`, "PGRST202"); const data = rpcs[fn](args); save(); return { data: data ?? null, error: null }; } catch (e) { return { data: null, error: { message: e.message, code: e.code } }; } }).then(res, rej); } }),
   };
 }
+window.__iaMockEmit = (event) => emit(event);
 window.__iaMockReset = () => { localStorage.removeItem(KEY); localStorage.removeItem(SKEY); };
