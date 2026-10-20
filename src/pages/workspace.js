@@ -1,8 +1,9 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
-import { profileForm, orgForm, identityCard } from "./account.js";
+import { profileForm, orgForm, identityCard, orgResignForm } from "./account.js";
 import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
 import { getLang, t, tf } from "../i18n.js";
+import { PRO_AGREEMENT_VERSION } from "../agreement.js";
 import { QUESTIONS, SURVEY_VERSION, questionHtml, readAnswers, wireExclusive, STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge"><span class="visually-hidden">Waiting: </span>${badge}</span>` : ""}</a>`).join("")}</nav>`;
@@ -38,7 +39,10 @@ export async function workspace(sub) {
   const engHours = (x) => hours.filter((h) => h.engagement_id === x.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
   // Everything waiting for the professional, most urgent first.
   const fresh = completed.filter((x) => !x.public && x.completed_at && Date.now() - Date.parse(x.completed_at) < 21 * 864e5 && !(p.cv_hidden || []).includes(x.id));
+  // A new professional agreement version is signed from the profile page before the next contribution.
+  const resignPro = state.proAgreement && state.proAgreement.version !== PRO_AGREEMENT_VERSION;
   const todo = [
+    ...(resignPro ? [todoRow("We updated the Handova professional agreement", "Please read and sign the new version. You need it to publish your profile again or sign a new contribution agreement.", btn("Read and sign", "#workspace/profile", "sm"))] : []),
     ...fresh.map((x) => todoRow(`${e(x.organisation?.name || "The organisation")} has finished and endorsed your work`, `${quoted(x.scope?.need_title || "")} · <span>read it and choose whether it appears on your impact CV</span>`, `<button class="btn sm" type="button" data-action="goto-focus" data-target="done-${x.id}">Read it</button>`)),
     ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
     ...pendingInv.map((i) => { const intro = /^\[Introduced by Handova\]\s*/.test(i.message || ""), msg = (i.message || "").replace(/^\[Introduced by Handova\]\s*/, ""); return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${intro ? `Handova introduced you to ${quoted(i.need?.title || "")} from ${e(i.need?.organisation?.name || "an organisation")}` : `${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}`}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${msg ? `<p class="small invite-msg" data-no-i18n>“${e(msg)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`; }),
@@ -197,8 +201,12 @@ export async function org(sub, id) {
   // Changes to an approved organisation's public details wait for Handova (B5).
   const held = o.status === "approved" ? await result(db.from("organisation_changes").select("changes").eq("organisation_id", o.id).maybeSingle()).catch(() => null) : null;
   const heldNote = held?.changes && Object.keys(held.changes).length ? `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>Your latest changes are waiting for Handova’s review.</strong> Your current details stay public until then. We usually reply within two working days.</p></div>` : "";
-  const banner = orgBanner(o) + heldNote + paused;
   const blocked = o.status === "suspended" || o.status === "rejected";
+  // A new organisation agreement version must be signed before new needs go for review.
+  const resign = !blocked && await result(db.rpc("org_agreement_current", { p_org: o.id })).then((v) => v === false).catch(() => false);
+  if (sub === "agreement") return shell(`<div class="stack" style="--gap:20px">${back("Back to To do", "#org")}${head("Organisation agreement")}${resign ? orgResignForm(o) : `<p class="muted">Your organisation has signed the current Handova organisation agreement. <a href="#agreements/organisation">Read it</a>.</p>`}</div>`);
+  const resignNote = resign ? `<div class="banner warn">${icon("doc", 22, "#7a4f0e")}<p><strong>We updated the Handova organisation agreement.</strong> Please read and sign the new version before you send new needs for review. <a href="#org/agreement">Read and sign</a></p></div>` : "";
+  const banner = orgBanner(o) + resignNote + heldNote + paused;
   const postBtn = blocked ? "" : btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
 
   if (sub === "details") return shell(`<div class="stack" style="--gap:20px">${head("Organisation profile")}<p class="lead">How professionals see your organisation, on your public page and on every need you post.${approved ? ` <a href="#organisations/${e(o.id)}" style="font-weight:700">View your public page</a>` : ""}</p>${banner}${orgForm(o)}</div>`);

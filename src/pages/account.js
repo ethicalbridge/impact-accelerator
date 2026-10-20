@@ -139,7 +139,7 @@ export function orgForm(o = {}, fullName = "", role = "") {
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
     ${edit ? "" : `<div class="full form-sec"><h2>Organisation agreement</h2><p class="muted small">Please read it in full. It covers safeguarding, data, how you work with professionals and what you can expect from us.</p></div>
     <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
-      <div class="checkbox-box">${check("locally_led", "We are a locally led non-profit organisation listed in the Ethical Bridge directory: our leadership is based where we work, we don’t distribute profits to owners, and we are registered, or fiscally hosted by a registered non-profit that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not on any sanctions list and are not involved in the activities listed in section 1.", false, true)}${check("org_agree", "On behalf of the organisation, I have read and agree to the Handova organisation agreement, including its safeguarding and reporting duties.", false, true)}</div>
+      <div class="checkbox-box">${check("locally_led", "We are a locally led non-profit organisation listed in the Ethical Bridge directory: our leadership is based where we work, we don’t distribute profits to owners, and we are registered, or fiscally hosted by a registered non-profit that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}</div>
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { value: role, required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>`}
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
@@ -287,7 +287,16 @@ export function profileStep(form, n) {
   form.querySelector(".pf-steps")?.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
-const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
+// Organisations that signed an older organisation agreement sign the new one here (from the organisation workspace).
+export function orgResignForm(o) {
+  return `<form class="form" data-form="org-resign" data-id="${e(o.id)}" novalidate>
+    <p class="notice" role="note">We updated the Handova organisation agreement on 20 October 2026. Please read it and sign the new version for ${e(o.name)}. Until then you can keep working on contributions in progress, but you can’t send new needs for review.</p>
+    <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
+      <div class="checkbox-box">${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}</div>
+      <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
+    </div>${formEnd("Sign the new agreement")}</form>`;
+}
+export const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
 function agreementBlock() {
   if (signedCurrent()) {
     const a = state.proAgreement;
@@ -300,8 +309,8 @@ function agreementBlock() {
     <div class="checkbox-box">
       ${check("age_confirmed", "I am 18 or older.", false, true)}
       ${check("unpaid_confirmed", "I understand contributions are unpaid, voluntary and remote.", false, true)}
-      ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred or sanctioned.", false, true)}
-      ${check("agree_rules", "I have read and agree to the Handova professional agreement, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.", false, true)}
+      ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred from working with them.", false, true)}
+      ${check("agree_rules", `I have read and agree to the Handova professional agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.`, false, true)}
     </div>
     ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with your email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to." })}
   </div>`;
@@ -539,6 +548,13 @@ export async function submitAccount(kind, form) {
     if (state.user.user_metadata?.role !== "organisation") await db.auth.updateUser({ data: { role: "organisation" } });
     await loadSession();
     toast("Submitted for review. You can write your first need now.");
+    go("#org");
+  });
+  if (kind === "org-resign") return withForm(form, async (fd) => {
+    const el = invalidMessage(form, "");
+    if (el) throw Error(el);
+    await result(db.rpc("resign_org_agreement", { p_org: form.dataset.id, p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
+    toast("Thank you. The new agreement is signed.");
     go("#org");
   });
   if (kind === "org-edit") return withForm(form, async (fd) => {
