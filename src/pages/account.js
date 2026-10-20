@@ -9,7 +9,8 @@ import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
-const ORG_TYPES = ["Community organisation", "Local NGO", "Cooperative", "Social enterprise", "Collective or informal group (fiscally hosted)", "Other"];
+// Handova is for non-profits only (founder decision, 20 Oct 2026).
+const ORG_TYPES = ["Community organisation", "Local NGO", "Non-profit cooperative", "Collective or informal group (fiscally hosted by a non-profit)", "Other non-profit"];
 const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-height:calc(100vh - 77px)">
   <div class="band-dark stack" style="--gap:28px;padding:clamp(32px,5vw,72px);justify-content:center">
     <h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${title}</h1><p class="lead">${lead}</p>
@@ -58,7 +59,7 @@ export async function join(params) {
       ${countrySelect("org_country", "Country where your organisation is based", "", { required: true, full: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
       ${field("org_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director, Coordinator"' })}
       ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
-      ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
+      ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for non-profit organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first</a>, it is free.` })}
     </div></fieldset>
     <fieldset data-for="professional" class="only-professional"><legend class="visually-hidden">About you</legend><div class="form-grid">
       ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120" placeholder="First and last name"' })}
@@ -139,7 +140,7 @@ export function orgForm(o = {}, fullName = "", role = "") {
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
     ${edit ? "" : `<div class="full form-sec"><h2>Organisation agreement</h2><p class="muted small">Please read it in full. It covers safeguarding, data, how you work with professionals and what you can expect from us.</p></div>
     <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
-      <div class="checkbox-box">${check("locally_led", "We are a locally led organisation: our leadership is based where we work, and we are registered, or fiscally hosted by a registered organisation that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not on any sanctions list and are not involved in the activities listed in section 1.", false, true)}${check("org_agree", "On behalf of the organisation, I have read and agree to the Handova organisation agreement, including its safeguarding and reporting duties.", false, true)}</div>
+      <div class="checkbox-box">${check("locally_led", "We are a locally led non-profit organisation listed in the Ethical Bridge directory: our leadership is based where we work, we don’t distribute profits to owners, and we are registered, or fiscally hosted by a registered non-profit that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not on any sanctions list and are not involved in the activities listed in section 1.", false, true)}${check("org_agree", "On behalf of the organisation, I have read and agree to the Handova organisation agreement, including its safeguarding and reporting duties.", false, true)}</div>
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { value: role, required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>`}
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
