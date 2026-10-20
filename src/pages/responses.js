@@ -4,6 +4,7 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm } from "../core.js";
 import { icon, eyebrow, back, empty, pill, formEnd } from "../ui.js";
 import { date } from "../utils.js";
+import { t } from "../i18n.js";
 import { QUESTIONS, optionsOf, STAFF_SIZES, CAREER_STAGES, SURVEY_VERSION } from "../survey.js";
 
 const TABS = [["organisation", "Organisations"], ["professional", "Professionals"], ["six_months", "Six months on"]];
@@ -96,9 +97,9 @@ export async function responses(params) {
     if (!s.n || s.ring == null) return s.sub ? `<span class="small muted">${s.sub}</span>` : "";
     const c = CRIT[title] || "";
     const lead = s.n >= 30 ? `${Math.round(s.ring * 100)}% of ${s.n}` : `${s.k} of ${s.n}`;
-    return `<span class="rs-crit">${e(lead)} ${e(c)}</span>`;
+    return `<span class="rs-crit"><span>${e(lead)}</span> <span>${e(c)}</span></span>`;
   };
-  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg({ ...s, label: String(title).replace(/<[^>]*>/g, "") }, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${critLine(title, s)}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
+  const tile = (title, s, note, warn = false) => `<div class="rs-tile${warn ? " warn" : ""}" title="${e(s.n ? `${s.k} of ${s.n} answers` : "No answers yet")}">${ringSvg({ ...s, label: t(String(title).replace(/<[^>]*>/g, "")) }, warn)}<div class="stack" style="--gap:4px;min-width:0">${refHtml(title)}<span class="rs-tile-t">${title}</span>${critLine(title, s)}${note ? `<span class="small muted rs-note">${note}</span>` : ""}</div></div>`;
   const rate = show(answered.length, base.length);
 
   const qNum = (q) => (tab === "six_months" ? (q.when === "no" ? "2a" : "2b") : String(QUESTIONS[tab].indexOf(q) + 1));
@@ -131,7 +132,7 @@ export async function responses(params) {
   };
   const rateCard = () => `<div class="rs-qc"><div class="rs-qc-head"><span class="rs-qn rs-qn-all">All</span><span class="rs-qc-q">Response rate: everyone asked after a finished contribution</span></div><div class="rs-qc-body">${donut([{ label: "Answered", k: answered.length, color: "#0f6f63" }, { label: "Skipped", k: skipped, color: "#eb6834" }, { label: "Not answered yet", k: Math.max(0, base.length - answered.length - skipped), color: "#ece7dc" }], base.length, `${answered.length}/${base.length}`, "answered")}<ul class="rs-legend"><li><span class="rs-sw" style="background:#0f6f63"></span><span class="rs-lg-l">Answered</span><span class="rs-lg-v">${answered.length}</span></li><li><span class="rs-sw" style="background:#eb6834"></span><span class="rs-lg-l">Skipped</span><span class="rs-lg-v">${skipped}</span></li><li><span class="rs-sw" style="background:#ece7dc"></span><span class="rs-lg-l">Not answered yet</span><span class="rs-lg-v">${Math.max(0, base.length - answered.length - skipped)}</span></li></ul></div></div>`;
   // Top: one ring per question, counting how many people answered it. Below: the answers themselves, as bars.
-  const ringCard = (num, qtext, k, n, sub) => { const st = show(k, n); return `<div class="rs-tile rs-ring-card" title="${e(n ? `${k} of ${n}` : "No answers yet")}">${ringSvg({ ...st, label: `${num} ${String(qtext).replace(/<[^>]*>/g, "")}` })}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-ref"><span class="rs-qn${/^Q/.test(num) ? "" : " rs-qn-all"}">${num}</span></span><span class="rs-tile-t">${e(qtext)}</span><span class="small muted">${n ? e(sub) : "No answers yet"}</span></div></div>`; };
+  const ringCard = (num, qtext, k, n, sub) => { const st = show(k, n); return `<div class="rs-tile rs-ring-card" title="${e(n ? `${k} of ${n}` : "No answers yet")}">${ringSvg({ ...st, label: `${t(num)} ${t(String(qtext).replace(/<[^>]*>/g, ""))}` })}<div class="stack" style="--gap:4px;min-width:0"><span class="rs-ref"><span class="rs-qn${/^Q/.test(num) ? "" : " rs-qn-all"}">${num}</span></span><span class="rs-tile-t">${e(qtext)}</span><span class="small muted">${n ? e(sub) : "No answers yet"}</span></div></div>`; };
   const answeredQ = (q) => answered.filter((r) => A(r)[q.id] != null && (q.type !== "multi" || A(r)[q.id].length)).length;
   let tiles = "";
   if (tab === "six_months") {
@@ -172,7 +173,7 @@ export async function responses(params) {
     const scale = q.type === "scale";
     const steps = rowsQ.length;
     const tone = () => "rs-t4";
-    const bars = rowsQ.map((x) => `<div class="rs-bar" title="${e(`${x.lab}: ${x.k} of ${n}`)}"><span class="rs-bar-l">${e(x.lab)}</span><span class="rs-bar-t"><span class="${tone(x.i)}" style="width:${hide ? 0 : x.pct.toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round(x.pct)}%` : x.k}</span></div>`).join("");
+    const bars = rowsQ.map((x) => `<div class="rs-bar" title="${e(`${t(x.lab)}: ${t(`${x.k} of ${n}`)}`)}"><span class="rs-bar-l">${e(x.lab)}</span><span class="rs-bar-t"><span class="${tone(x.i)}" style="width:${hide ? 0 : x.pct.toFixed(1)}%"></span></span><span class="rs-bar-v">${hide ? "" : many ? `${Math.round(x.pct)}%` : x.k}</span></div>`).join("");
     const avg = scale && n && !hide ? (list.reduce((t, r) => t + Number(A(r)[q.id]), 0) / n) : null;
     const table = `<table class="rs-table"><thead><tr><th scope="col">Answer choices</th>${many ? '<th scope="col">Responses</th>' : ""}<th scope="col">${many ? "Count" : "Responses"}</th></tr></thead><tbody>${rowsQ.map((x) => `<tr><td>${e(x.lab)}</td>${many ? `<td>${Math.round(x.pct)}%</td>` : ""}<td>${hide ? "–" : x.k}</td></tr>`).join("")}</tbody><tfoot><tr><td>Answered</td>${many ? "<td></td>" : ""}<td>${n}</td></tr></tfoot></table>`;
     return `<section class="card rs-q"><div class="row between" style="align-items:flex-start;gap:12px">${qTitle(q)}${avg != null ? `<span class="rs-avg">Average <strong>${avg.toFixed(1)}</strong> of ${steps}</span>` : ""}</div>

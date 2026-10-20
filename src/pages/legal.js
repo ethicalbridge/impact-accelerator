@@ -2,9 +2,9 @@ import { getLang } from "../i18n.js";
 import { state, e } from "../core.js";
 import { icon, eyebrow, btn } from "../ui.js";
 import { config } from "../config.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, agreementHtml } from "../agreement.js";
+import { PRO_AGREEMENT_VERSION, ORG_AGREEMENT_VERSION, platformAgreementView } from "../agreement.js";
 
-const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}</div>${legalBody(body)}</div>`;
+const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
 // A readable text column with a sticky list of its sections beside it.
 const legalBody = (body) => {
   const heads = [];
@@ -131,9 +131,13 @@ ${workingResponsibly()}
 export function agreements(which) {
   const org = which === "organisation";
   const title = org ? "Handova organisation agreement" : "Handova professional agreement";
-  const body = agreementHtml(org ? ORG_AGREEMENT : PRO_AGREEMENT, e).replace(/<h3>/g, "<h2>").replace(/<\/h3>/g, "</h2>");
+  const lead = org ? `Read it before you join. An authorised person signs it for the organisation when creating the organisation account. Version ${ORG_AGREEMENT_VERSION}.` : `Read it before you join. You sign it when creating your profile. Version ${PRO_AGREEMENT_VERSION}.`;
   const other = org ? btn("Read the professional agreement", "#agreements/professional", "secondary") : btn("Read the organisation agreement", "#agreements/organisation", "secondary");
-  return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html: page("Agreements", title, `Read it before you join. ${org ? "An authorised person signs it for the organisation" : "You sign it"} when creating ${org ? "the organisation account" : "your profile"}. Version ${org ? ORG_AGREEMENT_VERSION : PRO_AGREEMENT_VERSION}.`, body + `<div class="row" style="margin-top:32px">${other}${btn("How it works", "#how", "secondary")}</div>`) };
+  // Summary, full text, reading copy and Download PDF come from agreement.js; the English text is the one people sign.
+  const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Agreements")}<h1>${title}</h1><p class="lead">${lead}</p></div>
+    <article class="reading agr-page">${platformAgreementView(org ? "organisation" : "professional", e, { title })}</article>
+    <div class="row no-print" style="margin-top:32px">${other}${btn("How it works", "#how", "secondary")}</div></div>`;
+  return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html };
 }
 
 // The Handova policies (version 1.0, approved 20 October 2026). The text lives in assets/policies as HTML

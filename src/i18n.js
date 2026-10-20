@@ -60,12 +60,19 @@ export function t(s) {
       const m = k.match(p.re);
       if (!m) continue;
       // A short pattern such as "{degree} in {field}" must not swallow a whole sentence that merely contains " in ".
-      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > (p.lit < 8 ? 30 : 60) || /[.!?·:]\s|\s[·:]/.test(m[i + 1])))) continue;
+      // (A full stop followed by a capital starts a new sentence; "oct. 2026" or "out. de 2026" in a date does not.)
+      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > (p.lit < 8 ? 30 : 60) || /[!?·:]\s|\s[·:]|\.\s+[A-ZÀ-Þ¿¡]/.test(m[i + 1])))) continue;
       const vals = {}; const seen = {};
       p.names.forEach((name, i) => { (vals[name] = vals[name] || []).push(m[i + 1]); });
       out = p.v.replace(/\{(\w+)\}/g, (_, name) => { const i = seen[name] = (seen[name] ?? -1) + 1; const arr = vals[name] || []; return t(arr[Math.min(i, arr.length - 1)] ?? ""); });
       break;
     }
+  }
+  // Lines built from parts, such as "8 hours · created 3 Oct 2026", are translated part by part.
+  if (out === undefined && /\s·\s|^·\s/.test(k)) {
+    const parts = k.split(/(\s*·\s*)/);
+    const tr = parts.map((x, i) => (i % 2 || !x ? x : t(x)));
+    if (tr.some((x, i) => x !== parts[i])) out = tr.join("");
   }
   if (out === undefined || out === k) return str;
   return str.replace(raw, out);

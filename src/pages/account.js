@@ -6,7 +6,7 @@ const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].m
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
+import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 // Handova is for non-profits only (founder decision, 20 Oct 2026).
@@ -305,7 +305,9 @@ export function orgResignForm(o) {
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>${formEnd("Sign the new agreement")}</form>`;
 }
-export const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
+// The platform agreement on the page: plain summary, full text (English, with a reading copy when the site is in another
+// language) and Download PDF. The English text is what is signed.
+export const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => platformAgreementView(sections === ORG_AGREEMENT ? "organisation" : "professional", e, { title: label, id: sections === ORG_AGREEMENT ? "agr-organisation" : "agr-professional" });
 function agreementBlock() {
   if (signedCurrent()) {
     const a = state.proAgreement;
