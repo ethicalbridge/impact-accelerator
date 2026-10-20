@@ -501,7 +501,7 @@ export function talentCard(p) {
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
     </div>
     ${tags((p.skills || []).slice(0, 4))}
-    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder ? `${icon("clock", 17)} ${plural(p.contributions || 0, "contribution")} · awaiting review` : p.example ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
+    <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder && p.contributions ? `${icon("clock", 17)} ${plural(p.contributions, "contribution")} · awaiting review` : p.example && p.contributions ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
   </div></a>`;
 }
 
@@ -522,7 +522,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
       <span class="c-org">${org}</span>
       <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
-    ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
+    ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${c.pending ? (Number(c.hours) === 1 ? "hour logged" : "hours logged") : Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
     ${owner ? `<button type="button" class="c-hide" data-action="cv-hide" data-id="${e(c.id)}" data-live="${c.live ? 1 : ""}" data-hide="${c.public === false ? "" : 1}" title="${c.public === false ? "Add back to my CV" : "Remove from my CV"}">${icon(c.public === false ? "plus" : "eye", 16)}<span>${c.public === false ? "Add back" : "Remove"}</span></button>` : ""}
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>

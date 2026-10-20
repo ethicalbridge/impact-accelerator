@@ -114,10 +114,12 @@ export function home() {
 
 // The hero "handover": the mark draws itself, the dot passes between the curves, and the story floats around it.
 function stage() {
+  // An example organisation (clearly labelled), never a real partner, until real endorsed work exists.
+  const heroOrg = exampleNeeds[0].organisation;
   return `<div class="hv-stage" aria-hidden="true">
     <div class="hv-ring"></div>
     <svg class="hv-big" viewBox="0 0 100 100"><path class="hv-a" d="M18 72 Q18 28 50 28" fill="none" stroke="#fffdf8" stroke-width="9" stroke-linecap="round" pathLength="1"/><path class="hv-b" d="M82 28 Q82 72 50 72" fill="none" stroke="#7fa99b" stroke-width="9" stroke-linecap="round" pathLength="1"/><circle class="hv-dot" cx="50" cy="50" r="9" fill="#e0a07f"/></svg>
-    <div class="hv-float f1 row" style="flex-wrap:nowrap"><span class="hv-orglogo"><img src="${e(exampleContributions[0].org_logo)}" width="44" height="44" alt="" referrerpolicy="no-referrer"></span><div><strong>${e(exampleContributions[0].organisation)}</strong> ${roleTag("Organisation")}<br><span class="small muted">${e(exampleContributions[0].need_title)} · handed over</span><br><span class="small muted">Sukadana, Indonesia</span></div></div>
+    <div class="hv-float f1 row" style="flex-wrap:nowrap"><span class="hv-orglogo"><img src="${e(heroOrg.logo)}" width="44" height="44" alt=""></span><div><strong>${e(heroOrg.name)}</strong> ${roleTag("Organisation")} ${exampleBadge()}<br><span class="small muted">${e(exampleNeeds[0].title)} · handed over</span><br><span class="small muted">${e(heroOrg.city)}, ${e(heroOrg.country)}</span></div></div>
     <div class="hv-float f2 row" style="flex-wrap:nowrap">${avatarFor(exampleProfile, 44)}<div><strong>${e(exampleProfile.name)}</strong> ${roleTag("Talent")}<br><span class="small muted">${e(exampleProfile.headline)}</span></div></div>
     <div class="hv-float f3 hv-pill">${icon("pen", 17, "#fffdf8")}Agreement signed by both</div>
     <div class="hv-float f4"><div class="row between"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}Handed over · still in use</span>${exampleBadge()}</div><p class="serif" style="font-size:1.02rem;margin-top:6px">“Our field team now collects data the same way in every village.”</p></div>
@@ -287,10 +289,10 @@ export async function needs() {
     ${filtersForm("needs", talentLanguages([exampleProfile, ...pros]))}
     ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
-    <section class="stack" style="--gap:18px;padding-top:24px">
+    ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
       <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already handed over.</h2><p class="lead" style="max-width:680px">Work our founder handed over to organisations in the Ethical Bridge network before Handova opened. The organisations have not reviewed it on Handova yet. The capability stays with each team; the record stays on the impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
       <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
-    </section>
+    </section>` : ""}
     <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p><div class="row">${btn(`Offer your skills ${icon("arrow", 18)}`, "#join?role=professional")}</div></div><div class="card stack band-dark" style="--gap:14px;background:var(--deep);border-color:var(--deep);color:var(--paper)"><span class="serif" style="font-size:1.8rem">Have a need of your own?</span><p style="color:var(--on-deep)">Organisations in the Ethical Bridge directory can publish a need for free and get skilled help.</p><div class="row">${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div></div></div>
   </div>`;
   return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need") };
@@ -394,7 +396,7 @@ export async function talent(params = new URLSearchParams()) {
   const real = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
-  const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length } : exampleProfile;
+  const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length || undefined } : exampleProfile;
   const others = real.filter((p) => p.user_id !== config.founderUserId);
   const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
