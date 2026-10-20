@@ -1512,3 +1512,8 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 .sg-q legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
 .sg-opts { display: flex; flex-direction: column; gap: 6px; }
 .sg-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* FAQ & safety: reporting first */
+.concern-bar { border-color: #e6b9a6; margin: 8px 0 28px; }
+.policy-links a { white-space: nowrap; }
+.faq-contact { text-align: center; padding: 22px; border-top: 1px solid var(--line); color: var(--muted); }
