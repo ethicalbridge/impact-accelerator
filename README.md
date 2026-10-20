@@ -10,14 +10,16 @@ Skilled professionals contributing, unpaid, to the needs locally led organisatio
 ## How the product works
 
 1. An organisation signs up, describes itself and is **reviewed by an admin** before anything is public.
-2. Approved organisations publish up to **3 open needs** at a time. Each need confirms there is no direct contact with children or vulnerable adults.
+2. Approved organisations send needs for **Handova's review**; Handova opens each one. Up to **3 needs** can be waiting for review, open or in progress at a time. Each need confirms there is no direct contact with children or adults at risk.
 3. Professionals (18+) create a profile. It becomes public only after they choose to publish it **and** an admin approves it.
-4. Professionals apply, or organisations invite. Accepting creates a **contribution agreement** from a frozen snapshot of the need. Both sides sign by name.
+4. Professionals apply, or organisations invite. Accepting creates a **contribution agreement** from a frozen snapshot of the need. Both sides sign contribution agreement v2; each signature keeps the exact text, its SHA-256, the confirmations, email, IP address and browser for six years after the account closes. Handova then posts a first-call agenda into Messages.
 5. Hours can be logged only after both signatures (max 12 hours a day, https evidence links only). The organisation approves or returns each entry.
-6. The organisation marks the work complete with deliverables, an endorsement and a **private** rating. The professional decides whether the contribution appears on their public **impact CV**.
+6. The organisation finishes and endorses the work: what was handed over, 1–3 confirmed skills and a written endorsement (no rating). The professional reads it first and decides whether it appears on their public **impact CV**; they can ask for one correction. Both sides get a short optional questionnaire.
 7. Six months later, the organisation is asked whether the work is still in use.
 
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").
+
+If an organisation stops responding, an admin can close the contribution from Admin → Contributions ("Close for them"): hours the organisation already approved stay on the professional's record, marked "Closed by Handova". An account can't be deleted while its owner has a contribution still open, or is the only person managing an organisation with one. Text typed in a dialog is kept as a draft in that browser tab until it is sent.
 
 ## Code
 
@@ -72,8 +74,8 @@ Apply new files in `supabase/migrations/` in order (Supabase CLI or dashboard SQ
 
 ## Before launch: actions only the owner can do
 
-1. **Email sender.** Add SMTP details in Supabase → Authentication → Emails → SMTP Settings (Resend with a verified `handova.org` domain, or the Hostinger mailbox: `smtp.hostinger.com`, port 465), sender name `Handova`. Then paste the files from `supabase/templates/` into Authentication → Emails → Templates. Without this, confirmation and reset emails come from Supabase and only reach project team members.
-   Then, for notification emails, add two secrets in Supabase → Edge Functions → Secrets: `RESEND_API_KEY` (the same key) and `NOTIFY_FROM` (for example `Handova <no-reply@your-domain>`). Until both exist, the `notify-email` function skips sending and in-app notifications still work.
+1. **Email sender.** Add SMTP details in Supabase → Authentication → Emails → SMTP Settings (the Hostinger mailbox: `smtp.hostinger.com`, port 465, `hello@handova.org`), sender name `Handova`. Then paste the files from `supabase/templates/` into Authentication → Emails → Templates. Without this, confirmation and reset emails come from Supabase and only reach project team members.
+   Notification emails go through the same mailbox: its password is the Edge Function secret `SMTP_PASS`. If the mailbox password changes, update it in both places.
 2. **Auth URLs.** In Supabase → Authentication → URL configuration set the Site URL to the live address and add it to Redirect URLs (plus the custom domain if you move to one).
 3. **Leaked-password protection.** Supabase → Authentication → Passwords: turn it on.
 4. **First admin.** Sign up with the admin email, confirm it, then run `insert into public.admins (user_id) select id from auth.users where email = 'YOUR-EMAIL';`

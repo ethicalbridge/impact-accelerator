@@ -42,6 +42,7 @@ export async function loadLang(l, version = "") {
 }
 
 export function setLang(l) {
+  if (window.__hvDirty && !window.confirm(t("Changing the language reloads the page, and what you have typed in this form will be lost. Continue?"))) return;
   try { localStorage.setItem("hv-lang", l); } catch {}
   location.reload();
 }
@@ -59,7 +60,7 @@ export function t(s) {
       const m = k.match(p.re);
       if (!m) continue;
       // A short pattern such as "{degree} in {field}" must not swallow a whole sentence that merely contains " in ".
-      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > 60 || /[.!?]\s/.test(m[i + 1])))) continue;
+      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > (p.lit < 8 ? 30 : 60) || /[.!?·:]\s|\s[·:]/.test(m[i + 1])))) continue;
       const vals = {}; const seen = {};
       p.names.forEach((name, i) => { (vals[name] = vals[name] || []).push(m[i + 1]); });
       out = p.v.replace(/\{(\w+)\}/g, (_, name) => { const i = seen[name] = (seen[name] ?? -1) + 1; const arr = vals[name] || []; return t(arr[Math.min(i, arr.length - 1)] ?? ""); });

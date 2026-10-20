@@ -9,7 +9,6 @@ export const exampleNeeds = [
 ].map((n) => ({ ...n, example: true, status: "open", created_at: "2026-09-01" }));
 
 // The founder's own profile, shown as the sample impact CV until real profiles are approved.
-// Her real work; organisations have not endorsed it yet, so every contribution is marked "endorsement pending" and no hours are claimed.
 export const exampleProfile = {
   user_id: "julieta-castineira-de-dios", example: true, founder: true, name: "Julieta Castiñeira de Dios", headline: "Lawyer · strategist · organisation builder", location: "Anywhere · remote", country: "",
   languages: ["English", "Spanish", "Portuguese"], hours_available: 4, arrangement: "Remote",
@@ -59,7 +58,7 @@ export const exampleProfile = {
 // The founder's pre-Handova handovers were removed before the soft launch (19 Oct 2026): only work reviewed on Handova appears.
 export const exampleContributions = [];
 
-// Real needs the founder has already handed over.
+// Organisation pages and "handed over" needs built from exampleContributions (none for now).
 // One record per need: the organisation page, the Needs list and the impact CV are three views of the
 // same entry (exampleContributions above + the organisation below), never separate copies.
 const ORG_INFO = {};

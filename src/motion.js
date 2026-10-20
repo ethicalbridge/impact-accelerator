@@ -29,6 +29,8 @@ export function enhance(root, route) {
     const groups = new Map();
     els.forEach((el) => {
       if (el.closest(".hv-hero, dialog, .no-reveal") || [...els].some((o) => o !== el && o.contains(el))) return;
+      // What is already on screen shows at once (no fade on slow connections); only content further down fades in.
+      if (el.getBoundingClientRect().top < innerHeight) return;
       const n = groups.get(el.parentElement) || 0; groups.set(el.parentElement, n + 1);
       el.style.setProperty("--d", `${Math.min(n, 6) * 70}ms`);
       el.classList.add("reveal");

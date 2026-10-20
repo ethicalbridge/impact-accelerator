@@ -56,25 +56,72 @@ export function errorMessage(err) {
 }
 
 let toastTimer;
-export function toast(message) {
+export function toast(message, isError = false) {
   const t = $("#toast");
   t.textContent = message;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 4500);
+  // Errors stay longer, so slower readers can finish them.
+  toastTimer = setTimeout(() => t.classList.remove("show"), isError ? 10000 : Math.min(12000, Math.max(4500, String(message).length * 70)));
 }
 
 let lastFocus = null;
+// Typed text in a dialog is never lost by accident. A tap outside a dialog with typing doesn't close it, and whatever
+// was typed is kept as a draft for this browser tab, so closing it (or going back) and reopening brings it back.
+// Successful submission clears the draft. Passwords, signatures and "type DELETE" boxes are never kept.
+const DRAFTS = "hv-dialog-drafts";
+const NO_DRAFT = new Set(["signin", "signup", "reset", "new-password", "change-password", "resend-confirm", "confirm-delete", "admin-org-delete", "admin-contrib-delete", "rs-del", "sign"]);
+const draftKey = (f) => (f?.dataset?.form && !NO_DRAFT.has(f.dataset.form) ? `${f.dataset.form}:${f.dataset.id || ""}` : "");
+const readDrafts = () => { try { return JSON.parse(sessionStorage.getItem(DRAFTS)) || {}; } catch { return {}; } };
+const writeDrafts = (d) => { try { sessionStorage.setItem(DRAFTS, JSON.stringify(d)); } catch {} };
+const keepable = (el) => el.name && !el.disabled && !["hidden", "password", "file", "submit", "button"].includes(el.type) && el.name !== "confirm";
+export function saveDialogDraft(form) {
+  const k = draftKey(form);
+  if (!k) return;
+  const vals = {};
+  let typed = false;
+  for (const el of form.elements) {
+    if (!keepable(el)) continue;
+    if (el.type === "checkbox" || el.type === "radio") { (vals[el.name] ||= []); if (el.checked) vals[el.name].push(el.value); }
+    else { vals[el.name] = el.value; if (el.tagName === "TEXTAREA" || el.type === "text") typed ||= el.value.trim().length > 0; }
+  }
+  const d = readDrafts();
+  if (typed) d[k] = vals; else delete d[k];
+  writeDrafts(d);
+}
+export function clearDialogDraft(form) {
+  const k = draftKey(form);
+  if (!k) return;
+  const d = readDrafts();
+  if (k in d) { delete d[k]; writeDrafts(d); }
+}
+function restoreDialogDrafts(root) {
+  const d = readDrafts();
+  root.querySelectorAll("form[data-form]").forEach((f) => {
+    const vals = d[draftKey(f)];
+    if (!vals) return;
+    for (const el of f.elements) {
+      if (!keepable(el) || !(el.name in vals)) continue;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = [].concat(vals[el.name]).includes(el.value);
+      else el.value = vals[el.name];
+    }
+    f.insertAdjacentHTML("afterbegin", `<p class="notice draft-note" role="status"><span>We kept what you typed last time.</span> <button type="button" class="link-btn" data-action="clear-draft">Start again</button></p>`);
+    root.closest("dialog")?.setAttribute("data-dirty", "1");
+  });
+}
 export function openDialog(title, body) {
   const d = $("#dialog");
   lastFocus = document.activeElement;
+  d.removeAttribute("data-dirty");
   $("#dialog-body").innerHTML = `<h2 id="dialog-title">${title}</h2>${body}`;
+  restoreDialogDrafts($("#dialog-body"));
   if (!d.open) d.showModal();
-  (d.querySelector("[autofocus]") || d.querySelector("input, textarea, select, button:not(.dialog-close)"))?.focus();
+  (d.querySelector("[autofocus]") || d.querySelector("input, textarea, select, button:not(.dialog-close, .link-btn)"))?.focus();
 }
 export function closeDialog() {
   const d = $("#dialog");
   if (d.open) d.close();
+  d.removeAttribute("data-dirty");
   lastFocus?.focus?.();
 }
 
@@ -92,11 +139,17 @@ export async function withForm(form, fn) {
   form.querySelectorAll("[aria-invalid]").forEach((x) => x.removeAttribute("aria-invalid"));
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Working…"; }
   try {
-    return await fn(new FormData(form));
+    const out = await fn(new FormData(form));
+    clearDialogDraft(form);
+    return out;
   } catch (error) {
-    if (error?.field) showFieldError(error.field, errorMessage(error));
-    if (err) { err.textContent = errorMessage(error); if (!error?.field) err.scrollIntoView({ block: "nearest" }); }
-    else if (!error?.field) toast(errorMessage(error));
+    // Several problems at once: mark each field, then one summary for screen readers.
+    const many = Array.isArray(error?.fields) && error.fields.length ? error.fields : null;
+    if (many) many.forEach(([el, msg], i) => showFieldError(el, msg, i === 0));
+    else if (error?.field) showFieldError(error.field, errorMessage(error), true);
+    const msg = many ? (many.length === 1 ? many[0][1] : `Please fix the ${many.length} highlighted fields.`) : errorMessage(error);
+    if (err) { err.textContent = msg; if (!error?.field && !many) err.scrollIntoView({ block: "nearest" }); }
+    else if (!error?.field && !many) toast(msg, true);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
   }
@@ -109,17 +162,26 @@ export function fieldError(el, message) {
   err.field = el;
   return err;
 }
-function showFieldError(el, message) {
+function showFieldError(el, message, first = true) {
   const box = el.closest(".field, .checkbox-box, .lang-picker") || el.parentElement;
   const control = el.type === "hidden" ? box.querySelector("summary") : el;
   control?.setAttribute("aria-invalid", "true");
   const note = document.createElement("p");
   note.className = "field-error";
-  note.setAttribute("role", "alert");
+  // Announced once, by the form's summary; here it is linked to the field so it is read on focus.
+  note.id = `${control?.id || el.name || "f"}-err`;
   note.textContent = message;
   box.appendChild(note);
+  if (control) control.setAttribute("aria-describedby", [control.getAttribute("aria-describedby"), note.id].filter(Boolean).join(" "));
+  if (!first) return;
   box.scrollIntoView({ block: "center", behavior: "smooth" });
   try { control?.focus({ preventScroll: true }); } catch {}
+}
+// Several field problems found in one pass.
+export function fieldErrors(list) {
+  const err = Error(list[0]?.[1] || "Please check the form.");
+  err.fields = list;
+  return err;
 }
 // Plain, translatable wording for the first invalid field.
 export function fieldProblem(el) {

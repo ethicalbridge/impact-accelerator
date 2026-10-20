@@ -138,12 +138,14 @@ export const status = (s) => { const [t, tone] = STATUS[s] || [s, "grey"]; retur
 
 export function field(name, label, { value = "", type = "text", required = false, hint = "", attrs = "", full = false } = {}) {
   const id = `f-${name}`;
+  // The label names the control; the hint describes it (so screen readers don't read the hint as part of the name).
+  const aria = `aria-labelledby="${id}-l"${hint ? ` aria-describedby="${id}-h"` : ""}`;
   const control = type === "textarea"
-    ? `<textarea id="${id}" name="${name}" ${required ? "required" : ""} ${attrs}>${e(value)}</textarea>`
+    ? `<textarea id="${id}" name="${name}" ${aria} ${required ? "required" : ""} ${attrs}>${e(value)}</textarea>`
     : type === "password"
-      ? `<span class="pw-wrap"><input id="${id}" name="${name}" type="password" value="${e(value)}" ${required ? "required" : ""} ${attrs}><button type="button" class="pw-toggle" data-action="pw-toggle" aria-controls="${id}" aria-pressed="false" aria-label="Show password" title="Show password">${icon("eye", 18)}</button></span>`
-      : `<input id="${id}" name="${name}" type="${type}" value="${e(value)}" ${required ? "required" : ""} ${attrs}>`;
-  return `<label class="field ${full ? "full" : ""}" for="${id}"><span>${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>${control}${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;
+      ? `<span class="pw-wrap"><input id="${id}" name="${name}" type="password" value="${e(value)}" ${aria} ${required ? "required" : ""} ${attrs}><button type="button" class="pw-toggle" data-action="pw-toggle" aria-controls="${id}" aria-pressed="false" aria-label="Show password" title="Show password">${icon("eye", 18)}</button></span>`
+      : `<input id="${id}" name="${name}" type="${type}" value="${e(value)}" ${aria} ${required ? "required" : ""} ${attrs}>`;
+  return `<label class="field ${full ? "full" : ""}" for="${id}"><span id="${id}-l">${label}${required ? ' <span class="req" aria-hidden="true">*</span>' : ""}</span>${control}${hint ? `<span class="hint" id="${id}-h">${hint}</span>` : ""}</label>`;
 }
 // Language picker: a dropdown of common working languages with search, plus "add another" for local and sign languages.
 // It writes a comma-separated list into a hidden input, so forms read it exactly like the old text field.
@@ -319,8 +321,9 @@ export function readEntries(form, kind) {
       ? [!it.title && "role", !it.organisation && "organisation", !it.country && "country", !it.start && "start year", !it.end && "end year or Present"]
       : [!it.title && "qualification", !it.field && "field of study", !it.organisation && "university", !it.country && "country", !it.start && "start year", !it.end && "end year or Studying now"];
     const gaps = missing.filter(Boolean);
-    if (gaps.length) throw Error(`Complete ${name}: add the ${gaps.join(", ")}.`);
-    if (it.end !== "present" && dkey(it.end) < dkey(it.start)) throw Error(`Check the dates for ${name}: it ends before it starts.`);
+    const fail = (msg, sel) => { const err = Error(msg); err.field = (sel && row.querySelector(sel)) || row.querySelector("input, select, textarea") || row; throw err; };
+    if (gaps.length) fail(`Complete ${name}: add the ${gaps.join(", ")}.`, !it.title ? ".en-title" : !it.organisation ? ".en-org" : !it.country ? ".en-country" : !it.start ? ".en-start-y" : ".en-end-y");
+    if (it.end !== "present" && dkey(it.end) < dkey(it.start)) fail(`Check the dates for ${name}: it ends before it starts.`, ".en-end-y");
     out.push(it);
   }
   return out;
@@ -506,7 +509,10 @@ export function talentCard(p) {
 }
 
 // Compact contribution: a small card that opens to show the need, the output, what was delivered and the endorsement.
-export function contributionCard(c, { example = false, owner = false } = {}) {
+export function contributionCard(c, { example = false, owner = false, cvUrl = "" } = {}) {
+  // The owner can add a reviewed contribution to LinkedIn (Licences & certifications), linking back to their impact CV.
+  const d = c.completed ? new Date(c.completed) : null;
+  const linkedin = owner && cvUrl && c.live && !c.pending && d && !isNaN(d) ? "https://www.linkedin.com/profile/add?" + new URLSearchParams({ startTask: "CERTIFICATION_NAME", name: `Handova contribution: ${c.need_title || ""}`.slice(0, 120), organizationName: "Handova", issueYear: String(d.getFullYear()), issueMonth: String(d.getMonth() + 1), certUrl: cvUrl }) : "";
   const when = c.period || (c.completed ? date(c.completed, { month: "short", year: "numeric" }) : "");
   const hasHours = c.hours !== undefined && c.hours !== null;
   const url = safeURL(c.org_url);
@@ -520,7 +526,7 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     <span class="c-main">
       <span class="c-title">${e(c.need_title)}</span>
       <span class="c-org">${org}</span>
-      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
+      <span class="c-pills">${c.pending ? pill("Awaiting the organisation’s review", "ochre") : c.closed_by_handova ? pill("Closed by Handova", "grey") : pill("Reviewed")}${c.still_in_use ? pill("Still in use after 6 months") : ""}${owner ? pill(c.public === false ? "Hidden from your CV" : "On your CV", c.public === false ? "grey" : "") : ""}${when ? `<span class="small muted">${e(when)}</span>` : ""}</span>
     </span>
     ${hasHours ? `<span class="c-hours"><strong>${Number(c.hours || 0)}</strong><span>${c.pending ? (Number(c.hours) === 1 ? "hour logged" : "hours logged") : Number(c.hours) === 1 ? "hour approved" : "hours approved"}</span></span>` : ""}
     ${owner ? `<button type="button" class="c-hide" data-action="cv-hide" data-id="${e(c.id)}" data-live="${c.live ? 1 : ""}" data-hide="${c.public === false ? "" : 1}" title="${c.public === false ? "Add back to my CV" : "Remove from my CV"}">${icon(c.public === false ? "plus" : "eye", 16)}<span>${c.public === false ? "Add back" : "Remove"}</span></button>` : ""}
@@ -531,8 +537,8 @@ export function contributionCard(c, { example = false, owner = false } = {}) {
     ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
     ${c.endorsement ? `<blockquote class="endorse"><p data-no-i18n>“${e(c.endorsement)}”</p><span class="small muted">— ${e([c.endorser_name, c.endorsed_by_role || "the organisation"].filter(Boolean).join(", "))}, ${e(c.organisation)}${c.endorsement_language && c.endorsement_language !== "English" ? ` · <span>Written in ${e(c.endorsement_language)}</span>` : ""}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
     ${(c.skills || []).length ? `<div><span class="label-cap">${c.skills_confirmed ? `Skills confirmed by ${e(c.organisation)}` : c.example || example ? "Skills" : "Skills the need asked for"}</span>${tags(c.skills)}</div>` : ""}
-    ${c.signed || c.completed ? `<p class="small muted c-verify">${[c.signed ? `Agreement signed ${date(c.signed)}` : "", hasHours ? `${Number(c.hours || 0)} hours approved by ${e(c.organisation)}` : "", c.completed ? `Completed ${date(c.completed)}` : "", c.still_in_use && c.followup_checked ? `Still in use when checked in ${date(c.followup_checked, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join(" · ")}</p>` : ""}
-    <div class="row between">${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need on ${e(c.organisation)}’s page ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
+    ${c.signed || c.completed ? `<p class="small muted c-verify">${[c.signed ? `Agreement signed ${date(c.signed)}` : "", hasHours ? `${Number(c.hours || 0)} hours approved by ${e(c.organisation)}` : "", c.completed ? `Completed ${date(c.completed)}` : "", c.closed_by_handova ? "Closed by Handova after the organisation stopped responding" : "", c.still_in_use && c.followup_checked ? `Still in use when checked in ${date(c.followup_checked, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join(" · ")}</p>` : ""}
+    <div class="row between">${c.need_link ? `<a class="small c-link" href="${e(c.need_link)}">See the need on ${e(c.organisation)}’s page ${icon("arrow", 15)}</a>` : ""}${url ? `<a class="small c-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">About ${e(c.organisation)} on Ethical Bridge ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}${linkedin ? `<a class="small c-link no-print" href="${e(linkedin)}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 15)}Add to LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
   </div>
 </details>`;
 }
@@ -549,12 +555,13 @@ export function header(active) {
     const name = state.profile?.name || state.memberships[0]?.full_name || state.user.email;
     const ws = state.memberships.length ? `<a href="#org">${icon("grid", 18)}Organisation workspace</a>` : "";
     const pw = state.profile ? `<a href="#workspace">${icon("user", 18)}My workspace</a>` : "";
-    right = `${langMenu()}<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
+    const home = state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding";
+    right = `<a class="btn secondary sm ws-btn" href="${home}" title="My workspace" ${active === home ? 'aria-current="page"' : ""}>${icon("grid", 16)}<span>My workspace</span></a>${langMenu()}<a class="icon-btn" href="#notifications" aria-label="Notifications${state.unread ? `, ${state.unread} unread` : ""}">${icon("bell", 20)}${state.unread ? `<span class="count">${state.unread > 9 ? "9+" : state.unread}</span>` : ""}</a>
       <details class="account-menu"><summary>${avatarFor({ name, photo_url: state.profile?.photo_url || "" }, 36)}<span class="hide-sm">${e(String(name).split(" ")[0])}</span></summary><div class="menu">${ws}${pw}${!ws && !pw ? `<a href="#onboarding">${icon("user", 18)}Finish setting up</a>` : ""}${state.isAdmin ? `<a href="#admin">${icon("shield", 18)}Admin</a>` : ""}<a href="#account">${icon("settings", 18)}Account and privacy</a><button type="button" data-action="signout">${icon("logout", 18)}Sign out</button></div></details>`;
   } else {
     right = `${langMenu()}<a class="btn secondary sm hide-sm" href="#signin">Sign in</a><a class="btn sm" href="#join">Join free</a>`;
   }
-  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? "" : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
+  return `<div class="wrap"><a class="brand" href="#home" aria-label="Handova home">${mark(34)}<span>Handova</span></a><nav class="main-nav" id="main-nav" aria-label="Main">${nav}${state.user ? `<a class="nav-signin" href="${state.memberships.length ? "#org" : state.profile ? "#workspace" : state.isAdmin ? "#admin" : "#onboarding"}">My workspace</a>` : '<a class="nav-signin" href="#signin">Sign in</a>'}</nav><div class="header-actions">${right}<button type="button" class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Open menu" data-action="menu">${icon("menu", 22)}</button></div></div>`;
 }
 
 export function footer(cfg) {

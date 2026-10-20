@@ -14,11 +14,18 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm build
-      - name: Committed bundle is a production build
+      # Check the bundle exactly as committed (this is what GitHub Pages serves), before anything rebuilds it.
+      - name: Committed bundle is a full production build
         run: |
           test -s app.js
           ! grep -q "ia-mock-db" app.js
           grep -q "jcfezemkbseaqbwuojhs" app.js
+          grep -q "auth/v1" app.js
+          size=$(wc -c < app.js); echo "app.js is $size bytes"
+          test "$size" -gt 450000 || { echo "app.js is too small: the Supabase client is probably missing"; exit 1; }
+          v=$(grep -o 'app.js?v=handova[0-9]*' index.html | head -1); test -n "$v" || { echo "index.html has no app.js version"; exit 1; }
+      - name: Translation files are valid JSON
+        run: for f in i18n/*.json; do node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1; done
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build

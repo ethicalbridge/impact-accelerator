@@ -1,11 +1,11 @@
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldProblem, val, loadSession } from "../core.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard } from "./account.js";
 import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
-import { getLang } from "../i18n.js";
+import { getLang, t, tf } from "../i18n.js";
 import { QUESTIONS, SURVEY_VERSION, questionHtml, readAnswers, wireExclusive, STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 
-const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</a>`).join("")}</nav>`;
+const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge"><span class="visually-hidden">Waiting: </span>${badge}</span>` : ""}</a>`).join("")}</nav>`;
 const card = (title, inner, extra = "") => `<section class="card stack" style="--gap:6px"><div class="row between" style="margin-bottom:8px"><h2 style="font-size:1.7rem">${title}</h2>${extra}</div>${inner}</section>`;
 const listRows = (rows, fallback) => (rows.length ? `<div>${rows.join("")}</div>` : fallback);
 const row = (left, right) => `<div class="list-row"><div class="stack" style="--gap:4px;min-width:0">${left}</div><div class="row" style="--gap:8px">${right}</div></div>`;
@@ -34,18 +34,21 @@ export async function workspace(sub) {
   const approvedHours = hours.filter((h) => h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
   const pendingInv = invites.filter((i) => i.status === "pending");
 
-  const changes = hours.filter((h) => h.status === "changes_requested");
+  const changes = hours.filter((h) => h.status === "changes_requested" && active.some((x) => x.id === h.engagement_id));
   const engHours = (x) => hours.filter((h) => h.engagement_id === x.id && h.status === "approved").reduce((s, h) => s + Number(h.hours), 0);
   // Everything waiting for the professional, most urgent first.
+  const fresh = completed.filter((x) => !x.public && x.completed_at && Date.now() - Date.parse(x.completed_at) < 21 * 864e5 && !(p.cv_hidden || []).includes(x.id));
   const todo = [
+    ...fresh.map((x) => todoRow(`${e(x.organisation?.name || "The organisation")} has finished and endorsed your work`, `${quoted(x.scope?.need_title || "")} · <span>read it and choose whether it appears on your impact CV</span>`, `<button class="btn sm" type="button" data-action="goto-focus" data-target="done-${x.id}">Read it</button>`)),
     ...toSign.map((x) => todoRow(`Sign your agreement with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · work and hours start once you both sign`, btn("Review and sign", `#agreement/${x.id}`, "sm"))),
-    ...pendingInv.map((i) => `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${i.message ? `<p class="small invite-msg" data-no-i18n>“${e(i.message)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`),
-    ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Open agreement", `#agreement/${h.engagement_id}`, "sm")); }),
+    ...pendingInv.map((i) => { const intro = /^\[Introduced by Handova\]\s*/.test(i.message || ""), msg = (i.message || "").replace(/^\[Introduced by Handova\]\s*/, ""); return `<div class="todo-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${intro ? `Handova introduced you to ${quoted(i.need?.title || "")} from ${e(i.need?.organisation?.name || "an organisation")}` : `${e(i.need?.organisation?.name || "An organisation")} invited you to ${quoted(i.need?.title || "")}`}</strong><span class="small muted">${parts([`${i.need?.hours} hours`, "Remote", `sent ${date(i.created_at)}`])}</span>${msg ? `<p class="small invite-msg" data-no-i18n>“${e(msg)}”</p>` : ""}</div><div class="todo-actions"><button class="btn sm" type="button" data-action="invite-accept" data-id="${i.id}">Accept</button><button class="btn secondary sm" type="button" data-action="invite-decline" data-id="${i.id}">Decline</button>${btn("View need", `#need/${i.need_id}`, "secondary sm")}</div></div>`; }),
+    ...changes.map((h) => { const x = engagements.find((y) => y.id === h.engagement_id); return todoRow(`The organisation asked you to correct a time entry`, `${quoted(x?.scope?.need_title || "")} · ${date(h.work_date)}${h.review_note ? ` · <span data-no-i18n>“${e(h.review_note)}”</span>` : ""}`, btn("Correct the entry", `#agreement/${h.engagement_id}`, "sm")); }),
     ...active.filter((x) => !x.first_call_at).map((x) => todoRow(`Plan your first call with ${e(x.organisation?.name || "the organisation")}`, `${quoted(x.scope?.need_title || "")} · 30–45 minutes to meet and agree how you’ll work`, `${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "sm")}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`)),
     ...active.map((x) => (x.talent_delivered_at || hoursReadyAt(x, hours))
       ? todoRow(`Waiting for ${e(x.organisation?.name || "the organisation")} to finish and endorse your work`, `${quoted(x.scope?.need_title || "")} · <span>${x.talent_delivered_at ? `you told them on ${date(x.talent_delivered_at)}` : "all agreed hours are approved"}</span> · <span>they’re reminded after 7 and 14 days</span>`, btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm"))
-      : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${btn("Log time", `#agreement/${x.id}`, "sm")}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
+      : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved`, `${`<button class="btn sm" type="button" data-action="goto-focus" data-href="#agreement/${x.id}" data-target="log-form">Log time</button>`}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}${x.first_call_at ? `<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>` : ""}`)),
     ...surveys.map((x) => todoRow(`Two minutes: how did your contribution with ${e(x.other_name || "the organisation")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the organisation</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="professional">Answer</button>`)),
+    ...(p.published ? [] : [todoRow("Your profile is private", "Organisations can’t see it or invite you yet. Send it for review when it’s ready; we usually reply within two working days.", `<button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send for review</button>`)]),
     ...(priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
@@ -53,11 +56,10 @@ export async function workspace(sub) {
   const cvRows = completed.map((x) => {
     const corr = x.correction_requested_at;
     const corrLine = corr ? (x.endorsement_edited_at ? `<span class="small" style="color:var(--teal);font-weight:600">Corrected by the organisation on ${date(x.endorsement_edited_at)}.</span>` : `<span class="small muted">You asked for a correction on ${date(corr)}. The organisation can edit it within 14 days.</span>`) : "";
-    return `<div class="todo-row" style="flex-direction:column;align-items:stretch;gap:12px"><div class="stack" style="--gap:6px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>
+    return `<div class="todo-row" id="done-${x.id}" tabindex="-1" style="flex-direction:column;align-items:stretch;gap:12px"><div class="stack" style="--gap:6px;min-width:0"><strong data-no-i18n>${e(x.scope?.need_title)}</strong><span class="small muted">${parts([e(x.organisation?.name || ""), `completed ${date(x.completed_at)}`])}</span>
       ${x.endorsement ? `<blockquote class="small endorse-quote" data-no-i18n>“${e(x.endorsement)}”</blockquote><span class="small muted">— ${e([x.show_endorser_name ? x.endorser_name : "", x.endorsed_by_role, x.organisation?.name].filter(Boolean).join(", "))}</span>` : `<span class="small muted">No written endorsement.</span>`}
       ${(x.confirmed_skills || []).length ? `<div class="row" style="--gap:6px"><span class="small muted">Skills confirmed:</span>${tags(x.confirmed_skills)}</div>` : ""}
       ${x.note_to_professional ? `<div class="private-note"><span class="small" style="font-weight:700">A note just for you</span><p class="small" data-no-i18n>${e(x.note_to_professional)}</p></div>` : ""}
-      ${x.rating && !x.delivered_as_agreed ? `<span class="small muted">Private rating from the organisation: ${x.rating} out of 5. Only you can see this.</span>` : ""}
       ${corrLine}</div>
       <div class="row" style="--gap:8px 20px;flex-wrap:wrap;align-items:center"><label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label>
       ${!corr ? `<button class="link-btn" type="button" data-action="endorse-correction" data-id="${x.id}">Ask for a correction</button>` : ""}<button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${x.id}" style="color:var(--muted)">Report a concern</button></div></div>`;
@@ -94,11 +96,11 @@ export async function workspace(sub) {
 }
 
 function reviewBanner(p) {
-  if (!p.published) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Publish it when you are ready; we review it before it becomes public.</p>${btn("Publish profile", "#workspace/profile", "sm")}</div>`;
+  if (!p.published) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Organisations can’t see it or invite you yet. Send it for review when it’s ready.</p><button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send my profile for review</button></div>`;
   if (p.review_status === "pending") return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p>Your profile is <strong>awaiting approval</strong>. We usually review within two working days and will notify you.</p></div>`;
   if (p.review_status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1">We asked for some changes to your profile. Check your notifications, update your profile and publish it again.</p>${btn("Edit profile", "#workspace/profile", "sm")}</div>`;
   if (p.review_status === "rejected") return `<div class="banner alert">${icon("alert", 22)}<p>Your profile was not approved. Write to us if you think this is a mistake.</p></div>`;
-  return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>approved and public</strong>. Anyone can see it, including search engines.</p><a href="#profile/${p.user_id}" style="font-weight:700">View public profile</a></div>`;
+  return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>approved and public</strong>. Anyone with the link can see it, and search engines may show it too.</p><a href="#profile/${p.user_id}" style="font-weight:700">View public profile</a></div>`;
 }
 
 function wsShell(title, main, active, badge = 0) {
@@ -193,17 +195,19 @@ export async function org(sub, id) {
   const late = data ? overdueEng(data.engs, data.hours) : null;
   const paused = late ? `<div class="banner alert">${icon("alert", 22)}<p><strong>New needs are paused.</strong> <span>${personName(late)}’s work on ${quoted(late.scope?.need_title || "")} has been waiting for your endorsement for ${daysSince(dueSince(late, data.hours))} days.</span> <span>Finish and endorse it, and you can send new needs for review again.</span> <a href="#org/needs/${late.need_id}" style="font-weight:700">Open the need</a></p></div>` : "";
   const banner = orgBanner(o) + paused;
-  const postBtn = btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
+  const blocked = o.status === "suspended" || o.status === "rejected";
+  const postBtn = blocked ? "" : btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
 
   if (sub === "details") return shell(`<div class="stack" style="--gap:20px">${head("Organisation profile")}<p class="lead">How professionals see your organisation, on your public page and on every need you post.${approved ? ` <a href="#organisations/${e(o.id)}" style="font-weight:700">View your public page</a>` : ""}</p>${banner}${orgForm(o)}</div>`);
 
+  if (sub === "need" && blocked) return shell(`<div class="stack" style="--gap:20px">${back("All needs", "#org/needs")}${head("Post a need")}${banner}</div>`);
   if (sub === "need") {
     const n = id ? await result(db.from("needs").select("*").eq("id", id).maybeSingle()) : null;
     // A need Handova has approved can't be edited: what people applied to must stay the same.
     if (n && (n.status === "open" || n.status === "closed")) return { redirect: `#org/needs/${n.id}` };
     const note = n?.review_note && n.status === "draft" ? `<div class="banner alert">${icon("alert", 22)}<p><strong>Handova asked for changes:</strong> <span data-no-i18n>${quoted(n.review_note)}</span> Update the need and send it again.</p></div>` : "";
     const info = n && (n.status === "open" || n.status === "closed") ? "" : `<div class="banner">${icon("check", 22, "#0f6f63")}<p>${approved ? "Handova checks every need before it goes live. We usually reply within two working days." : "You can write your need and send it for review now. It goes live once Handova has approved your organisation and the need."}</p></div>`;
-    return shell(`<div class="stack" style="--gap:20px">${back(n ? "Back to the need" : "All needs", n ? `#org/needs/${n.id}` : "#org/needs")}${head(n ? "Edit need" : "Post a need")}${note}${info}${needForm(n, o, approved, await talentLanguages())}</div>`);
+    return shell(`<div class="stack" style="--gap:20px">${back(n ? "Back to the need" : "All needs", n ? `#org/needs/${n.id}` : "#org/needs")}${head(n ? "Edit need" : "Post a need")}${note}${info}${needForm(n, o, approved, await talentLanguages(), data ? placesInUse(data.needs, data.engs) >= 3 : false)}</div>`);
   }
 
   if (sub === "needs" && id) return shell(await needPage(o, approved, data, id, head));
@@ -221,9 +225,9 @@ export async function org(sub, id) {
     }).join("");
     const count = (st) => needs.filter((n) => n.status === st).length;
     const tile = (num, label) => `<div class="stat"><strong>${num}</strong><span>${label}</span></div>`;
-    const stats = `<div class="need-stats">${tile(`${Math.max(0, 3 - inUse)} of 3`, approved ? "places available" : "places available once your organisation is approved")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "open for applications")}${tile(progressCount, "in progress")}</div>`;
-    const line = approved ? "Up to 3 needs can be waiting for review, open or in progress at a time. When one is finished or closed, its place becomes available again. Drafts don’t use a place." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
-    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${paused}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
+    const stats = `<div class="need-stats">${approved ? tile(`${Math.max(0, 3 - inUse)} of 3`, "places available") : tile(`${inUse} of 3`, "places in use")}${tile(count("draft"), "drafts")}${tile(count("pending"), "waiting for Handova’s review")}${tile(openCount, "open for applications")}${tile(progressCount, "in progress")}</div>`;
+    const line = blocked ? "Your organisation can’t post needs at the moment." : approved ? "Up to 3 needs can be waiting for review, open or in progress at a time. When one is finished or closed, its place becomes available again. Drafts don’t use a place." : "Your needs can go live once Handova has approved your organisation. You can write them and send them for review now.";
+    return shell(`<div class="stack" style="--gap:22px">${head("Needs", postBtn)}${switcher}${blocked ? orgBanner(o) : ""}${paused}${stats}<p class="muted">${line}</p>${needs.length ? groups : `<section class="card">${empty("Post your first need", "A need is one piece of work, up to 16 hours, that a volunteer professional can help with. Describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))}</section>`}</div>`);
   }
 
   // To do
@@ -234,7 +238,7 @@ export async function org(sub, id) {
     : empty("Nothing needs you right now", "When someone applies, logs hours or needs your signature, it appears here and we notify you.", btn("See your needs", "#org/needs", "secondary sm"));
   return shell(`<div class="stack" style="--gap:22px">${head("To do", postBtn)}${switcher}${banner}
     <section class="card stack" style="--gap:6px"><h2 class="card-title">Waiting for you</h2>${todo.length ? `<div>${todo.map((t) => t.html).join("")}</div>` : none}</section>
-    ${waiting.length ? `<section class="card stack" style="--gap:10px"><h2 class="card-title">Waiting for others</h2><p class="small muted">Nothing to do here. This is just so you know where things stand.</p><ul class="wait-list">${waiting.join("")}</ul></section>` : ""}
+    ${waiting.length ? `<section class="card stack" style="--gap:10px"><h2 class="card-title">Waiting for others</h2><p class="small muted">For your information. No action needed.</p><ul class="wait-list">${waiting.join("")}</ul></section>` : ""}
   </div>`);
 }
 
@@ -246,6 +250,7 @@ function todoItems(o, { needs, apps, engs, hours, surveys = [] }) {
     const since = dueSince(x, hours), waitingH = hours.some((h) => h.engagement_id === x.id && h.status === "pending");
     out.push({ html: todoRow(`Finish and endorse ${personName(x)}’s work`, `${quoted(x.scope?.need_title || need(x.need_id)?.title || "")} · <span>${x.talent_delivered_at ? `${personName(x)} says everything is delivered` : "All agreed hours are approved"}</span>${daysSince(since) > 14 ? ` · <span style="color:var(--clay-ink);font-weight:600">New needs are paused until you do this</span>` : ""}`, waitingH ? btn("Review hours first", `#org/needs/${x.need_id}`, "secondary sm") : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Finish and endorse</button>`) });
   }
+  for (const x of engs.filter((y) => y.status === "active" && !y.first_call_at && !dueSince(y, hours))) out.push({ html: todoRow(`Plan your first call with ${personName(x)}`, `${quoted(x.scope?.need_title || need(x.need_id)?.title || "")} · <span>a 30–45 minute call to agree dates and how you’ll review drafts</span>`, `${x.user_id ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "sm") : ""}<button class="btn secondary sm" type="button" data-action="first-call" data-id="${x.id}">Record what we agreed</button>`) });
   for (const x of engs.filter((y) => y.status === "awaiting_signatures" && !y.org_signed_at)) out.push({ html: todoRow(`Sign the agreement with ${personName(x)}`, quoted(x.scope?.need_title || need(x.need_id)?.title || ""), btn("Review and sign", `#agreement/${x.id}`, "sm")) });
   for (const n of needs.filter((y) => y.status === "draft" && y.review_note)) out.push({ html: todoRow(`Handova asked for changes to ${quoted(n.title)}`, `<span data-no-i18n>${e(n.review_note)}</span>`, btn("Update need", `#org/need/${n.id}`, "sm")) });
   for (const n of needs) {
@@ -254,8 +259,9 @@ function todoItems(o, { needs, apps, engs, hours, surveys = [] }) {
   }
   for (const h of hours.filter((y) => y.status === "pending")) { const x = engs.find((y) => y.id === h.engagement_id); out.push({ html: hoursRow(h, x, need(x?.need_id)) }); }
   for (const x of engs.filter((y) => y.status === "completed" && y.correction_requested_at && !y.endorsement_edited_at && Date.now() - Date.parse(y.correction_requested_at) < 14 * 864e5)) out.push({ html: todoRow(`${personName(x)} asked for a correction to your endorsement`, `<span data-no-i18n>${e(x.correction_note || "")}</span>`, `<button class="btn sm" type="button" data-action="endorse-edit" data-id="${x.id}">Correct the endorsement</button>`) });
-  for (const x of engs.filter((y) => y.status === "completed" && y.followup_due && y.followup_due <= today() && !y.followup_answered_at)) out.push({ html: todoRow(`Six months on: are you still using what ${personName(x)} delivered?`, quoted(x.scope?.need_title || ""), `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`) });
-  for (const n of needs.filter((y) => y.status === "draft" && !y.review_note)) out.push({ html: todoRow(`${quoted(n.title)} is still a draft`, "Send it to Handova for review when it is ready.", btn("Open draft", `#org/needs/${n.id}`, "secondary sm")) });
+  for (const x of engs.filter((y) => y.status === "completed" && y.followup_due && y.followup_due <= today() && !y.followup_answered_at)) out.push({ html: todoRow(x.user_id ? `Six months on: are you still using what ${personName(x)} delivered?` : "Six months on: are you still using what was delivered?", quoted(x.scope?.need_title || ""), `<button class="btn sm" type="button" data-action="followup" data-id="${x.id}">Answer</button>`) });
+  const full = placesInUse(needs, engs) >= 3, late = overdueEng(engs, hours);
+  for (const n of needs.filter((y) => y.status === "draft" && !y.review_note)) out.push({ html: todoRow(`${quoted(n.title)} is still a draft`, late ? "New needs are paused until you finish and endorse the work that is waiting." : full ? "All 3 places are in use. You can send it when one becomes free." : "Send it to Handova for review when it is ready.", btn("Open draft", `#org/needs/${n.id}`, "secondary sm")) });
   for (const x of surveys) out.push({ html: todoRow(`Two minutes: how did working with ${e(x.other_name || "the professional")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the professional</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="organisation" data-short="${x.short_form ? 1 : ""}">Answer</button>`) });
   if (!o.staff_size) out.push({ html: todoRow("Add your team size", "One question. It appears on your public page and helps us report, without names, which organisations Handova supports.", `<button class="btn secondary sm" type="button" data-action="staff-size" data-id="${o.id}">Answer</button>`) });
   return out;
@@ -353,11 +359,11 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
     const live = x.status === "active" || x.status === "awaiting_signatures";
     const finish = x.status === "active" && !dueSince(x, hours) ? `<div class="finish-block"><strong>Finished?</strong><p class="small">When ${first(x)} has delivered everything, confirm what was delivered and write a short endorsement. This closes the contribution and the conversation. ${first(x)} reads it first and decides whether to publish it.</p>${wh ? `<p class="small" style="font-weight:600">Review the ${wh} waiting ${wh === 1 ? "hour" : "hours"} first.</p>` : `<button class="btn sm" type="button" data-action="complete" data-id="${x.id}">Mark complete and endorse</button>`}</div>` : "";
     const endorsement = x.status === "completed" && x.endorsement ? `<blockquote class="small" data-no-i18n>“${e(x.endorsement.slice(0, 400))}${x.endorsement.length > 400 ? "…" : ""}”</blockquote>` : "";
-    return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span><a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a></div></div>
+    return `<section class="card work-card"><div class="row" style="--gap:12px;flex-wrap:nowrap">${avatar(x.person?.name || x.scope?.talent || "?", 48)}<div class="stack" style="--gap:2px;min-width:0"><span class="small muted">Your work with</span>${x.user_id ? `<a href="#profile/${x.user_id}" class="work-name">${personName(x)}</a>` : `<span class="work-name">${personName(x)}</span>`}</div></div>
       <ol class="work-steps">${step(signed, "Agreement signed", sigSub)}${step(!!x.first_call_at || x.status === "completed", "First call", x.first_call_at ? `${x.first_call_written ? "Agreed in writing" : "Held"} ${date(x.first_call_at)}` : signed ? "Not recorded yet" : "After you have both signed")}${step(x.status === "completed" || (signed && appr >= total), "Work and hours", hoursSub)}${step(x.status === "completed", "Finish and endorse", finishSub)}</ol>${bar}${endorsement}
       <div class="row" style="--gap:8px">${live ? btn("Messages", `#conversation-for/${x.need_id}/${x.user_id}`, "secondary sm") : ""}${btn("Agreement and time log", `#agreement/${x.id}`, "secondary sm")}</div>
       ${finish}
-      ${live && hoursReadyAt(x, hours) && x.status === "active" ? `<p class="small muted work-foot">All agreed hours are approved, so this contribution can’t be ended early. Problem with what was delivered? Talk to ${first(x)} first, or <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button> and Handova will help.</p>` : live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="need" data-id="${n.id}">Report a concern</button></p>` : ""}
+      ${live && hoursReadyAt(x, hours) && x.status === "active" ? `<p class="small muted work-foot">All agreed hours are approved, so this contribution can’t be ended early. Problem with what was delivered? Talk to ${first(x)} first, or <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${x.id}">Report a concern</button> and Handova will help.</p>` : live ? `<p class="small muted work-foot">Problem with the work? Talk to ${first(x)} first. If it can’t go ahead: <button class="link-btn danger-link" type="button" data-action="end-engagement" data-id="${x.id}">End this contribution</button> · Something unsafe? <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${x.id}">Report a concern</button></p>` : ""}
     </section>`;
   };
   const cards = (st === "progress" || st === "open" ? working : st === "done" ? mine.filter((x) => x.status === "completed") : []).map(workCard).join("");
@@ -375,7 +381,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
 
   return `<div class="stack" style="--gap:22px">${back("All needs", "#org/needs")}
     <div class="stack" style="--gap:14px"><div class="row" style="--gap:10px">${eyebrow(e(o.name))}${pillHtml}</div><h1 class="ws-title" data-no-i18n>${e(n.title)}</h1><p class="muted">${meta}</p></div>
-    ${boxes.join("")}
+    ${[...boxes.filter((b) => !/next-box (wait|ok)\b/.test(b)), ...boxes.filter((b) => /next-box (wait|ok)\b/.test(b))].join("")}
     ${cards}
     ${about}${changeFold}${historyFold}
   </div>`;
@@ -384,8 +390,8 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
 function orgBanner(o) {
   if (o.status === "approved") return "";
   if (o.status === "pending") return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>Your organisation is awaiting review.</strong> We usually respond within two working days. You can write your needs now and send them for review; they go live once your organisation is approved.</p></div>`;
-  if (o.status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1">We need a few more details. Check your notifications and update your organisation details.</p>${btn("Update details", "#org/details", "sm")}</div>`;
-  return `<div class="banner alert">${icon("alert", 22)}<p>This organisation is ${o.status === "suspended" ? "suspended" : "not approved"}. Write to us if you think this is a mistake.</p></div>`;
+  if (o.status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1"><strong>We need a few more details.</strong> Our note is in your notifications. Update your organisation profile and save: it comes straight back to us for review.</p>${btn("Update details", "#org/details", "sm")}</div>`;
+  return `<div class="banner alert">${icon("alert", 22)}<p>${o.status === "suspended" ? "This organisation is suspended, so it can’t post needs." : "This organisation was not approved, so it can’t post needs."} If you think this is a mistake, write to hello@handova.org.</p></div>`;
 }
 
 // Live needs can't be edited. To change one: stop applications on it and copy it into a new draft,
@@ -426,10 +432,12 @@ export async function submitFirstCall(form) {
     const bad = form.querySelector("input:invalid, textarea:invalid, select:invalid");
     if (bad) throw fieldError(bad, fieldProblem(bad));
     const written = fd.has("written");
-    const lines = [written ? "Summary of what we agreed in writing" : `Summary of our first call (${val(fd, "call_date") || today()})`, "",
-      `Delivery date: ${val(fd, "delivery")}`, `Contact person: ${val(fd, "contact")}`, `How drafts will be reviewed: ${val(fd, "review")}`,
-      val(fd, "out") ? `Out of scope: ${val(fd, "out")}` : "", `How we’ll keep in touch: ${val(fd, "keep")}`, val(fd, "other") ? `Anything else: ${val(fd, "other")}` : "",
-      "", "Please reply to confirm or correct this summary."].filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""));
+    // Written in the poster's language, with dates people can read.
+    const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? date(v) : v);
+    const lines = [written ? t("Summary of what we agreed in writing") : tf("Summary of our first call ({date})", { date: day(val(fd, "call_date") || today()) }), "",
+      tf("Delivery date: {x}", { x: day(val(fd, "delivery")) }), tf("Contact person: {x}", { x: val(fd, "contact") }), tf("How drafts will be reviewed: {x}", { x: val(fd, "review") }),
+      val(fd, "out") ? tf("Out of scope: {x}", { x: val(fd, "out") }) : "", tf("How we’ll keep in touch: {x}", { x: val(fd, "keep") }), val(fd, "other") ? tf("Anything else: {x}", { x: val(fd, "other") }) : "",
+      "", t("Please reply to confirm or correct this summary.")].filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""));
     await result(db.rpc("record_first_call", { p_id: form.dataset.id, p_date: written ? null : val(fd, "call_date") || today(), p_written: written, p_summary: lines.join("\n") }));
     closeDialog();
     toast("Summary posted to Messages.");
@@ -440,7 +448,7 @@ export async function submitFirstCall(form) {
 // Send a draft to Handova for review.
 export async function submitForReview(id) {
   await result(db.from("needs").update({ status: "pending" }).eq("id", id));
-  toast("Sent to Handova. We’ll let you know when it’s live.");
+  toast("Sent to Handova. We usually check new needs within two working days, and we’ll email you when it’s live.");
   go(`#org/needs/${id}`);
 }
 
@@ -453,12 +461,12 @@ async function talentLanguages() {
   return [...MAIN_LANGS, ...[...seen.values()].sort((a, b) => a.localeCompare(b))];
 }
 
-function needForm(n, o, approved, langs) {
+function needForm(n, o, approved, langs, full = false) {
   n = n || {};
   return `<form class="form card" data-form="need" data-id="${e(n.id || "")}" data-was="${e(n.status || "")}" data-org="${e(o.id)}" novalidate><div class="form-grid">
     ${field("title", "Title", { value: n.title, required: true, full: true, attrs: 'maxlength="160" minlength="5" placeholder="e.g. Improve our community data tools"' })}
     ${field("description", "The challenge", { value: n.description, type: "textarea", required: true, full: true, attrs: 'maxlength="6000" minlength="20"', hint: "What is the situation, and why does it matter? At least 20 characters. Don’t include names of the people you support." })}
-    ${field("output", "What should be delivered", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "One clear output. Put each deliverable on its own line." })}
+    ${field("output", "What you will receive", { value: n.output, type: "textarea", required: true, full: true, attrs: 'maxlength="2000" minlength="5"', hint: "What you want to receive at the end. Put each thing on its own line." })}
     ${skillPicker("skills", "Skills involved", n.skills || [], { hint: "Pick the skills this need calls for." })}
     ${languagePicker("languages", "Working languages", n.languages || [], { hint: "Support in any one of these is welcome. These are the languages our professionals work in.", options: langs })}
     ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true })}
@@ -468,12 +476,13 @@ function needForm(n, o, approved, langs) {
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     <input type="hidden" name="status" value="${e(n.status || "pending")}">
     <div class="checkbox-box full">${check("no_vulnerable_contact", "This need does not involve direct contact with children or adults at risk, and no access to their personal information. *", n.no_vulnerable_contact, true)}</div>
-  </div>${needButtons(n)}</form>`;
+  </div>${needButtons(n, full)}</form>`;
 }
 // Drafts and new needs: save as a draft or send for review. Live needs: save changes (and reopen a closed one).
-function needButtons(n) {
+function needButtons(n, full = false) {
   const b = (label, st, cls = "") => `<button class="btn ${cls}" type="submit" data-set-status="${st}">${label}</button>`;
   let btns;
+  if ((!n.id || n.status === "draft") && full) return `<p class="small muted">All 3 places are in use, so this need can be saved as a draft for now. When a place is free, open it and send it for review.</p><p class="form-error" role="alert"></p><div class="row">${b("Save as draft", "draft")}</div>`;
   if (!n.id || n.status === "draft") btns = b("Send for review", "pending") + b("Save as draft", "draft", "secondary");
   else if (n.status === "pending") btns = b("Save changes", "pending");
   else btns = b("Save changes", n.status);
@@ -485,13 +494,14 @@ export async function submitNeed(form) {
     // Check top to bottom, and show each problem right under its field.
     const bad = form.querySelector("input:invalid:not([name=no_vulnerable_contact]), textarea:invalid, select:invalid");
     if (bad) throw fieldError(bad, fieldProblem(bad));
+    if (!val(fd, "skills")) throw fieldError(form.querySelector('[name="skills"]'), "Choose at least one skill. It helps the right professionals find this need.");
     if (!val(fd, "languages")) throw fieldError(form.querySelector('[name="languages"]'), "Choose at least one working language.");
     if (!fd.has("no_vulnerable_contact")) throw fieldError(form.querySelector('[name="no_vulnerable_contact"]'), "Tick the safeguarding confirmation to continue. Needs on Handova never involve direct contact with children or adults at risk.");
     const row = { title: val(fd, "title"), description: val(fd, "description"), output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: fd.has("no_vulnerable_contact") };
     if (form.dataset.id) await result(db.from("needs").update(row).eq("id", form.dataset.id));
     else form.dataset.id = (await result(db.from("needs").insert({ ...row, organisation_id: form.dataset.org }).select("id").single()))?.id || "";
     const was = form.dataset.was;
-    toast(row.status === "pending" && was !== "pending" ? "Sent to Handova. We’ll let you know when it’s live." : row.status === "draft" ? "Draft saved." : row.status === "open" && was === "closed" ? "Your need is open again." : "Changes saved.");
+    toast(row.status === "pending" && was !== "pending" ? "Sent to Handova. We usually check new needs within two working days, and we’ll email you when it’s live." : row.status === "draft" ? "Draft saved." : row.status === "open" && was === "closed" ? "Your need is open again." : "Changes saved.");
     go(form.dataset.id ? `#org/needs/${form.dataset.id}` : "#org/needs");
   });
 }
@@ -499,7 +509,18 @@ export async function submitNeed(form) {
 // ================= shared dialogs =================
 export async function inviteDialog(userId) {
   const orgIds = state.memberships.filter((m) => m.organisation?.status === "approved").map((m) => m.organisation_id);
-  const open = orgIds.length ? await result(db.from("needs").select("id,title,deadline").in("organisation_id", orgIds).eq("status", "open")) : [];
+  let open = orgIds.length ? await result(db.from("needs").select("id,title,deadline").in("organisation_id", orgIds).eq("status", "open")) : [];
+  if (open.length) {
+    const ids = open.map((n) => n.id);
+    const [inv, app, eng] = await Promise.all([
+      result(db.from("invitations").select("need_id").eq("user_id", userId).in("need_id", ids)).catch(() => []),
+      result(db.from("applications").select("need_id").eq("user_id", userId).in("need_id", ids)).catch(() => []),
+      result(db.from("engagements").select("need_id").eq("user_id", userId).in("need_id", ids)).catch(() => []),
+    ]);
+    const taken = new Set([...inv, ...app, ...eng].map((r) => r.need_id));
+    if (taken.size && open.every((n) => taken.has(n.id))) return openDialog("Already connected", `<p>This professional has already been invited to, or has applied to, each of your open needs. You can follow up in Messages.</p>`);
+    open = open.filter((n) => !taken.has(n.id));
+  }
   if (!open.length) return openDialog("Open a need first", `<p>An invitation connects a professional to one specific need. Post or open a need, then come back.</p>${btn("Post a need", "#org/need")}`);
   openDialog("Invite to a need", `<form class="form" data-form="invite" data-id="${e(userId)}">${select("need_id", "Need", open.map((n) => [n.id, n.title]), "", { required: true })}${field("message", "Personal message", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "Why their work fits, and what you need. At least 30 characters." })}${formEnd("Send invitation", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
@@ -519,19 +540,26 @@ export async function submitInvite(form) {
   await withForm(form, async (fd) => {
     await result(db.from("invitations").insert({ need_id: val(fd, "need_id"), user_id: form.dataset.id, message: val(fd, "message") }));
     closeDialog();
-    toast("Invitation sent.");
+    toast("Invitation sent. Most people reply within a week, and we’ll email you when they do.");
   });
 }
 
 export function reportDialog(type, id) {
   if (!state.user) return go("#report");
-  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p>${select("reason", "What is the concern?", [["safety", "Safety or safeguarding"], ["harassment", "Harassment or inappropriate behaviour"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Report a concern", `<form class="form" data-form="report" data-type="${e(type)}" data-id="${e(id || "")}"><p class="muted">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p>${select("reason", "What is the concern?", [["exploitation", "Sexual exploitation or abuse"], ["safety", "A child or adult at risk, or another safety concern"], ["harassment", "Harassment or inappropriate behaviour"], ["fraud", "Fraud, payment requests or false hours"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]])}${field("details", "What happened?", { type: "textarea", required: true, attrs: 'minlength="10" maxlength="4000" autofocus' })}${formEnd("Send report", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function submitReport(form) {
   await withForm(form, async (fd) => {
-    await result(db.from("reports").insert({ target_type: form.dataset.type || "other", target_id: form.dataset.id || null, reason: val(fd, "reason"), details: val(fd, "details") }));
+    const base = { target_type: form.dataset.type || "other", target_id: form.dataset.id || null, reason: val(fd, "reason"), details: val(fd, "details") };
+    try { await result(db.from("reports").insert(base)); }
+    catch (err) {
+      // Until the database accepts the newer reasons, file them under the closest older one, with the reason in the text.
+      const older = { exploitation: ["safety", "[Sexual exploitation or abuse] "], fraud: ["misleading", "[Fraud] "] }[base.reason];
+      if (!older || !/check|violat|23514/i.test(String(err?.message || err?.code || ""))) throw err;
+      await result(db.from("reports").insert({ ...base, reason: older[0], details: (older[1] + base.details).slice(0, 4000) }));
+    }
     closeDialog();
-    toast("Thank you. Your report has been sent to our safeguarding lead.");
+    toast("Thank you. We have received your report. Our safeguarding lead reads every report and will contact you if we need more information. If someone is in immediate danger, contact local emergency services first.");
   });
 }
 
@@ -606,13 +634,19 @@ export async function submitComplete(form) {
     const skills = [...new Set(fd.getAll("skill").map((v) => String(v || "").trim()).filter(Boolean))];
     const endorsement = val(fd, "endorsement");
     const deliverables = form.querySelector('[name="deliverables"]'), ta = form.querySelector('[name="endorsement"]');
-    if (val(fd, "deliverables").length < 10) throw fieldError(deliverables, "Describe what was handed over, at least 10 characters.");
-    if (skills.length > 3) throw fieldError(form.querySelector(".skill-pick input"), "Choose up to 3 skills.");
-    if (!skills.length) throw fieldError(form.querySelector("#f-skill-add"), "Choose at least one skill you saw in this work.");
-    if ((delivered === "all" || endorsement) && endorsement.length < 100) throw fieldError(ta, `Please write at least 100 characters (you have ${endorsement.length}).`);
-    if (val(fd, "role").length < 2) throw fieldError(form.querySelector('[name="role"]'), "Add your role.");
-    if (!fd.get("work_again")) throw fieldError(form.querySelector('[name="work_again"]'), "Please answer this question for Handova.");
-    if (!fd.has("confirm")) throw fieldError(form.querySelector('[name="confirm"]'), "Please tick this box to continue.");
+    // Check everything at once, so people see every problem in one go.
+    const problems = [];
+    if (!delivered) problems.push([form.querySelector('[name="delivered"]'), "Say whether the agreed work was delivered."]);
+    if (val(fd, "deliverables").length < 10) problems.push([deliverables, "Describe what was handed over, at least 10 characters."]);
+    if (skills.length > 3) problems.push([form.querySelector(".skill-pick input"), "Choose up to 3 skills."]);
+    if (!skills.length) problems.push([form.querySelector("#f-skill-add"), "Choose at least one skill you saw in this work."]);
+    if ((delivered === "all" || endorsement) && endorsement.length < 100) problems.push([ta, `Please write at least 100 characters (you have ${endorsement.length}).`]);
+    if (endorsement.length > 1200) problems.push([ta, `Please keep it under 1,200 characters (you have ${endorsement.length}).`]);
+    if (val(fd, "role").length < 2) problems.push([form.querySelector('[name="role"]'), "Add your role."]);
+    if (!fd.get("work_again")) problems.push([form.querySelector('[name="work_again"]'), "Please answer this question for Handova."]);
+    if (!fd.has("confirm")) problems.push([form.querySelector('[name="confirm"]'), "Please tick this box to continue."]);
+    const found = problems.filter(([el]) => el);
+    if (found.length) throw fieldErrors(found);
     await result(db.rpc("complete_engagement", { p_id: form.dataset.id, p_delivered: delivered, p_deliverables: val(fd, "deliverables"), p_skills: skills, p_endorsement: endorsement, p_language: val(fd, "language"), p_role: val(fd, "role"), p_name: val(fd, "name"), p_show_name: fd.has("show_name"), p_note: val(fd, "note"), p_work_again: String(fd.get("work_again")), p_work_again_note: val(fd, "work_again_note"), p_confirm: true }));
     closeDialog();
     toast("Thank you. Your endorsement has been sent.");
@@ -639,21 +673,29 @@ export async function submitCorrection(form) {
 }
 // The organisation corrects the endorsement once, within 14 days of the request.
 export async function editEndorsementDialog(id) {
-  const x = await result(db.from("engagements").select("id,scope,deliverables,endorsement,confirmed_skills,correction_reason,correction_note").eq("id", id).single());
+  const x = await result(db.from("engagements").select("id,scope,deliverables,endorsement,confirmed_skills,correction_reason,correction_note,delivered_as_agreed").eq("id", id).single());
   const s = x.scope || {}, chosen = x.confirmed_skills || [];
   const opts = [...new Set([...(s.skills || []), ...chosen])];
-  openDialog("Correct the endorsement", `<form class="form" data-form="endorse-edit" data-id="${e(id)}">
+  openDialog("Correct the endorsement", `<form class="form" data-form="endorse-edit" data-id="${e(id)}" data-partly="${x.delivered_as_agreed === "partly" ? 1 : ""}" novalidate>
     <div class="banner warn">${icon("alert", 22, "#7a4f0e")}<p><strong>${e(String(s.talent || "The professional").split(" ")[0])} asked:</strong> <span data-no-i18n>${e(x.correction_note || "")}</span></p></div>
     ${field("deliverables", "What was handed over", { type: "textarea", required: true, value: x.deliverables || "", attrs: 'minlength="10" maxlength="1500"' })}
     <fieldset class="field full"><legend>Skills confirmed (up to 3)</legend><div class="chip-checks">${opts.map((k) => `<label class="chip-check"><input type="checkbox" name="skill" value="${e(k)}" ${chosen.includes(k) ? "checked" : ""}><span>${e(k)}</span></label>`).join("")}</div></fieldset>
-    ${field("endorsement", "Your endorsement", { type: "textarea", value: x.endorsement || "", attrs: 'maxlength="1200"' })}
+    ${field("endorsement", "Your endorsement", { type: "textarea", value: x.endorsement || "", attrs: 'maxlength="1200"', hint: x.delivered_as_agreed === "partly" ? "100 to 1,200 characters, or leave it empty." : "100 to 1,200 characters." })}
     <p class="small muted">You can correct it once. The professional is told and decides again whether to publish it.</p>
     ${formEnd("Save correction", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function submitEditEndorsement(form) {
   await withForm(form, async (fd) => {
-    const skills = fd.getAll("skill").map(String);
-    if (skills.length > 3) throw Error("Choose up to 3 skills.");
+    const skills = [...new Set(fd.getAll("skill").map((v) => String(v || "").trim()).filter(Boolean))];
+    const ta = form.querySelector('[name="endorsement"]'), text = val(fd, "endorsement"), partly = form.dataset.partly === "1";
+    const problems = [];
+    if (val(fd, "deliverables").length < 10) problems.push([form.querySelector('[name="deliverables"]'), "Describe what was handed over, at least 10 characters."]);
+    if (skills.length > 3) problems.push([form.querySelector('[name="skill"]'), "Choose up to 3 skills."]);
+    if (!skills.length) problems.push([form.querySelector('[name="skill"]') || form.querySelector("#f-skill-add"), "Choose at least one skill you saw in this work."]);
+    if ((!partly || text) && text.length < 100) problems.push([ta, `Please write at least 100 characters (you have ${text.length}).`]);
+    if (text.length > 1200) problems.push([ta, `Please keep it under 1,200 characters (you have ${text.length}).`]);
+    const found = problems.filter(([el]) => el);
+    if (found.length) throw fieldErrors(found);
     await result(db.rpc("edit_endorsement", { p_id: form.dataset.id, p_deliverables: val(fd, "deliverables"), p_endorsement: val(fd, "endorsement"), p_skills: skills }));
     closeDialog(); toast("Correction saved. The professional has been told."); go(location.hash);
   });
@@ -676,7 +718,7 @@ export async function surveyDialog(id, kind, short = false) {
   openDialog("Two minutes: how did it go?", `<form class="form survey-form" data-form="survey" data-id="${e(id)}" data-kind="${e(kind)}" data-short="${short ? 1 : ""}" novalidate>
     <p class="muted"><span>Your answers are never shown to ${other} and don’t affect the endorsement.</span> <span>Handova only reports totals. Every question is optional.</span></p>
     ${surveyQs(kind, short).map(questionHtml).join("")}
-    <div class="banner warn sv-concern" hidden>${icon("shield", 22, "#7a4f0e")}<p><span>Thank you for telling us.</span> <span>If you’d like Handova to follow up, report it now. Only Handova’s safeguarding lead sees reports.</span> <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${e(id)}">Report a concern</button></p></div>
+    <div class="banner warn sv-concern" hidden>${icon("shield", 22, "#7a4f0e")}<p><span>Thank you for telling us.</span> <span>If you’d like Handova to follow up, report it now. Only Handova’s team sees reports, never the person or organisation you report.</span> <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${e(id)}">Report a concern</button></p></div>
     ${extra.join("")}
     ${formEnd("Send answers", `<button class="btn secondary" type="button" data-action="survey-skip" data-id="${e(id)}" data-kind="${e(kind)}">Skip</button>`)}</form>`);
   const f = document.querySelector(".survey-form");

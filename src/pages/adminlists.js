@@ -80,7 +80,7 @@ export async function adminList(kind, params) {
     }
     body = rows.map((x) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#agreement/${x.id}" style="font-weight:700" data-no-i18n>${e(x.scope?.need_title || "Contribution")}</a>${status(x.status)}${kind === "followups" ? (x.followup_answered_at ? pill(x.followup_in_use ? "Still in use" : "Not in use", x.followup_in_use ? "" : "grey") : pill(x.followup_due ? `Due ${date(x.followup_due)}` : "Not scheduled", "ochre")) : ""}</div>
       <span class="small muted"><span data-no-i18n>${e(x.scope?.organisation || "")}</span> · <a href="#profile/${x.user_id}" data-no-i18n>${e(x.scope?.talent || "")}</a> · ${x.scope?.hours || "?"} hours · started ${date(x.created_at)}${x.completed_at ? ` · completed ${date(x.completed_at)}` : ""}${x.ended_at ? ` · ended ${date(x.ended_at)}` : ""}</span>
-      ${x.end_reason ? `<span class="small"><strong>Reason:</strong> <span data-no-i18n>${e(x.end_reason)}</span></span>` : ""}</div><div class="al-actions">${btn("Agreement", `#agreement/${x.id}`, "secondary sm")}${kind === "contributions" ? `<button class="btn secondary sm danger-outline" type="button" data-action="admin-contrib-delete" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Delete</button>` : ""}</div></div>`).join("");
+      ${x.end_reason ? `<span class="small"><strong>Reason:</strong> <span data-no-i18n>${e(x.end_reason)}</span></span>` : ""}</div><div class="al-actions">${btn("Agreement", `#agreement/${x.id}`, "secondary sm")}${kind === "contributions" && x.status === "active" ? `<button class="btn secondary sm" type="button" data-action="admin-contrib-close" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Close for them</button>` : ""}${kind === "contributions" ? `<button class="btn secondary sm danger-outline" type="button" data-action="admin-contrib-delete" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Delete</button>` : ""}</div></div>`).join("");
   }
 
   const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:20px">
@@ -120,6 +120,22 @@ export async function submitDeleteOrg(form) {
   });
 }
 
+// When an organisation stops responding, Handova can close the contribution: approved hours stay on the professional's record.
+export function closeContribDialog(id, title) {
+  openDialog("Close this contribution for them?", `<form class="form" data-form="admin-contrib-close" data-id="${e(id)}">
+    <p><strong data-no-i18n>${e(title)}</strong></p>
+    <p><span>Use this when the organisation has stopped responding and the professional is left waiting.</span> <span>If the organisation approved some hours, the contribution is completed with those hours and marked “Closed by Handova”, with no endorsement.</span> <span>If no hours were approved, it is ended.</span> <span>Both sides are told, with your reason.</span></p>
+    ${field("reason", "Reason (both sides will see it)", { type: "textarea", required: true, attrs: 'minlength="5" maxlength="1000"' })}
+    ${formEnd("Close contribution", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitCloseContrib(form) {
+  await withForm(form, async (fd) => {
+    const r = await result(db.rpc("admin_close_engagement", { p_id: form.dataset.id, p_reason: val(fd, "reason") }));
+    closeDialog();
+    toast(r === "completed" ? "Closed. The approved hours stay on the professional’s record." : "Ended. No hours had been approved.");
+    go(location.hash);
+  });
+}
 export function deleteContribDialog(id, title) {
   openDialog("Delete this contribution?", `<form class="form" data-form="admin-contrib-delete" data-id="${e(id)}">
     <p><strong data-no-i18n>${e(title)}</strong></p>

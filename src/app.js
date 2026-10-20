@@ -1,4 +1,4 @@
-import { db, state, $, loadSession, closeDialog, toast, errorMessage, go, result, homeFor, e } from "./core.js";
+import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e } from "./core.js";
 import { header, footer, bindLanguagePickers, bindEntryEditors } from "./ui.js";
 import { config } from "./config.js";
 import { loadLang, initialLang, startTranslating, setLang, t } from "./i18n.js";
@@ -63,12 +63,13 @@ async function page(r) {
 }
 
 let version = 0;
-// Once per sign-in, professionals who have not verified their identity get a short prompt.
+// Professionals who have not verified their identity get a short prompt, at most once a week.
 function idNudge(route) {
   const p = state.profile;
   if (!p || p.id_status === "approved" || ["in_review", "name_mismatch"].includes(p.id_status) || ["verify-done", "signin", "join", "onboarding"].includes(route)) return;
+  // At most once a week, and only before they have an agreement to sign (the agreement page asks then).
   const key = "hv-id-nudge-" + state.user.id;
-  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch { return; }
+  try { const last = Number(localStorage.getItem(key) || 0); if (Date.now() - last < 7 * 864e5) return; localStorage.setItem(key, String(Date.now())); } catch { return; }
   acc.idNudgeDialog();
 }
 
@@ -76,6 +77,7 @@ async function render() {
   const v = ++version;
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
+  document.documentElement.classList.toggle("signed-in", !!state.user);
   $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || r.name === "safety" ? "#about/faq" : ACTIVE[r.name]);
   const main = $("#main");
   const staticHome = r.name === "home" && main.dataset.staticHome === "1";
@@ -93,6 +95,8 @@ async function render() {
     if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");
     out.after?.();
     enhance(main, r.name);
+    // A link can ask the next page to bring one element into view (e.g. the "publish" box at the end of a long form).
+    try { const f = sessionStorage.getItem("hv-focus"); if (f) { sessionStorage.removeItem("hv-focus"); const el = document.getElementById(f); if (el) { el.scrollIntoView({ block: "center" }); el.focus?.({ preventScroll: true }); el.closest(".checkbox-box, section, .card")?.classList.add("flash"); } } } catch {}
     idNudge(r.name);
     trackPage();
   } catch (err) {
@@ -116,13 +120,16 @@ const actions = {
   "set-lang": (el) => setLang(el.dataset.id),
   "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
   close: () => closeDialog(),
+  "clear-draft": (el) => { const f = el.closest("form"); if (!f) return; clearDialogDraft(f); f.reset(); el.closest(".draft-note")?.remove(); $("#dialog").removeAttribute("data-dirty"); },
   menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); el.setAttribute("aria-label", open ? "Close menu" : "Open menu"); },
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
+  "more-filters": (el) => { const f = el.closest("form"); const on = f.classList.toggle("show-more"); el.setAttribute("aria-expanded", String(on)); el.textContent = t(on ? "Fewer filters" : "More filters"); },
   "verify-id": (el) => acc.startIdCheck(el),
   "admin-id": async (el) => { await result(db.rpc("admin_confirm_identity", { p_user: el.dataset.id, p_approve: el.dataset.ok === "1" })); toast("Identity decision saved."); render(); },
   "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
   print: () => window.print(),
+  "goto-focus": (el) => { try { sessionStorage.setItem("hv-focus", el.dataset.target); } catch {} if (el.dataset.href && location.hash !== el.dataset.href) go(el.dataset.href); else { const t = document.getElementById(el.dataset.target); t?.scrollIntoView({ block: "center" }); t?.focus?.({ preventScroll: true }); } },
   apply: (el) => pub.applyDialog(el.dataset.id),
   "save-need": async (el) => {
     if (!state.user) return go("#signin");
@@ -142,13 +149,14 @@ const actions = {
   },
   introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
-  withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close.", "withdraw", el.dataset.id, "", "Withdraw"),
+  withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close. You can’t apply to this need again.", "withdraw", el.dataset.id, "", "Withdraw"),
   "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
   "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
   "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", el.dataset.id, "", "Accept"),
   "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Ask for changes", "Explain what needs to change. The professional can send a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
+  "hours-amend": (el) => { const d = el.dataset; const today = new Date().toISOString().slice(0, 10); ws.decisionDialog("Correct this time entry", "Change what the organisation asked for. The entry goes back to them for review.", "hours-amend", d.id, `<div class="form-grid"><label class="field" for="f-ad">Date<input id="f-ad" name="work_date" type="date" required max="${today}" value="${e(d.date)}"></label><label class="field" for="f-ah">Hours<input id="f-ah" name="hours" type="number" required min="0.25" max="12" step="0.25" value="${e(d.hours)}"></label></div><label class="field" for="f-adesc">What you did<textarea id="f-adesc" name="description" required minlength="10" maxlength="2000">${e(d.desc)}</textarea></label><label class="field" for="f-aev">Supporting link (optional)<input id="f-aev" name="evidence" type="url" maxlength="500" placeholder="https://" value="${e(d.evidence)}"></label>`, "Send for review"); },
   complete: (el) => ws.completeDialog(el.dataset.id),
   "mark-delivered": (el) => ws.decisionDialog("Tell the organisation everything is delivered?", "Only do this when everything in the agreement has been handed over. The organisation is asked to check the work, then finish and write your endorsement. They’re reminded after 7 and 14 days, and Handova can see it.", "mark-delivered", el.dataset.id, "", "Yes, everything is delivered"),
   "end-engagement": (el) => ws.decisionDialog("End this contribution?", "Use this if the work can’t go ahead. You are both notified, Handova is told, and the conversation closes. This can’t be undone.", "end-engagement", el.dataset.id, `<label class="field" for="f-reason">Why is it ending?<textarea id="f-reason" name="reason" required minlength="5" maxlength="1000"></textarea><span class="hint">Both of you see this reason, and it is kept with the agreement.</span></label>`, "End contribution", true),
@@ -158,7 +166,7 @@ const actions = {
   "first-call": (el) => ws.firstCallDialog(el.dataset.id),
   "endorse-correction": (el) => ws.correctionDialog(el.dataset.id),
   "endorse-edit": (el) => ws.editEndorsementDialog(el.dataset.id),
-  "insert-starter": (el) => { const ta = el.closest("form")?.querySelector("textarea[name=endorsement]"); if (!ta) return; const add = (el.textContent.trim() || el.dataset.text).replace(/…$/, " "); const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos); ta.value = pre + (pre && !/\s$/.test(pre) ? " " : "") + add + ta.value.slice(pos); ta.focus(); ta.dispatchEvent(new Event("input")); },
+  "insert-starter": (el) => { const ta = el.closest("form")?.querySelector("textarea[name=endorsement]"); if (!ta) return; const add = (el.textContent.trim() || el.dataset.text).replace(/…$/, " "); const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos); const max = Number(ta.getAttribute("maxlength")) || 1200; ta.value = (pre + (pre && !/\s$/.test(pre) ? " " : "") + add + ta.value.slice(pos)).slice(0, max); ta.focus(); ta.dispatchEvent(new Event("input")); },
   "close-conversation": (el) => ws.decisionDialog("End this conversation?", "Neither of you will be able to send more messages. The history is kept.", "close-conversation", el.dataset.id, "", "End conversation"),
   survey: (el) => ws.surveyDialog(el.dataset.id, el.dataset.kind, el.dataset.short),
   "survey-skip": (el) => ws.skipSurvey(el.dataset.id, el.dataset.kind),
@@ -193,7 +201,9 @@ const actions = {
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
   "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
   "admin-contrib-delete": (el) => adl.deleteContribDialog(el.dataset.id, el.dataset.title),
+  "admin-contrib-close": (el) => adl.closeContribDialog(el.dataset.id, el.dataset.title),
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
+  "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   "delete-account": () => acc.deleteAccount(),
   "cookie-settings": () => initConsent(true),
@@ -207,7 +217,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -216,8 +226,10 @@ const confirmRpc = {
   "app-accept": ["decide_application", (id) => ({ p_id: id, p_accept: true }), "Application accepted. Please sign the agreement."],
   "app-decline": ["decide_application", (id) => ({ p_id: id, p_accept: false }), "Application declined."],
   "hours-changes": ["review_hours", (id, fd) => ({ p_id: id, p_approve: false, p_note: String(fd.get("note") || "") }), "Changes requested."],
+  "hours-amend": ["amend_hours", (id, fd) => ({ p_id: id, p_date: String(fd.get("work_date") || ""), p_hours: Number(fd.get("hours")), p_description: String(fd.get("description") || ""), p_evidence: String(fd.get("evidence") || "").trim() }), "Corrected and sent for review."],
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
+  "admin-report-resolve": ["admin_update_report", (id, fd) => ({ p_id: id, p_status: "resolved", p_note: String(fd.get("note") || "") }), "Report resolved."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
 };
 
@@ -259,7 +271,15 @@ document.addEventListener("submit", async (ev) => {
   }
 });
 
-$("#dialog").addEventListener("click", (ev) => { if (ev.target.closest(".dialog-close") || ev.target === $("#dialog")) closeDialog(); });
+// A tap outside a dialog closes it only when nothing has been typed; the close button, Cancel and Esc always close,
+// and typed text stays as a draft (see saveDialogDraft in core.js).
+$("#dialog").addEventListener("click", (ev) => {
+  if (ev.target.closest(".dialog-close")) return closeDialog();
+  if (ev.target === $("#dialog") && !$("#dialog").hasAttribute("data-dirty")) closeDialog();
+});
+const keepDraft = (ev) => { const f = ev.target.closest?.("form[data-form]"); if (!f) return; $("#dialog").setAttribute("data-dirty", "1"); saveDialogDraft(f); };
+$("#dialog").addEventListener("input", keepDraft);
+$("#dialog").addEventListener("change", keepDraft);
 window.addEventListener("hashchange", () => { if ($("#dialog").open) $("#dialog").close(); render(); });
 db.auth.onAuthStateChange(async (event) => {
   if (event === "PASSWORD_RECOVERY") setTimeout(acc.newPasswordDialog, 50);
@@ -269,6 +289,12 @@ db.auth.onAuthStateChange(async (event) => {
 $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
 await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
 startTranslating();
+document.documentElement.classList.remove("i18n-wait");
+// Changing language reloads the page: warn first if a form has unsaved typing.
+document.addEventListener("input", (ev) => { if (ev.target.closest?.("form") && !ev.target.closest(".lang-menu")) window.__hvDirty = true; });
+window.addEventListener("hashchange", () => { window.__hvDirty = false; });
+window.addEventListener("beforeprint", () => document.querySelectorAll("#main details").forEach((d) => { d.dataset.wasOpen = d.open ? "1" : ""; d.open = true; }));
+window.addEventListener("afterprint", () => document.querySelectorAll("details[data-was-open]").forEach((d) => { d.open = d.dataset.wasOpen === "1"; delete d.dataset.wasOpen; }));
 $("#site-footer").innerHTML = footer(config);
 try { await loadSession(); } catch { toast("Your session could not be restored. Please sign in again."); }
 bindHeader();
