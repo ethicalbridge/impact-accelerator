@@ -267,8 +267,153 @@ export function contributionText(s = {}, version = CONTRIBUTION_VERSION) {
   return [...head, "", ...body].join("\n\n");
 }
 // HTML for the page: escape everything, then allow **bold**.
-export const contributionHtml = (sections, esc) => sections.map(([h, ps]) => {
-  const agreed = /Agreed contribution/.test(h);
+export const contributionHtml = (sections, esc, agreedAt = -1) => sections.map(([h, ps], i) => {
+  const agreed = i === agreedAt || /Agreed contribution/.test(h);
   const cls = (j) => (agreed && j === 0 ? ' class="prose" style="font-size:1rem" data-no-i18n' : agreed && j === 1 ? ' class="small muted" data-no-i18n' : "");
   return `<section><h3>${esc(h)}</h3>${ps.map((p, j) => `<p${cls(j)}>${esc(p).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>`).join("")}</section>`;
 }).join("");
+
+// ---------- Plain summaries and reading copies (never signed, never hashed) ----------
+// The summaries help people read the agreement; the full English text above is what they sign. The reading copies in
+// src/agreement-translations/ are keyed by the English section headings and carry the version they translate: when an
+// English version changes and its translation has not caught up, the reading copy is hidden and the page says so.
+import { getLang } from "./i18n.js";
+import es from "./agreement-translations/es.js";
+import pt from "./agreement-translations/pt.js";
+import fr from "./agreement-translations/fr.js";
+
+export const AGREEMENT_TRANSLATIONS = { es, pt, fr };
+
+export const PRO_SUMMARY = [
+  "Handova is free and you volunteer unpaid. This agreement is between you and Ethical Bridge LLC, which runs Handova.",
+  "You join as yourself, you are 18 or over, and you verify your identity before your first contribution agreement.",
+  "You offer at least 4 hours a month. After three months without activity your profile is marked inactive, and after six it is closed. You can publish it again at any time.",
+  "All work is remote. You never contact the people an organisation serves, and you work with anonymised information.",
+  "Before any work starts you sign a contribution agreement. You keep to the agreed scope and log only the hours you really worked.",
+  "No payment, gifts or favours, no selling your services, and you never handle an organisation’s money.",
+  "You keep the organisation’s information confidential and never put personal or confidential information into AI tools.",
+  "You report any concern within 24 hours and follow the Handova Code of Conduct and policies.",
+  "The organisation can use the work you hand over freely for its mission, and you can describe it on your impact CV.",
+  "If you break the agreement we may pause or close your profile. You can ask for a review within 30 days.",
+];
+export const ORG_SUMMARY = [
+  "Handova is free. This agreement is between your organisation and Ethical Bridge LLC, which runs Handova.",
+  "Your organisation is a locally led non-profit listed in the Ethical Bridge directory, and the person signing is authorised to sign for it.",
+  "Each need is real and remote, has one clear output, takes at most 16 hours and never replaces a paid role.",
+  "Needs never involve contact between professionals and children or adults at risk. Personal data is shared only if the work cannot be done without it and you agree it in writing first.",
+  "Before any work starts, you and the professional sign a contribution agreement and you name a safeguarding focal point.",
+  "No money changes hands: no fees, gifts or payments, and professionals never handle your organisation’s money.",
+  "You tell Handova about any concern within 24 hours, follow the Handova Code of Conduct and policies, and never retaliate against anyone who raises a concern.",
+  "You review logged hours within 14 days, write an honest endorsement and answer a short check-in six months later.",
+  "You can use the work freely for your mission. Your organisation stays responsible for its own decisions and data.",
+  "If your organisation breaks the agreement we may pause or remove it. You can ask for a review within 30 days.",
+];
+// The words around the agreement, in English. Each translation file has the same keys.
+export const AGREEMENT_UI = {
+  name: "English",
+  summaryTitle: "What you’re agreeing to",
+  summaryNote: "This summary is here to help you. The full agreement below is what you sign, and it applies if anything differs.",
+  // toTranslation, toEnglish, readingNote, englishNote, englishOnly and readingCopy exist only in the translations.
+  download: "Download PDF",
+  textLabel: "Agreement text",
+  englishText: "English text",
+};
+
+const KIND = { professional: [PRO_AGREEMENT, PRO_AGREEMENT_VERSION, PRO_SUMMARY], organisation: [ORG_AGREEMENT, ORG_AGREEMENT_VERSION, ORG_SUMMARY] };
+const safeKey = (k) => String(k).replace(/[^a-z0-9-]/gi, "");
+// The reading copy of a platform agreement as [heading, paragraphs] pairs, or null when it is missing or out of date.
+export function translatedSections(kind, lang = getLang()) {
+  const tr = AGREEMENT_TRANSLATIONS[lang]?.[kind];
+  const [sections, version] = KIND[kind] || [];
+  if (!tr || !sections || tr.version !== version) return null;
+  const out = sections.map(([h, items]) => { const x = tr.sections[h]; return x && x[1].length === items.length ? [x[0], x[1]] : null; });
+  return out.every(Boolean) ? out : null;
+}
+// The reading copy of a contribution agreement (current version only), built from the same scope as the English.
+export function translatedContribution(s = {}, version = CONTRIBUTION_VERSION, lang = getLang(), tr = (x) => x) {
+  const T = AGREEMENT_TRANSLATIONS[lang]?.contribution;
+  if (!T || T.version !== version || version !== CONTRIBUTION_VERSION) return null;
+  const en = contributionSections(s, version);
+  const v = {
+    org: s.organisation || T.org, pro: s.talent || T.pro, output: s.output || "", description: s.description || "", hours: s.hours || "",
+    orgCountry: s.organisation_country ? ` (${tr(s.organisation_country)})` : "", proCountry: s.talent_country ? ` (${tr(s.talent_country)})` : "",
+    languages: (s.languages || []).map(tr).join(", "),
+  };
+  const map = T.sections(v);
+  const out = en.map(([h, ps]) => { const x = map[h]; return x && x[1].length === ps.length ? [x[0], x[1]] : null; });
+  return out.every(Boolean) ? out : null;
+}
+
+// One agreement on the page: the plain summary (platform agreements), then the full text. When the site is in Spanish,
+// Portuguese or French, a switch shows the reading copy instead of the English, which stays the text that is signed.
+// Everything inside is marked data-no-i18n: the words come from this file and the translation files, in the right language.
+// `body` is the English HTML; `translated` the reading copy's HTML, or "" when there is none.
+export function agreementFrame({ id, title = "", summary = null, body, translated = "", esc, tools: withTools = true, pane = "agreement-text" }) {
+  const lang = getLang();
+  const L = lang === "en" ? AGREEMENT_UI : { ...AGREEMENT_UI, ...(AGREEMENT_TRANSLATIONS[lang]?.ui || {}) };
+  const sum = summary && summary.length ? `<section class="agr-summary" lang="${lang}"><h3>${esc(L.summaryTitle)}</h3><ul>${summary.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="small muted">${esc(L.summaryNote)}</p></section>` : "";
+  let prefer = "";
+  try { prefer = localStorage.getItem("hv-agr-read") || ""; } catch {}
+  const showTr = !!translated && prefer === lang;
+  const sw = lang === "en" ? "" : translated
+    ? `<div class="agr-switch no-print" lang="${lang}"><button type="button" class="btn secondary sm" data-agr="switch" aria-controls="${id}-en ${id}-tr" data-to-tr="${esc(L.toTranslation)}" data-to-en="${esc(L.toEnglish)}" aria-pressed="${showTr}">${esc(showTr ? L.toEnglish : L.toTranslation)}</button></div>
+      <p class="small binding-note" lang="${lang}">${esc(L.englishNote)}</p>`
+    : `<p class="small binding-note" lang="${lang}">${esc(L.englishOnly)}</p>`;
+  const tools = !withTools ? "" : `<div class="agr-tools no-print"><button type="button" class="btn secondary sm" data-agr="print">${esc(L.download)}</button></div>`;
+  return `<div class="agr-view" id="${safeKey(id)}" data-no-i18n>${title ? `<h2 class="agr-print-title">${esc(title)}</h2>` : ""}${sum}${sw}
+    <div class="${pane}" data-pane="en" id="${safeKey(id)}-en" lang="en" role="region" tabindex="-1" aria-label="${esc(title || L.textLabel)} · ${esc(L.englishText)}"${showTr ? " hidden" : ""}>${body}</div>
+    ${translated ? `<div class="${pane} agr-reading" data-pane="tr" id="${safeKey(id)}-tr" lang="${lang}" role="region" tabindex="-1" aria-label="${esc(L.readingCopy)}"${showTr ? "" : " hidden"}><p class="agr-reading-note">${esc(L.readingNote)}</p>${translated}</div>` : ""}
+    ${tools}</div>`;
+}
+
+// A platform agreement (professional or organisation) with its summary and reading copy.
+export function platformAgreementView(kind, esc, { title = "", id = `agr-${kind}` } = {}) {
+  const [sections, , summaryEn] = KIND[kind];
+  const lang = getLang();
+  const tr = AGREEMENT_TRANSLATIONS[lang]?.[kind];
+  const ts = lang === "en" ? null : translatedSections(kind, lang);
+  const summary = lang === "en" ? summaryEn : tr && tr.summary && tr.summary.length === summaryEn.length ? tr.summary : null;
+  return agreementFrame({ id, title: lang !== "en" && tr?.title ? tr.title : title, summary, body: agreementHtml(sections, esc), translated: ts ? agreementHtml(ts, esc) : "", esc });
+}
+
+// Switching between the English text and the reading copy, and "Download PDF" (the browser's print dialog, with
+// everything but this agreement hidden). Bound once for the whole site.
+if (typeof document !== "undefined" && !globalThis.__hvAgreementBound) {
+  globalThis.__hvAgreementBound = true;
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest?.("[data-agr]");
+    if (!b) return;
+    const view = b.closest(".agr-view");
+    if (!view) return;
+    if (b.dataset.agr === "switch") {
+      const en = view.querySelector(':scope > [data-pane="en"]'), rd = view.querySelector(':scope > [data-pane="tr"]');
+      if (!en || !rd) return;
+      const toTr = rd.hidden;
+      rd.hidden = !toTr; en.hidden = toTr;
+      b.textContent = toTr ? b.dataset.toEn : b.dataset.toTr;
+      b.setAttribute("aria-pressed", String(toTr));
+      try { localStorage.setItem("hv-agr-read", toTr ? document.documentElement.lang : ""); } catch {}
+      (toTr ? rd : en).focus({ preventScroll: true });
+    }
+    if (b.dataset.agr === "print") {
+      const marked = [];
+      for (let el = view; el && el !== document.body; el = el.parentElement) {
+        for (const sib of el.parentElement ? el.parentElement.children : []) if (sib !== el && !sib.hasAttribute("data-agr-hide")) { sib.setAttribute("data-agr-hide", ""); marked.push(sib); }
+      }
+      const details = []; for (let el = view.parentElement; el; el = el.parentElement) if (el.tagName === "DETAILS" && !el.open) { el.open = true; details.push(el); }
+      document.body.classList.add("agr-printing");
+      const done = () => { document.body.classList.remove("agr-printing"); marked.forEach((x) => x.removeAttribute("data-agr-hide")); details.forEach((d) => (d.open = false)); window.removeEventListener("afterprint", done); };
+      window.addEventListener("afterprint", done);
+      window.print();
+    }
+  });
+}
+
+// A contribution agreement: the English text that is signed and, in the current version, its reading copy.
+export function contributionView(s, version, esc, tr = (x) => x) {
+  const en = contributionSections(s, version);
+  const lang = getLang();
+  const ts = lang === "en" ? null : translatedContribution(s, version, lang, tr);
+  const agreedAt = en.findIndex(([h]) => /Agreed contribution/.test(h));
+  return agreementFrame({ id: "agr-contribution", body: contributionHtml(en, esc), translated: ts ? contributionHtml(ts, esc, agreedAt) : "", esc, tools: false, pane: "agr-pane" });
+}

@@ -3,7 +3,7 @@ import { db, state, result, e, toast, go, withForm, val } from "../core.js";
 import { icon, eyebrow, back, status, pill, field, check, formEnd, btn, empty, avatar } from "../ui.js";
 import { date, today, safeURL } from "../utils.js";
 import { notFound } from "./public.js";
-import { CONTRIBUTION_VERSION, contributionSections, contributionText, contributionHtml } from "../agreement.js";
+import { CONTRIBUTION_VERSION, contributionSections, contributionText, contributionHtml, contributionView } from "../agreement.js";
 import { needsResign, loadPersonState, idVideoText } from "./account.js";
 
 export async function agreement(id) {
@@ -53,11 +53,11 @@ export async function agreement(id) {
     <article class="agreement-doc">
       <div class="row between">${eyebrow(`Contribution agreement · ${e(x.terms_version)}`)}${status(x.status)}</div>
       <h1 style="font-size:clamp(2rem,3.6vw,3rem);margin:12px 0 8px" data-no-i18n>${e(s.need_title)}</h1>
-      <p class="muted" data-no-i18n>${tf("Between {org} and {pro}.", { org: `<strong>${e(s.organisation)}</strong>${s.organisation_country ? ` (${e(t(s.organisation_country))})` : ""}`, pro: `<strong>${e(s.talent)}</strong>${s.talent_country ? ` (${e(t(s.talent_country))})` : ""}` })} ${e(t("Built from the need as it stood when the match was accepted; it cannot be changed after signing."))}</p>${getLang() === "en" || x.terms_version === CONTRIBUTION_VERSION ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}
+      <p class="muted" data-no-i18n>${tf("Between {org} and {pro}.", { org: `<strong>${e(s.organisation)}</strong>${s.organisation_country ? ` (${e(t(s.organisation_country))})` : ""}`, pro: `<strong>${e(s.talent)}</strong>${s.talent_country ? ` (${e(t(s.talent_country))})` : ""}` })} ${e(t("Built from the need as it stood when the match was accepted; it cannot be changed after signing."))}</p>${getLang() === "en" || x.terms_version === CONTRIBUTION_VERSION ? "" : `<p class="small muted binding-note">This translation is here to help you read the agreement. The English text is the one that was signed, and it is the binding version.</p>`}
       <div class="facts"><div><span>Estimated hours</span><strong>${e(s.hours)}</strong></div><div><span>Working languages</span><strong>${e((s.languages || []).map(t).join(", "))}</strong></div><div><span>Delivery date</span><strong>${x.terms_version === CONTRIBUTION_VERSION ? "Agreed in your first call" : s.deadline ? date(s.deadline) : "None fixed"}</strong></div><div><span>Payment</span><strong>None · voluntary</strong></div></div>
       ${x.status === "ended" ? `<div class="banner warn">${icon("alert", 22, "#9a4a2e")}<p><strong>${x.ended_at ? tf("This contribution ended on {date}.", { date: date(x.ended_at) }) : t("This contribution ended early.")}</strong> ${x.ended_by ? (x.ended_by === x.user_id ? t("Ended by the professional.") : t("Ended by the organisation.")) : ""}${x.end_reason ? ` <span>${t("Reason:")}</span> <span data-no-i18n>${e(x.end_reason)}</span>` : ""}</p></div>` : ""}
       ${orgSig?.focal_point_name ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>Safeguarding focal point:</strong> <span data-no-i18n>${e(orgSig.focal_point_name)} · ${e(orgSig.focal_point_contact || "")}</span></p></div>` : ""}
-      ${(() => { const body = x.terms_version === CONTRIBUTION_VERSION && getLang() !== "en" ? `<p class="small muted">The agreement text below is in English, which is the binding version. A translation is coming soon.</p><div data-no-i18n lang="en">${contributionHtml(contributionSections(s, x.terms_version), e)}</div>` : contributionHtml(contributionSections(s, x.terms_version), e);
+      ${(() => { const body = x.terms_version === CONTRIBUTION_VERSION ? contributionView(s, x.terms_version, e, t) : contributionHtml(contributionSections(s, x.terms_version), e);
         // Once signed, the full text folds away so the time log and next steps are easy to reach (it still prints in full).
         return x.status === "awaiting_signatures" ? body : `<details class="agreement-full"><summary><strong>Read the full agreement</strong> <span class="small muted">signed by both of you</span></summary>${body}</details>`; })()}
       <div class="row no-print" style="margin-top:20px"><button class="btn secondary sm" type="button" data-action="print">${icon("download", 16)} Print or save as PDF</button></div>
@@ -104,7 +104,7 @@ function chatHtml(msgs, c, orgName, personName) {
     const day = dayKey(m.created_at), sep = day !== last ? `<div class="chat-day"><span>${e(dayLabel(m.created_at))}</span></div>` : "";
     if (day !== last) prevSender = "";
     last = day;
-    if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${linkCalls(e(m.body))}</p></div>`; }
+    if (m.kind === "system") { prevSender = ""; return `${sep}<div class="chat-system"><span class="small"><strong>Handova</strong> · ${e(timeOf(m.created_at))}</span><p style="white-space:pre-line">${String(m.body || "").split("\n").map((l) => `<span>${linkCalls(e(l))}</span>`).join("\n")}</p></div>`; }
     const mine = m.sender_id === state.user.id;
     const name = m.kind === "former" ? t("Former member") : m.sender_id === c?.user_id ? personName : orgName;
     const cont = prevSender === (m.sender_id || m.kind);
