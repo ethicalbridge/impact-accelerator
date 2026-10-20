@@ -157,7 +157,6 @@
 "{x} paid staff":"{x} salariés",
 "Choose yes or no.":"Choisissez oui ou non.",
 "Start typing, e.g. Grant writing":"Commencez à taper, p. ex. Rédaction de demandes de subvention",
-"Choose from the suggestions or type your own, then press Enter or Add.":"Choisissez une suggestion ou tapez la vôtre, puis appuyez sur Entrée ou Ajouter.",
 "of {n} estimated hours approved":"sur {n} heures estimées approuvées",
 "Who can read this: you, the people who manage {org}’s Handova account, and Handova’s safeguarding lead only if someone here reports a concern.":"Qui peut lire ceci : vous, les personnes qui gèrent le compte Handova de {org}, et la personne responsable de la protection chez Handova, seulement si quelqu’un ici signale un problème.",
 "Keep it about the work. Video-call links are fine to share here. Never share passwords, card details or access codes, or personal information about the people the organisation supports.":"Parlez uniquement du travail. Vous pouvez partager ici des liens d’appel vidéo. Ne partagez jamais de mots de passe, de données de carte ou de codes d’accès, ni d’informations personnelles sur les personnes que l’organisation accompagne.",
@@ -3711,7 +3710,6 @@
 "You lose access to its workspace. Your past messages and signatures stay on record.":"Vous perdez l’accès à son espace de travail. Vos messages et signatures passés restent enregistrés.",
 "Leave":"Quitter",
 "Cancel this invitation?":"Annuler cette invitation ?",
-"{name} won’t get access when they sign up.":"{name} n’aura pas accès en s’inscrivant.",
 "Back":"Retour",
 "Type a full email address, for example name@organisation.org.":"Saisissez une adresse e-mail complète, par exemple nom@organisation.org.",
 "Done. They are now the owner.":"C’est fait. Cette personne est maintenant responsable.",
@@ -3883,4 +3881,8 @@
 "Either side can end a contribution, and our safeguarding lead reviews every concern":"Chaque partie peut mettre fin à une mission, et notre responsable de la protection examine chaque signalement",
 "Urgent: safety or safeguarding concern reported":"Urgent : un problème de sécurité ou de protection a été signalé",
 "Urgent reasons (sexual exploitation or abuse, and safety or safeguarding) are pinned to the top. Read them today.":"Les motifs urgents (exploitation ou abus sexuels, et sécurité ou protection) sont épinglés en haut. Lisez-les aujourd’hui.",
-"The key facts from the email. Keep the email itself in the safeguarding mailbox.":"Les faits essentiels de l’e-mail. Gardez l’e-mail lui-même dans la boîte de protection."}
+"The key facts from the email. Keep the email itself in the safeguarding mailbox.":"Les faits essentiels de l’e-mail. Gardez l’e-mail lui-même dans la boîte de protection.",
+"Your Handova agreement":"Votre accord Handova",
+"(examples)":"(exemples)",
+"{name} can no longer accept this invitation.":"{name} ne pourra plus accepter cette invitation.",
+"Choose from the suggestions or type your own, then press Enter or Add.":"Choisissez une suggestion ou tapez la vôtre, puis appuyez sur Entrée ou Ajouter."}

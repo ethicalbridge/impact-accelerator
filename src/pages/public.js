@@ -347,7 +347,8 @@ function bindFilters(rows, card, noun, failed = false) {
     // A professional area matches the skills people pick, which are grouped by the same areas.
     if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
     const found = filterRecords(rows, data);
-    $("#count").textContent = `${plural(found.length, noun)}${rows.length && rows.every((r) => r.example && !r.founder) ? " (examples)" : ""}`;
+    // Two parts, so each is translated (D27); "(examples)" only when something is listed.
+    $("#count").innerHTML = `<span>${plural(found.length, noun)}</span>${found.length && rows.every((r) => r.example && !r.founder) ? ` <span>(examples)</span>` : ""}`;
     $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
   };
   f.addEventListener("input", draw);

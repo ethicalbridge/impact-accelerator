@@ -8,12 +8,14 @@ import { date } from "../utils.js";
 const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
 // A readable text column with a list of its sections (D19): on a laptop the list sits beside the text and scrolls
 // within the screen height; on a phone it folds into an "On this page" button. Choosing a section moves focus to it.
-const legalBody = (body) => {
+// enOnly (the policies): the text and its headings stay in English, but "On this page" is translated (D26).
+const legalBody = (body, enOnly = false) => {
+  const en = enOnly ? ' lang="en" data-no-i18n' : "";
   const heads = [];
   const html = body.replace(/<h2>(.*?)<\/h2>/g, (_, t) => { const id = "sec-" + (heads.length + 1); heads.push([id, t]); return `<h2 id="${id}">${t}</h2>`; });
-  if (heads.length < 3) return `<article class="reading">${html}</article>`;
-  const list = `<ol>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol>`;
-  return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span>${list}</nav><details class="toc-m"><summary>${icon("doc", 18)}<span>On this page</span><span class="toc-n">${heads.length}</span></summary><nav aria-label="On this page">${list}</nav></details><article class="reading">${html}</article></div>`;
+  if (heads.length < 3) return `<article class="reading"${en}>${html}</article>`;
+  const list = `<ol${en}>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol>`;
+  return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span>${list}</nav><details class="toc-m"><summary>${icon("doc", 18)}<span>On this page</span><span class="toc-n">${heads.length}</span></summary><nav aria-label="On this page">${list}</nav></details><article class="reading"${en}>${html}</article></div>`;
 };
 // "Last updated" in the visitor's language, like the policy pages (W12).
 const updated = () => { const legalUpdated = date(config.legalUpdated, { day: "numeric", month: "long", year: "numeric" }); return `<p class="small muted">Last updated ${legalUpdated}</p>`; };
@@ -185,7 +187,7 @@ export async function policy(slug) {
     text = await r.text();
   } catch { text = `<p>This policy could not be loaded. <a href="${policyPdf(slug)}" download>Download the PDF</a> instead.</p>`; }
   const head = `<div class="page-head">${eyebrow("Our policies")}<h1>${title}</h1><p class="lead">${sum}</p>${enNote()}<p class="small muted">Version 1.0 · Approved on 20 October 2026 · Owner: Julieta Castiñeira de Dios · Next review: October 2027</p><div class="row" style="--gap:8px"><a class="btn secondary sm" href="${policyPdf(slug)}" download>${icon("doc", 16)} Download PDF</a>${btn("All policies", "#policies", "secondary sm")}</div></div>`;
-  const html = `<div class="wrap policy-page" style="padding-bottom:80px">${head}<div lang="en" data-no-i18n>${legalBody(text)}</div></div>`;
+  const html = `<div class="wrap policy-page" style="padding-bottom:80px">${head}${legalBody(text, true)}</div>`;
   return { title, description: sum, html };
 }
 
