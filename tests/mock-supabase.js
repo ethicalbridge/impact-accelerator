@@ -661,6 +661,14 @@ const rpcs = {
   // 20261019001100_soft_launch_flow_fixes.sql
   account_deletion_blocker: () => {
     const u = me(); if (!u) return null;
+    // 20261020000100: open reports about the person (or their contributions, conversations, organisation, needs).
+    const member = (org) => D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u);
+    const about = (r) => (r.target_type === "profile" && r.target_id === u)
+      || (r.target_type === "contribution" && D.engagements.some((e) => e.id === r.target_id && (e.user_id === u || member(e.organisation_id))))
+      || (r.target_type === "conversation" && D.conversations.some((c) => c.id === r.target_id && (c.user_id === u || member(D.needs.find((n) => n.id === c.need_id)?.organisation_id))))
+      || (r.target_type === "organisation" && member(r.target_id))
+      || (r.target_type === "need" && member(D.needs.find((n) => n.id === r.target_id)?.organisation_id));
+    if (D.reports.some((r) => r.status !== "resolved" && about(r))) return "Your account can't be closed online right now. Please write to hello@handova.org and we'll help you.";
     const mine = D.engagements.find((e) => e.user_id === u && ["awaiting_signatures", "active"].includes(e.status));
     if (mine) return `You have a contribution that is still open (${mine.scope?.need_title || "a contribution"}). Finish it or end it from its agreement page first, so the organisation is not left waiting.`;
     const org = D.organisations.find((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); return ms.some((m) => m.user_id === u) && ms.every((m) => m.user_id === u) && D.engagements.some((e) => e.organisation_id === o.id && ["awaiting_signatures", "active"].includes(e.status)); });

@@ -39,13 +39,14 @@ export function privacy() {
   <h2>Who can see what</h2><ul>
     <li><strong>Public:</strong> your professional profile once you publish it and we approve it (search engines may show it too); approved organisations, their number of paid staff and their open needs; contributions you choose to publish on your impact CV, with the endorser’s role and, if they chose to show it, their name.</li>
     <li><strong>Only the people involved:</strong> applications, invitations, messages, agreements and logged hours are visible to you and the members of the organisation concerned. On a signed agreement, each side sees the other’s name, role, signing time and the safeguarding focal point; your email, IP address and browser are seen only by you and Handova.</li>
+    <li><strong>Across borders:</strong> organisations and professionals on Handova live in many countries. When you work with someone, they can see your profile, messages, agreement and logged hours wherever they are, and some countries protect personal data less than yours. Share only what the work needs.</li>
     <li><strong>Only you:</strong> the private note an organisation may write to you when it completes your contribution.</li>
     <li><strong>Only Handova:</strong> whether the organisation would welcome you on another need, and any note it adds (we use it to make better matches, and we talk to both sides before acting on a “No”); questionnaire answers; a professional’s career stage. Handova staff can see who gave each answer so they can follow up a concern; anything we publish or download for analysis uses totals or ID numbers, never names.</li>
     <li><strong>Our administrators:</strong> profiles and organisations waiting for review, identity-check results, signed agreements, who is matched with whom, and reports. They read a conversation only when it, or the contribution it belongs to, is reported.</li></ul>
   <h2>Service providers</h2><ul>
     <li><strong>Supabase</strong> stores data and manages sign-in, hosted in the European Union (Frankfurt).</li>
     <li><strong>GitHub Pages</strong> (United States) publishes the website.</li>
-    <li><strong>Didit</strong> carries out identity checks under a data processing agreement.</li>
+    <li><strong>Didit</strong> carries out identity checks under a data processing agreement. We send Didit your email address so it can link the check to your Handova account.</li>
     <li><strong>Google Analytics</strong> processes website usage information when you accept analytics. Google may process this information outside your country.</li>
     <li><strong>Hostinger</strong> (email hosting) sends account emails and notifications from hello@handova.org.</li></ul>
   <p>Where a provider processes information outside your country, including in the United States, we rely on safeguards such as the EU–US Data Privacy Framework or standard contractual clauses.</p>

@@ -466,7 +466,9 @@ export async function submitAccount(kind, form) {
     if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
     if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
     if (role === "organisation" && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
-    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang() } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang() } } });
+    // Proof of what was accepted at sign-up: the Terms and privacy notice versions, when, and the 18+ confirmation.
+    const accepted = { terms_version: config.termsVersion, privacy_version: config.privacyVersion, terms_accepted_at: new Date().toISOString(), adult_confirmed: fd.has("adult") };
+    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...accepted } } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
     // An address that already has an account gets no new email (Supabase answers with no identities). Say so, kindly.

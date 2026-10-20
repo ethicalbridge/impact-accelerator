@@ -3,6 +3,8 @@
 --    the conversation stays (the person shows as "Former member") and goes six years after its last message.
 --    Application-only conversations still go with the account.
 -- 2. Report reasons include sexual exploitation or abuse, and fraud (both agreements require reporting them).
+-- 3. delete_my_account refuses while account_deletion_blocker() gives a reason (20261019073802), and Handova is told
+--    when an organisation is left with nobody managing it.
 
 alter table public.conversations alter column user_id drop not null;
 alter table public.conversations drop constraint conversations_user_id_fkey,
@@ -14,7 +16,7 @@ as $function$
 declare uid uuid := auth.uid(); blocker text; o record;
 begin
   if uid is null then raise exception 'Please sign in first.'; end if;
-  -- Added with 20261019001100: no deleting while a contribution is still open (account_deletion_blocker).
+  -- Added with 20261019073802: no deleting while a contribution is still open (account_deletion_blocker).
   blocker := public.account_deletion_blocker();
   if blocker is not null then raise exception '%', blocker; end if;
   if not exists (

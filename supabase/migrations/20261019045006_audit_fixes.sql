@@ -1,6 +1,6 @@
 -- Audit fixes, 19 October 2026.
 -- 1. Report a concern: the daily limit no longer reads reports from inside its own policy (it failed for everyone).
--- 2. (see 20261019000600_conversation_retention.sql)
+-- 2. (see 20261020010000_conversation_retention.sql)
 -- 3. "Partly delivered" can be completed without an endorsement; a corrected endorsement waits for the professional again.
 -- 4. A need can't go from draft or review straight to closed (closed needs are public).
 -- 5. Signature records: organisations and professionals see the signer's name, role, focal point and version,

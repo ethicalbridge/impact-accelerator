@@ -2,7 +2,7 @@
 -- 1. A profile sent back with "Ask for changes" returns to review when its owner saves it, and Handova is told.
 -- 2. account_deletion_blocker(): the site checks it before deleting an account, so work isn't left stranded while
 --    the person has a contribution that is still open, or is the only person managing an organisation with one.
---    The server-side backstop in delete_my_account is in 20261019001200_account_deletion_guard.sql.
+--    The server-side backstop in delete_my_account is in 20261020010000_conversation_retention.sql.
 -- 3. Handova can close a contribution when the organisation stops responding: the hours the organisation already
 --    approved stay on the professional's record, marked "Closed by Handova".
 
