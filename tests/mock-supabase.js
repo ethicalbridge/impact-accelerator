@@ -24,11 +24,11 @@ function seed() {
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", approved_at: now(), created_at: now(), updated_at: now() }],
     applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [], app_settings: [{ key: "require_id_verification", value: "true" }], id_verifications: [],
-    user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], account_deletion_authorizations: [],
+    user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], organisation_changes: [], account_deletion_authorizations: [],
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations"];
+const LATER = ["user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -110,6 +110,7 @@ function visible(table, r) {
     case "contribution_signatures": return own(r.user_id) || isMember(r.organisation_id) || admin || D.engagements.some((e) => e.id === r.engagement_id && own(e.user_id));
     case "completion_private": case "admin_actions": case "survey_responses": return admin;
     case "app_settings": return true;
+    case "organisation_changes": return isMember(r.organisation_id) || admin;
     case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
     default: return false;
   }
@@ -306,8 +307,17 @@ function updateRow(t, r, v) {
     if (!isMember(r.id)) fail("permission", "42501");
     const old = { ...r };
     Object.assign(r, v);
-    // org_change_guard: Handova hears about edits to an approved organisation; one asked for details goes back into review.
-    if (old.status === "approved" && ["name", "website", "summary", "ethical_bridge_url", "country", "org_type", "logo_url"].some((k) => JSON.stringify(r[k] ?? null) !== JSON.stringify(old[k] ?? null))) notifyAdmins("org_changed", "Approved organisation updated", r.name, "#organisations/" + r.id);
+    // org_change_guard (20261020004604): changes to an approved organisation's public details wait for Handova.
+    const KEYS = ["name", "country", "city", "website", "summary", "org_type", "ethical_bridge_url", "logo_url"];
+    if (old.status === "approved" && !isAdmin()) {
+      const diff = Object.fromEntries(KEYS.filter((k) => JSON.stringify(r[k] ?? null) !== JSON.stringify(old[k] ?? null)).map((k) => [k, r[k] ?? null]));
+      if (Object.keys(diff).length) {
+        KEYS.forEach((k) => { r[k] = old[k]; });
+        const row = D.organisation_changes.find((x) => x.organisation_id === r.id);
+        if (row) Object.assign(row, { changes: { ...row.changes, ...diff }, updated_at: now() }); else D.organisation_changes.push({ organisation_id: r.id, changes: diff, since: now(), updated_at: now() });
+        notifyAdmins("org_changed", "Organisation changes to review", old.name, "#admin");
+      }
+    }
     if (old.status === "changes_requested" && r.status === "changes_requested" && !isAdmin()) { r.status = "pending"; notifyAdmins("org_review", "Organisation updated and ready for review", r.name, "#admin"); }
   }
   else if (t === "notifications") { if (r.user_id !== u) fail("permission", "42501"); Object.assign(r, { read_at: v.read_at }); }
@@ -658,6 +668,17 @@ const rpcs = {
   },
   public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at })),
   public_contributions_v2: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at, closed_by_handova: !!e.closed_by_handova })),
+  // 20261020004604_org_changes_need_approval.sql
+  admin_review_org_changes: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const o = D.organisations.find((x) => x.id === a.p_id), row = D.organisation_changes.find((x) => x.organisation_id === a.p_id);
+    if (!o || !row || !Object.keys(row.changes || {}).length) fail("There are no changes waiting for this organisation.");
+    const pc = row.changes;
+    if (a.p_approve) Object.assign(o, pc);
+    row.changes = {};
+    notifyOrg(o.id, "org_decision", a.p_approve ? "Your organisation changes are live" : "Your organisation changes were not approved", String(a.p_note || "").trim() || (a.p_approve ? "Thank you. Your updated details are now public." : "Your current details stay as they were. Reply to us if you have questions."), "#org");
+    adminAction(a.p_approve ? "org_changes_approved" : "org_changes_declined", "organisation", o.id, { changes: pc, note: a.p_note, name: o.name });
+  },
   // 20261019001100_soft_launch_flow_fixes.sql
   account_deletion_blocker: () => {
     const u = me(); if (!u) return null;

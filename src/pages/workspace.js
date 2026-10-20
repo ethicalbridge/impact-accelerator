@@ -61,7 +61,7 @@ export async function workspace(sub) {
       ${(x.confirmed_skills || []).length ? `<div class="row" style="--gap:6px"><span class="small muted">Skills confirmed:</span>${tags(x.confirmed_skills)}</div>` : ""}
       ${x.note_to_professional ? `<div class="private-note"><span class="small" style="font-weight:700">A note just for you</span><p class="small" data-no-i18n>${e(x.note_to_professional)}</p></div>` : ""}
       ${corrLine}</div>
-      <div class="row" style="--gap:8px 20px;flex-wrap:wrap;align-items:center"><label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label>
+      <div class="row" style="--gap:8px 20px;flex-wrap:wrap;align-items:center">${x.public ? "" : `<button class="btn sm" type="button" data-action="cv-publish" data-id="${x.id}">Add to my impact CV</button>`}<label class="check"><input type="checkbox" data-action="toggle-public" data-id="${x.id}" ${x.public ? "checked" : ""}><span>Show on my impact CV</span></label>
       ${!corr ? `<button class="link-btn" type="button" data-action="endorse-correction" data-id="${x.id}">Ask for a correction</button>` : ""}<button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${x.id}" style="color:var(--muted)">Report a concern</button></div></div>`;
   });
   const first = e(p.name.split(" ")[0]);
@@ -194,7 +194,10 @@ export async function org(sub, id) {
   const shell = (main) => ({ title: `${o.name} · workspace`, html: `<div class="workspace org-ws">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` });
   const late = data ? overdueEng(data.engs, data.hours) : null;
   const paused = late ? `<div class="banner alert">${icon("alert", 22)}<p><strong>New needs are paused.</strong> <span>${personName(late)}’s work on ${quoted(late.scope?.need_title || "")} has been waiting for your endorsement for ${daysSince(dueSince(late, data.hours))} days.</span> <span>Finish and endorse it, and you can send new needs for review again.</span> <a href="#org/needs/${late.need_id}" style="font-weight:700">Open the need</a></p></div>` : "";
-  const banner = orgBanner(o) + paused;
+  // Changes to an approved organisation's public details wait for Handova (B5).
+  const held = o.status === "approved" ? await result(db.from("organisation_changes").select("changes").eq("organisation_id", o.id).maybeSingle()).catch(() => null) : null;
+  const heldNote = held?.changes && Object.keys(held.changes).length ? `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>Your latest changes are waiting for Handova’s review.</strong> Your current details stay public until then. We usually reply within two working days.</p></div>` : "";
+  const banner = orgBanner(o) + heldNote + paused;
   const blocked = o.status === "suspended" || o.status === "rejected";
   const postBtn = blocked ? "" : btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
 

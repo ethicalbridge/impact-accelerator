@@ -31,7 +31,7 @@ const roleTabs = (r, label) => `<div class="role-tabs" role="radiogroup" aria-la
 const authShell = (mode, r, form) => `<div class="auth grid-2" data-role="${r}" style="gap:0;min-height:calc(100vh - 77px)">
   <div class="band-dark auth-side" style="padding:clamp(32px,5vw,72px)">
     ${["organisation", "professional"].map((k) => `<div class="stack only-${k}" style="--gap:28px"><span class="eyebrow">${k === "organisation" ? "For organisations" : "For professionals"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${SIDES[k][mode][0]}</h1><p class="lead">${SIDES[k][mode][1]}</p><ul class="checks">${SIDES[k].points.map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul></div>`).join("")}
-    <div class="stack only-none" style="--gap:28px"><span class="eyebrow">${mode === "join" ? "Join Handova" : "Sign in"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${mode === "join" ? "Who are you joining as?" : "Welcome back."}</h1><p class="lead">${mode === "join" ? "Organisations bring needs. Professionals bring skills. Choose yours and we will only ask what matters to you." : "Choose whether you are signing in for an organisation or as a professional."}</p></div>
+    <div class="stack only-none" style="--gap:28px"><span class="eyebrow">${mode === "join" ? "Join Handova" : "Sign in"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${mode === "join" ? "Who are you joining as?" : "Welcome back."}</h1><p class="lead">${mode === "join" ? "Organisations bring needs. Professionals bring skills. Choose yours and we will only ask what matters to you." : "Organisations, professionals and the Handova team all sign in here. We take you straight to your workspace."}</p></div>
     <span class="small" style="color:var(--on-deep-quiet)">An initiative of Ethical Bridge</span>
   </div>
   <div style="padding:clamp(32px,5vw,72px);display:flex;align-items:center"><div style="width:100%;max-width:580px">${form}</div></div></div>`;
@@ -83,14 +83,13 @@ export async function signin(params) {
   const r = params.get("role") === "organisation" ? "organisation" : params.get("role") === "professional" ? "professional" : "";
   const form = `<form class="form" data-form="signin" data-next="${e(params.get("next") || "")}">
     <div class="row between"><h2 style="font-size:2.3rem">Sign in</h2><a href="#join" style="font-weight:600">Create an account</a></div>
-    <fieldset><legend>I am signing in as</legend>${roleTabs(r, "I am signing in as")}</fieldset>
-    <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend><div class="stack" style="--gap:18px">
+    <fieldset><legend class="visually-hidden">Sign-in details</legend><div class="stack" style="--gap:18px">
       ${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email"' })}
       ${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="current-password"' })}
       ${formEnd("Sign in", `<a href="#reset" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Forgot your password?</a>`)}
     </div></fieldset>
   </form>`;
-  return { title: "Sign in", html: authShell("signin", r, form), after: () => { bindRole(); try { const em = sessionStorage.getItem("hv-prefill-email"); const f = document.getElementById("f-email"); if (em && f && !f.value) { f.value = em; sessionStorage.removeItem("hv-prefill-email"); document.getElementById("f-password")?.focus(); } } catch {} } };
+  return { title: "Sign in", html: authShell("signin", "", form), after: () => { bindRole(); try { const em = sessionStorage.getItem("hv-prefill-email"); const f = document.getElementById("f-email"); if (em && f && !f.value) { f.value = em; sessionStorage.removeItem("hv-prefill-email"); document.getElementById("f-password")?.focus(); } } catch {} } };
 }
 
 export async function reset() {
@@ -117,7 +116,7 @@ export async function onboarding() {
   if (r === "organisation") {
     return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name, state.user.user_metadata?.org_role || "")}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
   }
-  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
+  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Last step")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
 
 // Logo: optional, fitted inside a 200px square PNG and stored in the person's own folder (see fittedPng).
@@ -153,11 +152,15 @@ export function profileForm(p = {}) {
   const head = (title, sub = "") => `<div class="pf-cardhead">${eyebrow(title)}${sub ? `<p class="muted small" style="margin:0">${sub}</p>` : ""}</div>`;
   // Older profiles wrote experience as free text; keep showing it until the person moves it into entries.
   const oldXp = !(p.experience_items || []).length && p.experience ? `<div class="notice" role="note"><span>Your earlier experience text: “${e(p.experience.slice(0, 600))}${p.experience.length > 600 ? "…" : ""}”. Add it as roles below; this text is no longer shown once you add a role.</span></div>` : "";
-  return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}" novalidate>
+  // First-time set-up runs in two steps (profile, then agreement) inside one form, so nothing typed is lost.
+  const steps = !edit && !signedCurrent();
+  return `<form class="form pf" data-form="profile" data-edit="${edit ? 1 : 0}"${steps ? ' data-step="1"' : ""} novalidate>
+    ${steps ? `<ol class="pf-steps" aria-label="Set-up steps"><li data-step-label="1" aria-current="step"><span>1</span>Your profile</li><li data-step-label="2"><span>2</span>Agreement</li></ol>` : ""}
     ${p.closed_reason === "inactive" && !p.published ? `<div class="banner warn" role="note">${icon("eye", 22)}<p>Your profile was closed because there was no activity for six months. Check your details, then publish it again: we will review it and it goes back online.</p></div>` : ""}
     ${p.inactive_since && p.published ? `<div class="banner warn" role="note">${icon("clock", 22)}<p>Your profile has been marked inactive since ${new Date(p.inactive_since).toLocaleDateString(locale(), { day: "numeric", month: "long" })}. <a href="#needs">Apply to a need</a> or accept an invitation to become active again. Without activity, it closes three months after that date.</p></div>` : ""}
     ${edit ? identityCard(p) : ""}
 
+    <div class="pf-part" data-part="1">
     <section class="card pf-head">
       <div class="photo-field pf-photo" data-photo-field>
         <span class="photo-preview">${avatarFor({ name: p.name || "You", photo_url: p.photo_url || p.photo }, 150)}</span>
@@ -191,12 +194,17 @@ export function profileForm(p = {}) {
         <div class="card stack" style="--gap:12px">${head("Education", "Required. One box per qualification.")}${entryEditor("education", "Qualifications", p.education_items || [])}</div>
       </section>
     </div>
+    </div>
 
     <section class="card stack" style="--gap:14px">
       ${head("Agreement", "Handova only works if organisations can count on the people they find here.")}
+      ${steps ? `<p class="muted small pf-step-note" data-part="1">Next, you read and sign the Handova professional agreement. Your profile details stay as you typed them.</p>` : ""}
+      <div class="pf-part" data-part="2"${steps ? " hidden" : ""}>
+      ${steps ? `<button type="button" class="link-btn small" data-action="pf-back" style="align-self:flex-start">← Back to your profile</button>` : ""}
       ${agreementBlock()}
       <div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone with the link can see it (search engines may show it too). You can unpublish at any time.", p.published)}</div>
-      ${formEnd(edit ? "Save profile" : "Create profile")}
+      </div>
+      ${formEnd(steps ? "Continue to the agreement" : edit ? "Save profile" : "Create profile")}
     </section>
   </form>`;
 }
@@ -268,6 +276,16 @@ export async function verifyDone() {
 }
 
 // The professional agreement: read in full, then signed by typing your name. Shown signed once the current version is signed.
+// Switch the first-time profile form between step 1 (profile) and step 2 (agreement).
+export function profileStep(form, n) {
+  form.dataset.step = String(n);
+  form.querySelectorAll("[data-part]").forEach((el) => { el.hidden = el.dataset.part !== String(n); });
+  form.querySelectorAll("[data-step-label]").forEach((li) => { if (li.dataset.stepLabel === String(n)) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
+  const btn = form.querySelector("[type=submit]");
+  // withForm restores the button text from data-label when it finishes.
+  if (btn) { const label = n === 2 ? "Create profile" : "Continue to the agreement"; btn.dataset.label = label; btn.textContent = label; }
+  form.querySelector(".pf-steps")?.scrollIntoView({ block: "start", behavior: "smooth" });
+}
 const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
 const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
 function agreementBlock() {
@@ -488,8 +506,8 @@ export async function submitAccount(kind, form) {
   if (kind === "signin") return withForm(form, async (fd) => {
     await result(db.auth.signInWithPassword({ email: val(fd, "email"), password: String(fd.get("password")) }));
     await loadSession();
-    const r = form.dataset.role;
-    go(form.dataset.next || (r === "organisation" && state.memberships.length ? "#org" : r === "professional" && state.profile ? "#workspace" : homeFor()));
+    // No role to choose at sign-in: everyone lands in their own workspace.
+    go(form.dataset.next || homeFor());
   });
   if (kind === "reset") return withForm(form, async (fd) => {
     await result(db.auth.resetPasswordForEmail(val(fd, "email"), { redirectTo: config.siteUrl }));
@@ -531,7 +549,8 @@ export async function submitAccount(kind, form) {
     await result(db.from("organisations").update({ name: val(fd, "name"), country: val(fd, "country"), city: val(fd, "city"), website: safeURL(website), summary: val(fd, "summary"), org_type: val(fd, "org_type"), ethical_bridge_url: ebu, logo_url: val(fd, "logo_url") || null, ...(val(fd, "staff_size") ? { staff_size: val(fd, "staff_size") } : {}) }).eq("id", form.dataset.id));
     const wasAsked = state.memberships.find((m) => m.organisation_id === form.dataset.id)?.organisation?.status === "changes_requested";
     await loadSession();
-    toast(wasAsked ? "Thank you. Your organisation is back with Handova for review." : "Organisation profile saved.");
+    const held = await result(db.from("organisation_changes").select("changes").eq("organisation_id", form.dataset.id).maybeSingle()).catch(() => null);
+    toast(wasAsked ? "Thank you. Your organisation is back with Handova for review." : held?.changes && Object.keys(held.changes).length ? "Saved. Handova will review your changes; your current details stay public until then." : "Organisation profile saved.");
     if (wasAsked) go("#org");
   });
   if (kind === "profile") return withForm(form, async (fd) => {
@@ -545,7 +564,7 @@ export async function submitAccount(kind, form) {
     else if (!/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) problems.push([q("linkedin"), "Use your LinkedIn profile address, starting with https://www.linkedin.com/"]);
     const entries = (kind) => { try { return readEntries(form, kind); } catch (err) { problems.push([err.field || form.querySelector(`[data-entry-editor="${kind}"]`), err.message]); return null; } };
     const xp = entries("experience"), ed = entries("education");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: xp || [], education_items: ed || [], photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: languages(val(fd, "languages")), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: xp || [], education_items: ed || [], photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: (() => { try { return languages(val(fd, "languages")); } catch (err) { if (val(fd, "languages")) problems.push([q("languages"), err.message]); return []; } })(), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) problems.push([q("skills"), "Add at least one skill."]);
     if (!row.languages.length) problems.push([q("languages"), "Choose at least one language you can work in."]);
     if (xp && !xp.length) problems.push([form.querySelector('[data-entry-editor="experience"] button') || form.querySelector('[data-entry-editor="experience"]'), "Add at least one role under Experience."]);
@@ -556,7 +575,15 @@ export async function submitAccount(kind, form) {
       if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) problems.push([["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct"].map(q).find((el) => el && !el.checked), "Read the agreement and tick all four boxes to sign it."]);
       if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
     }
+    if (form.dataset.step === "1") {
+      // Step 1 only checks the profile; the agreement is checked once it is shown.
+      const own = problems.filter(([el]) => el && !el.closest('[data-part="2"]'));
+      if (own.length) throw fieldErrors(own);
+      profileStep(form, 2);
+      return;
+    }
     const found = problems.filter(([el]) => el);
+    if (form.dataset.step === "2" && found.some(([el]) => el.closest('[data-part="1"]'))) profileStep(form, 1);
     if (found.length) throw fieldErrors(found);
     if (problems.length) throw Error(problems[0][1]);
     if (!signedCurrent()) {
