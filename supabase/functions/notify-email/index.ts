@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
   const cta = n.link === "#org/need" ? "Post your first need" : "Open Handova";
   const subject = `${n.title} · Handova`;
   // Free text written by people (reasons, notes) stays inside Handova.
-  const PRIVATE_BODY = new Set(["ended", "contribution_removed", "correction_requested"]);
+  const PRIVATE_BODY = new Set(["ended", "contribution_removed", "correction_requested", "report_outcome"]);
   if (PRIVATE_BODY.has(n.kind)) n.body = "Open Handova to read the details.";
   const text = `${n.title}${n.body ? `\n${n.body}` : ""}\n\n${cta}: ${link}\n\nYou receive this because you have a Handova account. Turn emails off in Account and privacy: ${settings}`;
   const html = `<!doctype html><html><body style="margin:0;background:#f6f3ec;font-family:Arial,Helvetica,sans-serif;color:#10302c">

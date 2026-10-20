@@ -218,21 +218,19 @@ const actions = {
     openDialog("Decline these changes?", `<form class="form" data-form="org-changes-decline" data-id="${e(el.dataset.id)}"><p>The organisation keeps its current public details and is told.</p><div class="field"><label for="f-note">Note to the organisation (optional)</label><textarea id="f-note" name="note" maxlength="600"></textarea></div><div class="row"><button class="btn" type="submit">Decline changes</button><button class="btn secondary" type="button" data-action="close">Cancel</button></div></form>`);
   },
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
-  "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   // Admin safety tools (policies v1.0): every action asks for a reason, kept in the activity log.
   "admin-suspend": (el) => ws.decisionDialog("Suspend this person?", "Their profile goes offline and they can’t message, apply, accept invitations, log hours or sign until you lift it. They are told their account is suspended while Handova looks into a concern.", "admin-suspend", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Suspend", true),
   "admin-remove": (el) => ws.decisionDialog("Remove this person from Handova?", "For a serious breach. Their profile goes offline, their impact CV entries are hidden, and the same verified identity is flagged if it tries to come back. They can ask for a review within 30 days.", "admin-remove", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Remove", true),
-  "admin-lift": (el) => ws.decisionDialog("Lift the suspension?", "They can use Handova again and publish their profile.", "admin-lift", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="1000"></textarea></label>`, "Lift suspension"),
   "admin-freeze": (el) => ws.decisionDialog("Pause this conversation?", "Nobody can send new messages. Everything written so far is kept.", "admin-freeze", el.dataset.id, REASON("Kept in the activity log."), "Pause conversation", true),
   "admin-unfreeze": (el) => ws.decisionDialog("Reopen this conversation?", "Both sides can write again.", "admin-unfreeze", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="500"></textarea></label>`, "Reopen"),
   "admin-takedown": (el) => ws.decisionDialog("Take down this need?", "It stops taking applications straight away, and anyone waiting is told. The organisation sees your reason.", "admin-takedown", el.dataset.id, REASON("The organisation sees this."), "Take down", true),
   "admin-hide-cv": (el) => ws.decisionDialog("Hide this impact CV entry?", "The entry and its endorsement come off the public impact CV, and the professional can’t publish it again until you restore it. They are told.", "admin-hide-cv", el.dataset.id, REASON("Kept in the activity log."), "Hide entry", true),
   "admin-restore-cv": (el) => ws.decisionDialog("Restore this impact CV entry?", "The professional can choose to show it on their impact CV again.", "admin-restore-cv", el.dataset.id, REASON("Kept in the activity log."), "Restore"),
   "admin-id-video": (el) => ws.decisionDialog("Confirm identity after a video call", "Only confirm if you saw a valid passport or ID card on camera and the face matched the person on the call.", "admin-id-video", el.dataset.id, `<label class="field" for="f-docname">Name exactly as on the ID<input id="f-docname" name="docname" required minlength="2" maxlength="160"></label>`, "Confirm identity"),
-  "admin-case": (el) => adm.caseDialog(el.dataset.id),
   "delete-account": () => acc.deleteAccount(),
   "cookie-settings": () => initConsent(true),
+  ...adm.ACTIONS,
 };
 
 const forms = {
@@ -244,6 +242,7 @@ const forms = {
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  ...adm.FORMS,
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -255,11 +254,9 @@ const confirmRpc = {
   "hours-amend": ["amend_hours", (id, fd) => ({ p_id: id, p_date: String(fd.get("work_date") || ""), p_hours: Number(fd.get("hours")), p_description: String(fd.get("description") || ""), p_evidence: String(fd.get("evidence") || "").trim() }), "Corrected and sent for review."],
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
-  "admin-report-resolve": ["admin_update_report", (id, fd) => ({ p_id: id, p_status: "resolved", p_note: String(fd.get("note") || "") }), "Report resolved."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
   "admin-suspend": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: false }), "Suspended."],
   "admin-remove": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: true }), "Removed from Handova."],
-  "admin-lift": ["admin_lift_suspension", (id, fd) => ({ p_user: id, p_note: String(fd.get("reason") || "") }), "Suspension lifted."],
   "admin-freeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: true, p_reason: String(fd.get("reason") || "") }), "Conversation paused."],
   "admin-unfreeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: false, p_reason: String(fd.get("reason") || "") }), "Conversation reopened."],
   "admin-takedown": ["admin_take_down_need", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Need taken down."],
