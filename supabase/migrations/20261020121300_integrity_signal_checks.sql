@@ -82,17 +82,17 @@ grant execute on function public.admin_integrity_signals() to authenticated;
 create or replace function public.admin_check_signal(p_key text, p_note text)
  returns void language plpgsql security definer set search_path to ''
 as $function$
-declare s record; note text := left(trim(coalesce(p_note, '')), 600);
+declare s record; v_note text := left(trim(coalesce(p_note, '')), 600);
 begin
   if not public.is_admin() then raise exception 'Only Handova admins can do this.'; end if;
   select * into s from public.integrity_signals_all() x where public.integrity_signal_key(x.kind, x.link, x.detail) = p_key limit 1;
   if s.kind is null then raise exception 'This signal has changed or gone. Reload the page.'; end if;
   insert into public.integrity_signal_checks (signal_key, kind, title, detail, note, checked_at, checked_by)
-  values (p_key, s.kind, s.title, coalesce(s.detail, ''), note, now(), auth.uid())
+  values (p_key, s.kind, s.title, coalesce(s.detail, ''), v_note, now(), auth.uid())
   on conflict (signal_key) do update set note = excluded.note, checked_at = excluded.checked_at, checked_by = excluded.checked_by,
     title = excluded.title, detail = excluded.detail;
   insert into public.admin_actions (admin_id, action, target_type, target_id, detail)
-  values (auth.uid(), 'signal_checked', 'signal', null, jsonb_build_object('title', s.title, 'name', coalesce(s.detail, ''), 'note', note, 'link', s.link));
+  values (auth.uid(), 'signal_checked', 'signal', null, jsonb_build_object('title', s.title, 'name', coalesce(s.detail, ''), 'note', v_note, 'link', s.link));
 end $function$;
 revoke all on function public.admin_check_signal(text, text) from public, anon;
 grant execute on function public.admin_check_signal(text, text) to authenticated;

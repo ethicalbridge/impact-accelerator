@@ -124,12 +124,12 @@ grant execute on function public.admin_resolve_report(uuid, text, text) to authe
 create or replace function public.admin_reopen_report(p_id uuid, p_reason text)
  returns void language plpgsql security definer set search_path to ''
 as $function$
-declare reason text := left(trim(coalesce(p_reason, '')), 600);
+declare v_reason text := left(trim(coalesce(p_reason, '')), 600);
 begin
   if not public.is_admin() then raise exception 'Only Handova admins can do this.'; end if;
-  if length(reason) < 5 then raise exception 'Say briefly why it is reopened.'; end if;
+  if length(v_reason) < 5 then raise exception 'Say briefly why it is reopened.'; end if;
   update public.reports set status = 'reviewing', resolved_at = null,
-    admin_note = left('Reopened ' || to_char(now() at time zone 'UTC', 'DD Mon YYYY') || ': ' || reason || case when admin_note <> '' then E'\n\nEarlier: ' || admin_note else '' end, 2000)
+    admin_note = left('Reopened ' || to_char(now() at time zone 'UTC', 'DD Mon YYYY') || ': ' || v_reason || case when admin_note <> '' then E'\n\nEarlier: ' || admin_note else '' end, 2000)
   where id = p_id and status = 'resolved';
   if not found then raise exception 'Only a resolved report can be reopened.'; end if;
 end $function$;

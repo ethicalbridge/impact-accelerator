@@ -21,18 +21,18 @@ grant execute on function public.admin_user_emails(uuid[]) to authenticated;
 create or replace function public.admin_decline_id_video(p_user uuid, p_reason text)
  returns void language plpgsql security definer set search_path to ''
 as $function$
-declare reason text := left(trim(coalesce(p_reason, '')), 600);
+declare v_reason text := left(trim(coalesce(p_reason, '')), 600);
 begin
   if not public.is_admin() then raise exception 'Only Handova admins can do this.'; end if;
-  if length(reason) < 10 then raise exception 'Explain briefly why the identity couldn’t be verified. The person sees this.'; end if;
-  update public.id_video_requests set status = 'declined', decided_at = now(), decided_by = auth.uid(), decline_reason = reason
+  if length(v_reason) < 10 then raise exception 'Explain briefly why the identity couldn’t be verified. The person sees this.'; end if;
+  update public.id_video_requests set status = 'declined', decided_at = now(), decided_by = auth.uid(), decline_reason = v_reason
   where user_id = p_user and status = 'requested';
   if not found then raise exception 'There is no open video-call request for this person.'; end if;
   insert into public.admin_actions (admin_id, action, target_type, target_id, detail)
-  values (auth.uid(), 'id_video_not_verified', 'profile', p_user, jsonb_build_object('reason', reason,
+  values (auth.uid(), 'id_video_not_verified', 'profile', p_user, jsonb_build_object('reason', v_reason,
     'name', (select p.name from public.profiles p where p.user_id = p_user)));
   perform public.notify(p_user, 'id_check', 'We couldn’t verify your identity on the video call',
-    reason || ' You can try the online identity check from your profile, or ask for another video call.', '#workspace');
+    v_reason || ' You can try the online identity check from your profile, or ask for another video call.', '#workspace');
 end $function$;
 revoke all on function public.admin_decline_id_video(uuid, text) from public, anon;
 grant execute on function public.admin_decline_id_video(uuid, text) to authenticated;
