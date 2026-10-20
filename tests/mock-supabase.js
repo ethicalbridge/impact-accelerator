@@ -28,7 +28,7 @@ function seed() {
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes"];
+const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -42,6 +42,11 @@ const own = (x, u = me()) => u != null && x === u;
 const isAdmin = (u = me()) => u != null && D.admins.some((a) => a.user_id === u);
 const requireAdmin = () => { if (!isAdmin()) fail("Administrator access required."); };
 const isMember = (org, u = me()) => u != null && D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u);
+// need_safety_guard (20261020100000): every safety question answered before a need goes for review.
+const safetyCheck = (sg = {}) => {
+  if (["remote", "no_contact", "no_child_images", "no_money"].some((k) => sg[k] !== "yes")) fail("Confirm the safety questions before sending the need for review: all work is remote, no contact with the people you serve, no images of children, and no handling of your money.");
+  if (!["none", "exception"].includes(sg.personal_data) || ["leak_risk", "distressing", "regulated"].some((k) => !["no", "yes"].includes(sg[k]))) fail("Answer every safety question before sending the need for review.");
+};
 const needOrg = (n) => D.needs.find((x) => x.id === n)?.organisation_id;
 const isParty = (c) => !!c && (own(c.user_id) || isMember(needOrg(c.need_id)));
 const notify = (user, kind, title, body = "", link = "", ref = null) => user && D.notifications.push({ id: uid(), user_id: user, kind, title, body, link, ref, read_at: null, created_at: now() });
@@ -111,6 +116,10 @@ function visible(table, r) {
     case "completion_private": case "admin_actions": case "survey_responses": return admin;
     case "app_settings": return true;
     case "organisation_changes": return isMember(r.organisation_id) || admin;
+    // 20261020100000_policy_safety_tools.sql
+    case "need_safety_notes": return admin || isMember(needOrg(r.need_id));
+    case "id_consents": case "id_video_requests": case "user_suspensions": return own(r.user_id) || admin;
+    case "removed_identities": case "report_cases": return admin;
     case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
     default: return false;
   }
@@ -152,6 +161,7 @@ class Query {
   select(cols = "*", opts = {}) { if (this.op === "select") this.op = "select"; this.cols = cols; this.opts = opts; this.returning = true; return this; }
   insert(v) { this.op = "insert"; this.val = v; return this; }
   update(v) { this.op = "update"; this.val = v; return this; }
+  upsert(v) { this.op = "upsert"; this.val = v; return this; }
   delete() { this.op = "delete"; return this; }
   eq(k, v) { this.f.push((r) => String(r[k]) === String(v)); return this; }
   neq(k, v) { this.f.push((r) => String(r[k]) !== String(v)); return this; }
@@ -173,6 +183,10 @@ class Query {
       if (!rows) fail(`Unknown table ${this.t}`);
       let data;
       if (this.op === "insert") data = (Array.isArray(this.val) ? this.val : [this.val]).map((v) => insertRow(this.t, { ...v }));
+      else if (this.op === "upsert") {
+        const pk = { need_safety_notes: "need_id", report_cases: "report_id", user_settings: "user_id", user_private: "user_id" }[this.t] || "id";
+        data = (Array.isArray(this.val) ? this.val : [this.val]).map((v) => { const ex = rows.find((r) => String(r[pk]) === String(v[pk]) && visible(this.t, r)); if (ex) { Object.assign(ex, v); return ex; } return insertRow(this.t, { ...v }); });
+      }
       else {
         let hit = rows.filter((r) => visible(this.t, r) && this.f.every((f) => f(r)));
         if (this.op === "update") { hit.forEach((r) => updateRow(this.t, r, this.val)); data = hit; }
@@ -199,6 +213,8 @@ function insertRow(t, v) {
   if (!u) fail("Please sign in.", "42501");
   const row = { id: uid(), created_at: now(), ...v };
   if (t === "user_settings") { if (v.user_id && v.user_id !== u) RLS(); row.user_id = u; delete row.id; }
+  if (t === "id_consents") row.user_id = u;
+  if (["need_safety_notes", "report_cases"].includes(t)) delete row.id;
   if (t === "profiles") {
     if (v.user_id !== u) fail("permission", "42501");
     if (v.published && !(v.age_confirmed && v.unpaid_confirmed)) fail("check", "23514");
@@ -213,6 +229,7 @@ function insertRow(t, v) {
     if (v.status === "closed" && !isAdmin()) fail("Only a need Handova has approved can be closed. Send it for review first.");
     if (v.status === "open") fail("Send your need for review. Handova checks every need and opens it once it is approved.");
     if (!v.no_vulnerable_contact) fail("check", "23514");
+    if (v.status === "pending" && !isAdmin()) safetyCheck(v.safeguarding);
     if (v.status === "pending" && !isAdmin() && orgBlocked(v.organisation_id)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
     if (v.status === "pending" && !isAdmin() && endorsementOverdue(v.organisation_id)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
     if (v.status === "pending" && needsInUse(v.organisation_id, null, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
@@ -291,6 +308,7 @@ function updateRow(t, r, v) {
       v = { ...v, approved_at: r.approved_at || now(), review_note: null };
     }
     if (v.status === "pending" && r.status !== "pending") {
+      if (!adm) safetyCheck(v.safeguarding ?? r.safeguarding);
       if (!adm && orgBlocked(org)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
       if (!adm && endorsementOverdue(org)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
       if (needsInUse(org, r.id, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
@@ -668,6 +686,15 @@ const rpcs = {
   },
   public_contributions: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at })),
   public_contributions_v2: (a) => D.engagements.filter((e) => e.user_id === a.p_user && a.p_user != null && e.status === "completed" && ((e.public && profilePublic(a.p_user)) || own(e.user_id))).sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1)).map((e) => ({ id: e.id, need_title: e.scope.need_title, organisation: e.scope.organisation, organisation_country: e.scope.organisation_country, need: e.scope.description, output: e.scope.output, skills: (e.confirmed_skills || []).length ? e.confirmed_skills : e.scope.skills, skills_confirmed: !!(e.confirmed_skills || []).length, deliverables: e.deliverables, endorsement: e.endorsement, endorsed_by_role: e.endorsed_by_role, endorser_name: e.show_endorser_name !== false ? e.endorser_name : null, endorsement_language: e.endorsement_language, hours: approvedHours(e), started: e.created_at, signed: [e.org_signed_at, e.talent_signed_at].filter(Boolean).sort().pop() || null, completed: e.completed_at, still_in_use: e.followup_in_use, followup_checked: e.followup_answered_at, closed_by_handova: !!e.closed_by_handova })),
+  // 20261020100000_policy_safety_tools.sql
+  request_id_video_call: () => { const u = me(); if (!u) fail("Please sign in first."); D.id_video_requests = D.id_video_requests.filter((x) => x.user_id !== u); D.id_video_requests.push({ user_id: u, requested_at: now(), status: "requested" }); },
+  admin_confirm_id_video: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const p = D.profiles.find((x) => x.user_id === a.p_user); if (!p) fail("Profile not found."); Object.assign(p, { id_status: "approved", id_verified_at: now(), id_document_name: a.p_document_name }); const r = D.id_video_requests.find((x) => x.user_id === a.p_user); if (r) r.status = "confirmed"; adminAction("id_confirmed_video_call", "profile", a.p_user, { name: a.p_document_name }); },
+  admin_suspend_user: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); if (String(a.p_reason || "").trim().length < 5) fail("Give a short reason. It is kept in the activity log."); D.user_suspensions = D.user_suspensions.filter((x) => x.user_id !== a.p_user); D.user_suspensions.push({ user_id: a.p_user, reason: a.p_reason, removed: !!a.p_remove, suspended_at: now(), lifted_at: null }); const p = D.profiles.find((x) => x.user_id === a.p_user); if (p) p.published = false; if (a.p_remove) D.engagements.filter((e) => e.user_id === a.p_user && e.status === "completed").forEach((e) => { e.public = false; e.hidden_by_handova = now(); }); adminAction(a.p_remove ? "person_removed" : "person_suspended", "profile", a.p_user, { reason: a.p_reason }); },
+  admin_lift_suspension: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const r = D.user_suspensions.find((x) => x.user_id === a.p_user && !x.lifted_at); if (!r) fail("This person is not suspended."); r.lifted_at = now(); adminAction("suspension_lifted", "profile", a.p_user, { note: a.p_note }); },
+  admin_set_conversation_frozen: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const c = D.conversations.find((x) => x.id === a.p_id); if (!c) fail("Conversation not found."); if (a.p_frozen) Object.assign(c, { status: "closed", closed_reason: "Paused by Handova", closed_at: now() }); else if (c.closed_reason === "Paused by Handova") Object.assign(c, { status: "open", closed_reason: null, closed_at: null }); else fail("Conversation not found, or it was not paused by Handova."); adminAction(a.p_frozen ? "conversation_frozen" : "conversation_unfrozen", "conversation", a.p_id, { reason: a.p_reason }); },
+  admin_take_down_need: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const n = D.needs.find((x) => x.id === a.p_id); if (!n) fail("Need not found."); Object.assign(n, { status: "closed", review_note: "Taken down by Handova: " + a.p_reason }); adminAction("need_taken_down", "need", a.p_id, { reason: a.p_reason, title: n.title }); },
+  admin_hide_contribution: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const e = D.engagements.find((x) => x.id === a.p_id); if (!e) fail("Contribution not found."); if (a.p_hidden) Object.assign(e, { public: false, hidden_by_handova: now() }); else e.hidden_by_handova = null; adminAction(a.p_hidden ? "cv_entry_hidden" : "cv_entry_restored", "engagement", a.p_id, { reason: a.p_reason }); },
+  admin_integrity_signals: () => { if (!isAdmin()) fail("Only Handova admins can do this."); const out = []; const by = {}; D.profiles.filter((p) => p.id_status === "approved" && p.id_document_name).forEach((p) => { const k = p.id_document_name.toLowerCase().trim(); (by[k] ||= []).push(p.name); }); Object.values(by).filter((v) => v.length > 1).forEach((v) => out.push({ kind: "duplicate_identity", title: `Same verified name on ${v.length} accounts`, detail: v.join(", "), link: "#admin-list/professionals" })); return out; },
   // 20261020004604_org_changes_need_approval.sql
   admin_review_org_changes: (a) => {
     if (!isAdmin()) fail("Only Handova admins can do this.");

@@ -57,6 +57,8 @@ async function page(r) {
     case "cookies": return legal.cookies();
     case "safety": return legal.safety();
     case "report": return legal.report();
+    case "contact": return legal.contact();
+    case "policies": return r.a ? legal.policy(r.a) : legal.policies();
     case "agreements": return legal.agreements(r.a);
     default: return pub.notFound();
   }
@@ -78,7 +80,7 @@ async function render() {
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
   document.documentElement.classList.toggle("signed-in", !!state.user);
-  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || r.name === "safety" ? "#about/faq" : ACTIVE[r.name]);
+  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || ["safety", "policies", "report", "contact"].includes(r.name) ? "#about/faq" : ACTIVE[r.name]);
   const main = $("#main");
   const staticHome = r.name === "home" && main.dataset.staticHome === "1";
   if (!staticHome) main.setAttribute("aria-busy", "true");
@@ -115,6 +117,7 @@ let firstRender = true;
 
 // ---------- actions ----------
 const rpc = async (fn, args, message, next) => { await result(db.rpc(fn, args)); await loadSession(); if (message) toast(message); go(next || location.hash); };
+const REASON = (hint) => `<label class="field" for="f-reason">Reason<textarea id="f-reason" name="reason" required minlength="5" maxlength="1000"></textarea><span class="hint">${hint}</span></label>`;
 const actions = {
   reload: () => render(),
   "set-lang": (el) => setLang(el.dataset.id),
@@ -126,6 +129,9 @@ const actions = {
   "clear-filters": () => $("#filters")?.reset(),
   "more-filters": (el) => { const f = el.closest("form"); const on = f.classList.toggle("show-more"); el.setAttribute("aria-expanded", String(on)); el.textContent = t(on ? "Fewer filters" : "More filters"); },
   "verify-id": (el) => acc.startIdCheck(el),
+  "id-video": () => acc.requestIdVideo(),
+  "mfa-enroll": () => acc.mfaEnroll(),
+  "mfa-code": () => acc.mfaDialog(location.hash),
   "admin-id": async (el) => { await result(db.rpc("admin_confirm_identity", { p_user: el.dataset.id, p_approve: el.dataset.ok === "1" })); toast("Identity decision saved."); render(); },
   "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
   print: () => window.print(),
@@ -214,6 +220,17 @@ const actions = {
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
   "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
+  // Admin safety tools (policies v1.0): every action asks for a reason, kept in the activity log.
+  "admin-suspend": (el) => ws.decisionDialog("Suspend this person?", "Their profile goes offline and they can’t message, apply, accept invitations, log hours or sign until you lift it. They are told their account is suspended while Handova looks into a concern.", "admin-suspend", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Suspend", true),
+  "admin-remove": (el) => ws.decisionDialog("Remove this person from Handova?", "For a serious breach. Their profile goes offline, their impact CV entries are hidden, and the same verified identity is flagged if it tries to come back. They can ask for a review within 30 days.", "admin-remove", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Remove", true),
+  "admin-lift": (el) => ws.decisionDialog("Lift the suspension?", "They can use Handova again and publish their profile.", "admin-lift", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="1000"></textarea></label>`, "Lift suspension"),
+  "admin-freeze": (el) => ws.decisionDialog("Pause this conversation?", "Nobody can send new messages. Everything written so far is kept.", "admin-freeze", el.dataset.id, REASON("Kept in the activity log."), "Pause conversation", true),
+  "admin-unfreeze": (el) => ws.decisionDialog("Reopen this conversation?", "Both sides can write again.", "admin-unfreeze", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="500"></textarea></label>`, "Reopen"),
+  "admin-takedown": (el) => ws.decisionDialog("Take down this need?", "It stops taking applications straight away, and anyone waiting is told. The organisation sees your reason.", "admin-takedown", el.dataset.id, REASON("The organisation sees this."), "Take down", true),
+  "admin-hide-cv": (el) => ws.decisionDialog("Hide this impact CV entry?", "The entry and its endorsement come off the public impact CV, and the professional can’t publish it again until you restore it. They are told.", "admin-hide-cv", el.dataset.id, REASON("Kept in the activity log."), "Hide entry", true),
+  "admin-restore-cv": (el) => ws.decisionDialog("Restore this impact CV entry?", "The professional can choose to show it on their impact CV again.", "admin-restore-cv", el.dataset.id, REASON("Kept in the activity log."), "Restore"),
+  "admin-id-video": (el) => ws.decisionDialog("Confirm identity after a video call", "Only confirm if you saw a valid passport or ID card on camera and the face matched the person on the call.", "admin-id-video", el.dataset.id, `<label class="field" for="f-docname">Name exactly as on the ID<input id="f-docname" name="docname" required minlength="2" maxlength="160"></label>`, "Confirm identity"),
+  "admin-case": (el) => adm.caseDialog(el.dataset.id),
   "delete-account": () => acc.deleteAccount(),
   "cookie-settings": () => initConsent(true),
 };
@@ -221,12 +238,12 @@ const actions = {
 const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
-  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), profile: (f) => acc.submitAccount("profile", f),
+  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
   "confirm-delete": (f) => acc.confirmDelete(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -240,6 +257,16 @@ const confirmRpc = {
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
   "admin-report-resolve": ["admin_update_report", (id, fd) => ({ p_id: id, p_status: "resolved", p_note: String(fd.get("note") || "") }), "Report resolved."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
+  "admin-suspend": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: false }), "Suspended."],
+  "admin-remove": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: true }), "Removed from Handova."],
+  "admin-lift": ["admin_lift_suspension", (id, fd) => ({ p_user: id, p_note: String(fd.get("reason") || "") }), "Suspension lifted."],
+  "admin-freeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: true, p_reason: String(fd.get("reason") || "") }), "Conversation paused."],
+  "admin-unfreeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: false, p_reason: String(fd.get("reason") || "") }), "Conversation reopened."],
+  "admin-takedown": ["admin_take_down_need", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Need taken down."],
+  "admin-hide-cv": ["admin_hide_contribution", (id, fd) => ({ p_id: id, p_hidden: true, p_reason: String(fd.get("reason") || "") }), "Entry hidden."],
+  "admin-restore-cv": ["admin_hide_contribution", (id, fd) => ({ p_id: id, p_hidden: false, p_reason: String(fd.get("reason") || "") }), "Entry restored."],
+  "admin-id-video": ["admin_confirm_id_video", (id, fd) => ({ p_user: id, p_document_name: String(fd.get("docname") || "") }), "Identity confirmed."],
+
 };
 
 // Keyboard: Escape closes an open menu and returns focus to its button; tabbing out of a menu closes it.
@@ -261,6 +288,8 @@ document.addEventListener("click", async (ev) => {
   try { await fn(el); } catch (err) { toast(errorMessage(err)); } finally { el.removeAttribute("aria-disabled"); }
 });
 // Forms with several submit buttons (e.g. "Send for review" / "Save as draft") say which one was used.
+// Need safety questions: show the explanation box only when the answer needs one.
+document.addEventListener("change", (ev) => { const r = ev.target.closest(".sg-q input[type=radio]"); if (!r) return; const note = r.closest(".sg-q").querySelector(".sg-note"); if (note) note.hidden = r.value !== note.dataset.when; });
 document.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-set-status]"); if (b?.form?.elements.status) b.form.elements.status.value = b.dataset.setStatus; });
 document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) actions[ev.target.dataset.action]?.(ev.target); });
 document.addEventListener("submit", async (ev) => {

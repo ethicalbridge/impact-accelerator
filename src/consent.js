@@ -9,7 +9,7 @@ const PAGE_NAMES = {
   agreement: "Agreement", conversation: "Conversation", "conversation-for": "Conversation",
   notifications: "Notifications", admin: "Admin", "verify-done": "Verification",
   privacy: "Privacy notice", terms: "Terms of use", cookies: "Cookie notice",
-  safety: "Working responsibly", report: "Report a concern",
+  safety: "Working responsibly", report: "Report a concern", contact: "Contact", policies: "Policies",
 };
 const get = () => { try { const v = localStorage.getItem(KEY); return config.gaMeasurementId && v === "essential" ? null : v; } catch { return null; } };
 const set = (v) => { try { localStorage.setItem(KEY, v); } catch {} };
