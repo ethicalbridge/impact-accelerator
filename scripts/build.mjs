@@ -30,7 +30,7 @@ for (const [name, html] of Object.entries(sections)) {
 }
 if (!process.env.OUT) await writeFile("index.html", indexHtml);
 await writeFile(`${out}/index.html`, indexHtml);
-for (const f of ["styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt", "CNAME"]) await cp(f, `${out}/${f}`);
+for (const f of ["styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt", "sitemap.xml", "CNAME"]) await cp(f, `${out}/${f}`);
 await cp("fonts", `${out}/fonts`, { recursive: true });
 await cp("assets", `${out}/assets`, { recursive: true });
 if (!process.env.OUT) {
