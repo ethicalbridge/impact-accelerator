@@ -380,3 +380,6 @@ export const FORMS = {
   "admin-lift": submitLift,
   "admin-delete-account": submitDeleteAccount,
 };
+
+export const runAction = (k, el) => ACTIONS[k](el);
+export const runForm = (k, f) => FORMS[k](f);

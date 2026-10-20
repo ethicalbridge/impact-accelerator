@@ -1,17 +1,38 @@
-import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e } from "./core.js";
+import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e, reportError } from "./core.js";
 import { header, footer, bindLanguagePickers, bindEntryEditors, toggleMenu, jumpTo } from "./ui.js";
 import { config } from "./config.js";
-import { loadLang, initialLang, startTranslating, setLang, t } from "./i18n.js";
+import { loadLang, initialLang, startTranslating, setLang, t, stripLangParam, urlLang, getLang } from "./i18n.js";
 import { initConsent, trackPage } from "./consent.js";
 import { enhance, bindHeader } from "./motion.js";
 import * as pub from "./pages/public.js";
-import * as acc from "./pages/account.js";
-import * as ws from "./pages/workspace.js";
-import * as eng from "./pages/engagement.js";
-import * as rsp from "./pages/responses.js";
-import * as adl from "./pages/adminlists.js";
-import * as adm from "./pages/admin.js";
 import * as legal from "./pages/legal.js";
+
+// Account, workspace, agreement and admin code is downloaded only when a page or action needs it (esbuild puts each
+// in its own chunk). acc.fn(...) and friends work as before, but always return a promise.
+// If a new version was published while this tab was open, the old chunks are gone: reload once to get the new ones.
+function chunkFailed(err) {
+  let last = 0;
+  try { last = Number(sessionStorage.getItem("hv-chunk-reload") || 0); sessionStorage.setItem("hv-chunk-reload", String(Date.now())); } catch {}
+  if (Date.now() - last > 60000) location.reload();
+  throw err;
+}
+function lazy(load) {
+  let p = null;
+  const mod = () => (p ||= load().catch((err) => { p = null; return chunkFailed(err); }));
+  return new Proxy({}, { get: (_, k) => (k === "then" ? undefined : (...args) => mod().then((m) => m[k](...args))) });
+}
+// The photo upload field lives in account.js and is used by account and workspace pages.
+const withPhotos = (m) => import("./pages/account.js").then((a) => { a.bindPhotoFields(); return m; });
+const acc = lazy(() => import("./pages/account.js").then(withPhotos));
+const ws = lazy(() => import("./pages/workspace.js").then(withPhotos));
+const eng = lazy(() => import("./pages/engagement.js"));
+const rsp = lazy(() => import("./pages/responses.js"));
+const adl = lazy(() => import("./pages/adminlists.js"));
+const adm = lazy(() => import("./pages/admin.js"));
+// Admin actions and forms live in admin.js (ACTIONS, FORMS) and run through its lazy chunk.
+const ADMIN_ACTIONS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-case-from-answer", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
+const ADMIN_FORMS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
+const adminAction = (k) => (ADMIN_ACTIONS.has(k) ? (el) => adm.runAction(k, el) : null);
 
 const LEGACY = { guide: "how", safeguarding: "safety", organisation: "org", hours: "workspace", portfolio: "workspace", dashboard: "workspace", pool: "workspace", projects: "needs", "organisation-view": "org" };
 const ACTIVE = { about: "#about", needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#how", professionals: "#how" };
@@ -75,7 +96,10 @@ function idNudge(route) {
   acc.idNudgeDialog();
 }
 
-async function render() {
+// The page being drawn right now, so a click can wait for the page it changed to be redrawn (see busy below).
+let rendering = Promise.resolve();
+const render = () => (rendering = renderPage());
+async function renderPage() {
   const v = ++version;
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
@@ -104,6 +128,7 @@ async function render() {
   } catch (err) {
     if (v !== version) return;
     console.error(err);
+    reportError(err);
     main.innerHTML = `<div class="wrap page-head" style="padding-bottom:120px"><span class="eyebrow">Something went wrong</span><h1>We couldn’t load this page</h1><p class="lead">${e(errorMessage(err))}</p><div class="row"><button class="btn" type="button" data-action="reload">Try again</button><a class="btn secondary" href="#home">Go home</a></div></div>`;
     document.title = "Something went wrong · Handova";
   } finally {
@@ -232,7 +257,6 @@ const actions = {
   "export-data": (el) => acc.exportMyData(el),
   team: (el) => ws.teamAction(el),
   "cookie-settings": () => initConsent(true),
-  ...adm.ACTIONS,
 };
 
 const forms = {
@@ -244,7 +268,6 @@ const forms = {
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
   "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
-  ...adm.FORMS,
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -272,31 +295,37 @@ const confirmRpc = {
 const OPEN_MENUS = ".account-menu[open], .lang-menu[open], .nav-drop[open]";
 document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const nav = document.querySelector("#main-nav.open"); if (nav) { nav.classList.remove("open"); const b = document.querySelector("[data-action=\"menu\"]"); if (b) { b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-label", "Open menu"); b.focus(); } return; } const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
 document.addEventListener("focusout", (ev) => { const d = ev.target.closest?.(OPEN_MENUS); if (d && ev.relatedTarget && !d.contains(ev.relatedTarget)) d.removeAttribute("open"); });
+const busy = new WeakSet();
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {
     document.querySelectorAll(".account-menu[open], .lang-menu[open], .nav-drop[open]").forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
     return;
   }
-  const fn = actions[el.dataset.action];
+  const fn = actions[el.dataset.action] || adminAction(el.dataset.action);
   if (!fn || el.tagName === "SELECT") return;
   if (el.tagName === "BUTTON" || el.tagName === "A" && el.dataset.action !== "read-one") ev.preventDefault();
   if (el.dataset.action === "read-one") { fn(el); return; }
   if (el.type === "checkbox") { fn(el); return; }
+  // A double click must never save and then undo: the second click of a double click (detail 2+) is ignored, and so is
+  // any click while the first action, and the redraw it causes, is still running.
+  if (ev.detail > 1 || busy.has(el)) return;
+  busy.add(el);
   el.setAttribute("aria-disabled", "true");
-  try { await fn(el); } catch (err) { toast(errorMessage(err)); } finally { el.removeAttribute("aria-disabled"); }
+  try { await fn(el); await rendering; } catch (err) { toast(errorMessage(err)); } finally { busy.delete(el); el.removeAttribute("aria-disabled"); }
 });
 // Forms with several submit buttons (e.g. "Send for review" / "Save as draft") say which one was used.
 // Need safety questions: show the explanation box only when the answer needs one.
 document.addEventListener("change", (ev) => { const r = ev.target.closest(".sg-q input[type=radio]"); if (!r) return; const note = r.closest(".sg-q").querySelector(".sg-note"); if (note) note.hidden = r.value !== note.dataset.when; });
 document.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-set-status]"); if (b?.form?.elements.status) b.form.elements.status.value = b.dataset.setStatus; });
-document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) actions[ev.target.dataset.action]?.(ev.target); });
+document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) (actions[ev.target.dataset.action] || adminAction(ev.target.dataset.action))?.(ev.target); });
 document.addEventListener("submit", async (ev) => {
   const f = ev.target;
   const kind = f.dataset.form;
   if (!kind) return;
   ev.preventDefault();
   if (forms[kind]) return forms[kind](f);
+  if (ADMIN_FORMS.has(kind)) return adm.runForm(kind, f);
   if (confirmRpc[kind]) {
     const [fn, args, msg] = confirmRpc[kind];
     const { withForm } = await import("./core.js");
@@ -319,17 +348,24 @@ $("#dialog").addEventListener("input", keepDraft);
 $("#dialog").addEventListener("change", keepDraft);
 window.addEventListener("hashchange", () => { if ($("#dialog").open) $("#dialog").close(); render(); });
 db.auth.onAuthStateChange(async (event) => {
-  if (event === "PASSWORD_RECOVERY") setTimeout(acc.newPasswordDialog, 50);
+  if (event === "PASSWORD_RECOVERY") setTimeout(() => acc.newPasswordDialog(), 50);
   if (event === "SIGNED_IN" && state.ready && !state.user) { await loadSession(); render(); }
 });
 
 $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
-await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
+// Inside another site's frame (clickjacking), the page shows only a link to open Handova on its own (see index.html).
+if (document.documentElement.classList.contains("hv-framed")) await new Promise(() => {}); // stop here, quietly
+// A link can choose the language: ?lang=es|pt|fr|en, before or after the #. It is remembered like the language menu.
+const lang = initialLang();
+stripLangParam();
+await loadLang(lang);
 startTranslating();
 document.documentElement.classList.remove("i18n-wait");
 // Changing language reloads the page: warn first if a form has unsaved typing.
 document.addEventListener("input", (ev) => { if (ev.target.closest?.("form") && !ev.target.closest(".lang-menu")) window.__hvDirty = true; });
 window.addEventListener("hashchange", () => { window.__hvDirty = false; });
+// The same for an address with ?lang= typed or followed while Handova is already open.
+window.addEventListener("hashchange", () => { const l = urlLang(); if (!l) return; stripLangParam(); if (l !== getLang()) setLang(l); });
 window.addEventListener("beforeprint", () => document.querySelectorAll("#main details").forEach((d) => { d.dataset.wasOpen = d.open ? "1" : ""; d.open = true; }));
 window.addEventListener("afterprint", () => document.querySelectorAll("details[data-was-open]").forEach((d) => { d.open = d.dataset.wasOpen === "1"; delete d.dataset.wasOpen; }));
 $("#site-footer").innerHTML = footer(config);
@@ -337,5 +373,4 @@ try { await loadSession(); } catch { toast("Your session could not be restored. 
 bindHeader();
 bindLanguagePickers();
 bindEntryEditors();
-acc.bindPhotoFields();
 render();
