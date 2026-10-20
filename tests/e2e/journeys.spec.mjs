@@ -18,6 +18,8 @@ test.afterEach(() => expect(problems, "browser errors").toEqual([]));
 const mockDb = (page, fn, arg) => page.evaluate(fn, arg);
 async function signIn(page, email) {
   await page.goto("/#signin");
+  // The weekly "Verify your identity" prompt opens a moment after sign-in and would sit over the next click.
+  await page.evaluate((id) => localStorage.setItem("hv-id-nudge-" + id, String(Date.now())), TALENT);
   const form = page.locator("form[data-form=signin]");
   await form.locator("input[type=email]").fill(email);
   await form.locator("input[type=password]").fill(PASSWORD);
