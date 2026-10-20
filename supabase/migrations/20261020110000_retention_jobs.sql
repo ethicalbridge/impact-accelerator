@@ -11,6 +11,8 @@
 -- 5. Profiles closed for inactivity: a reminder after 23 months without signing in; after 24 months Handova's
 --    admins are told, so they can delete the account with its identity checks through the normal deletion flow.
 -- 6. Organisations suspended because nobody manages them: admins are told after 24 months.
+-- 7. Safety notes, ID-check consents, video-call requests and suspensions of needs or accounts that no longer exist.
+--    (Removed identities are kept on purpose, so a removed person can't come back unnoticed.)
 
 create or replace function public.retention_purge()
  returns jsonb language plpgsql security definer set search_path to ''
@@ -29,6 +31,13 @@ begin
    where r.status = 'resolved' and r.resolved_at < now() - interval '6 years'
      and not exists (select 1 from public.report_cases rc where rc.report_id = r.id and rc.child_case);
   get diagnostics n_reports = row_count;
+
+  -- Records left behind when a need or an account no longer exists (these tables have no foreign keys so that
+  -- deleting a need or an account is never blocked).
+  delete from public.need_safety_notes x where not exists (select 1 from public.needs n where n.id = x.need_id);
+  delete from public.id_consents x where not exists (select 1 from auth.users u where u.id = x.user_id);
+  delete from public.id_video_requests x where not exists (select 1 from auth.users u where u.id = x.user_id);
+  delete from public.user_suspensions x where not exists (select 1 from auth.users u where u.id = x.user_id);
 
   -- Hours, completion notes and questionnaire answers go with the engagement (on delete cascade).
   delete from public.engagements e

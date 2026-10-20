@@ -35,7 +35,7 @@ revoke all on function public.need_safety_guard() from public, anon, authenticat
 -- The two explanations that could reveal sensitive details (which personal data, and the risk if leaked) are kept
 -- apart from the public need: only the organisation's members and Handova admins can read them.
 create table if not exists public.need_safety_notes (
-  need_id uuid primary key references public.needs(id),
+  need_id uuid primary key,
   personal_data_note text not null default '',
   leak_risk_note text not null default '',
   updated_at timestamptz not null default now()
@@ -53,7 +53,7 @@ alter table public.invitations add column if not exists conflict_note text not n
 -- ---------- 3. Identity check: recorded consent and the video-call alternative ----------
 create table if not exists public.id_consents (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users(id),
+  user_id uuid not null default auth.uid(),
   consented_at timestamptz not null default now(),
   wording text not null,
   notice_version text not null default ''
@@ -63,7 +63,7 @@ create policy id_consents_insert on public.id_consents for insert to authenticat
 create policy id_consents_read on public.id_consents for select to authenticated using (user_id = (select auth.uid()) or public.is_admin());
 
 create table if not exists public.id_video_requests (
-  user_id uuid primary key references auth.users(id),
+  user_id uuid primary key,
   requested_at timestamptz not null default now(),
   status text not null default 'requested' check (status in ('requested', 'confirmed', 'declined')),
   decided_at timestamptz,
@@ -109,7 +109,7 @@ grant execute on function public.admin_confirm_id_video(uuid, text) to authentic
 
 -- ---------- 4. Admin safety tools ----------
 create table if not exists public.user_suspensions (
-  user_id uuid primary key references auth.users(id),
+  user_id uuid primary key,
   reason text not null,
   removed boolean not null default false,
   suspended_at timestamptz not null default now(),
@@ -291,7 +291,7 @@ end $function$;
 
 -- Case records for reports (admins only; the reporter can't see them).
 create table if not exists public.report_cases (
-  report_id uuid primary key references public.reports(id),
+  report_id uuid primary key,
   severity text not null default '' check (severity in ('', 'urgent', 'high', 'standard')),
   protective_actions text not null default '',
   informed text not null default '',
@@ -315,28 +315,28 @@ begin
   if not public.is_admin() then raise exception 'Only Handova admins can do this.'; end if;
   -- The same verified identity on more than one account.
   return query
-    select 'duplicate_identity', 'Same verified name on ' || count(*) || ' accounts', string_agg(p.name, ', '), '#admin-list/professionals', max(p.id_verified_at)
+    select 'duplicate_identity'::text, ('Same verified name on ' || count(*) || ' accounts')::text, string_agg(p.name, ', ')::text, '#admin-list/professionals'::text, max(p.id_verified_at)
     from public.profiles p where p.id_status = 'approved' and coalesce(p.id_document_name, '') <> ''
     group by public.norm_name(p.id_document_name) having count(*) > 1;
   -- Both sides of a contribution signed from the same internet address.
   return query
-    select 'shared_ip', 'Both sides signed from the same internet address', e.scope->>'need_title', '#agreement/' || e.id, max(cs.signed_at)
+    select 'shared_ip'::text, 'Both sides signed from the same internet address'::text, (e.scope->>'need_title')::text, ('#agreement/' || e.id)::text, max(cs.signed_at)
     from public.engagements e join public.contribution_signatures cs on cs.engagement_id = e.id
     where coalesce(cs.ip, '') <> ''
     group by e.id, e.scope having count(distinct cs.party) = 2 and count(distinct cs.ip) = 1;
   -- Approved hours above the agreed estimate, or several maximum-length days.
   return query
-    select 'hours_over_estimate', 'Approved hours above the estimate', (e.scope->>'need_title') || ': ' || sum(h.hours) || ' of ' || coalesce(e.scope->>'hours', '?') || ' hours', '#agreement/' || e.id, max(h.reviewed_at)
+    select 'hours_over_estimate'::text, 'Approved hours above the estimate'::text, ((e.scope->>'need_title') || ': ' || sum(h.hours) || ' of ' || coalesce(e.scope->>'hours', '?') || ' hours')::text, ('#agreement/' || e.id)::text, max(h.reviewed_at)
     from public.engagements e join public.hours h on h.engagement_id = e.id and h.status = 'approved'
     group by e.id, e.scope having sum(h.hours) > coalesce(nullif(e.scope->>'hours', '')::numeric, 16);
   return query
-    select 'long_days', 'Three or more 12-hour days', e.scope->>'need_title', '#agreement/' || e.id, max(h.created_at)
+    select 'long_days'::text, 'Three or more 12-hour days'::text, (e.scope->>'need_title')::text, ('#agreement/' || e.id)::text, max(h.created_at)
     from public.engagements e join public.hours h on h.engagement_id = e.id
     where h.hours >= 12 group by e.id, e.scope having count(*) >= 3;
   -- Possible retaliation: after a professional reports a concern about a contribution, the organisation ends it,
   -- declines hours or answers "no" to working together again.
   return query
-    select 'retaliation', 'Organisation action after a report by the professional', (e.scope->>'need_title') || ' · reported ' || to_char(r.created_at, 'DD Mon YYYY'), '#agreement/' || e.id, r.created_at
+    select 'retaliation'::text, 'Organisation action after a report by the professional'::text, ((e.scope->>'need_title') || ' · reported ' || to_char(r.created_at, 'DD Mon YYYY'))::text, ('#agreement/' || e.id)::text, r.created_at
     from public.reports r
     join public.engagements e on e.user_id = r.reporter_id and (r.target_id = e.id or r.target_id = e.organisation_id or r.target_id = e.need_id
       or r.target_id in (select c.id from public.conversations c where c.need_id = e.need_id and c.user_id = e.user_id))
@@ -345,7 +345,7 @@ begin
        or exists (select 1 from public.completion_private cp where cp.engagement_id = e.id and cp.work_again = 'no' and cp.created_at > r.created_at);
   -- A verified identity matching a removed account.
   return query
-    select 'removed_identity', 'Identity matches a removed account', p.name, '#profile/' || p.user_id, p.updated_at
+    select 'removed_identity'::text, 'Identity matches a removed account'::text, p.name::text, ('#profile/' || p.user_id)::text, p.updated_at
     from public.profiles p join public.removed_identities ri on ri.document_name_norm = public.norm_name(p.id_document_name) and ri.user_id is distinct from p.user_id
     where coalesce(p.id_document_name, '') <> '';
 end $function$;
