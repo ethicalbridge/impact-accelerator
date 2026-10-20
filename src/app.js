@@ -38,10 +38,10 @@ async function page(r) {
     case "how": return pub.how();
     case "join": return acc.join(r.params);
     case "signin": return acc.signin(r.params);
-    case "reset": return acc.reset();
+    case "reset": return acc.reset(r.params);
     case "onboarding": return acc.onboarding();
     case "account": return acc.account();
-    case "workspace": return ws.workspace(r.a);
+    case "workspace": return ws.workspace(r.a, r.params);
     case "org": return ws.org(r.a, r.b);
     case "agreement": return r.a ? eng.agreement(r.a) : { redirect: homeFor() };
     case "conversation": return r.a ? eng.conversation(r.a) : { redirect: homeFor() };
@@ -156,9 +156,9 @@ const actions = {
   introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
   withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close. You can’t apply to this need again.", "withdraw", el.dataset.id, "", "Withdraw"),
-  "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
+  "invite-accept": (el) => ws.acceptDialog("invite", el.dataset.id),
   "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
-  "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", el.dataset.id, "", "Accept"),
+  "app-accept": (el) => ws.acceptDialog("app", el.dataset.id),
   "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Ask for changes", "Explain what needs to change. The professional can send a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
@@ -232,14 +232,16 @@ const actions = {
   "admin-id-video": (el) => ws.decisionDialog("Confirm identity after a video call", "Only confirm if you saw a valid passport or ID card on camera and the face matched the person on the call.", "admin-id-video", el.dataset.id, `<label class="field" for="f-docname">Name exactly as on the ID<input id="f-docname" name="docname" required minlength="2" maxlength="160"></label>`, "Confirm identity"),
   "admin-case": (el) => adm.caseDialog(el.dataset.id),
   "delete-account": () => acc.deleteAccount(),
+  "export-data": (el) => acc.exportMyData(el),
+  team: (el) => ws.teamAction(el),
   "cookie-settings": () => initConsent(true),
 };
 
 const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
-  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "org-resign": (f) => acc.submitAccount("org-resign", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
-  "confirm-delete": (f) => acc.confirmDelete(f),
+  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "org-resign": (f) => acc.submitAccount("org-resign", f), "pro-resign": (f) => acc.submitAccount("pro-resign", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
+  "confirm-delete": (f) => acc.confirmDelete(f), team: (f) => ws.submitTeam(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),

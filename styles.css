@@ -1517,3 +1517,31 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 .concern-bar { border-color: #e6b9a6; margin: 8px 0 28px; }
 .policy-links a { white-space: nowrap; }
 .faq-contact { text-align: center; padding: 22px; border-top: 1px solid var(--line); color: var(--muted); }
+
+/* ---- Fix sprint 20 Oct 2026 (workspace team) ---- */
+/* Sign-up bot trap: off screen, never focusable. */
+.hp-field { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+/* Declared link: label, the link itself and the advice stack, and long words wrap on phones (O14). */
+.notice.declared-link { flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.notice.declared-link > * { max-width: 100%; }
+/* A password box that must not be closed by accident hides its close button (W1). */
+#dialog[data-locked] .dialog-close { display: none; }
+/* The ID consent sentence that is saved (T16). */
+.consent-quote { display: grid; gap: 6px; }
+.consent-quote blockquote { margin: 0; padding: 10px 14px; border-left: 3px solid var(--teal); background: var(--mint-2); border-radius: 0 10px 10px 0; }
+/* What changed in the professional agreement (T13). */
+.resign-what { flex-direction: column; align-items: flex-start; gap: 6px; }
+.resign-what ul { margin: 0; padding-left: 1.2em; }
+/* Need form: templates, and the heading over the four safety ticks (O4). */
+.need-templates { display: grid; gap: 8px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.need-templates-head { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn[aria-pressed="true"] { border-style: solid; background: var(--teal); color: #fff; }
+.sg-ticks-head { font-size: 1.05rem; margin: 6px 0 -4px; }
+/* Team (O2). */
+.team-add { align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+.team-add .field { flex: 1 1 260px; margin: 0; }
+.team-form code { overflow-wrap: anywhere; word-break: break-all; }
+.team-row .row { flex-wrap: wrap; }
+.silent-org { margin-top: 8px; }
+.id-card.hero .link-btn { color: #fff; text-decoration-color: currentColor; }
