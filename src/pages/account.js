@@ -1,5 +1,5 @@
 import { locale, getLang, t, tf } from "../i18n.js";
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession, homeFor } from "../core.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession, homeFor, errorMessage } from "../core.js";
 import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
@@ -228,9 +228,18 @@ export function idNudgeDialog() {
   openDialog("Verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations trust verified professionals. It takes about three minutes: a photo of your passport or ID card and a short selfie.</p><p class="small muted">Handled by our provider Didit. Handova only receives the result and the name on your document, never the images.${state.idRequired ? " <strong>Required before you sign your first contribution agreement.</strong>" : ""}</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div></div>`);
 }
 // The selfie comparison uses biometric data, so we ask for explicit consent before sending anyone to Didit.
+const ID_CONSENT = "I consent to Didit comparing a photo of my passport or ID card with a selfie, which uses biometric data, to verify my identity for Handova. Didit keeps the session for up to one year, or less if I delete my account. Handova receives only the result and the name on my document. I can withdraw this consent at any time.";
+export async function requestIdVideo() {
+  try { await result(db.rpc("request_id_video_call")); closeDialog(); toast("Thank you. Handova will email you to agree a time for a short video call."); }
+  catch (err) { toast(errorMessage(err)); }
+}
 export async function startIdCheck(el) {
+  if (el?.dataset.consented) {
+    // Record the consent (time, wording and notice version) before going to Didit.
+    try { await result(db.from("id_consents").insert({ wording: ID_CONSENT, notice_version: config.privacyVersion })); } catch (err) { if (!/id_consents|relation|schema/i.test(String(err?.message || ""))) { toast(errorMessage(err)); return; } }
+  }
   if (!el?.dataset.consented) {
-    openDialog("Before you start", `<div class="stack" style="--gap:14px"><p>Our provider <strong>Didit</strong> will ask for a photo of your passport or ID card and a short selfie, and compare the two. Comparing faces uses biometric data.</p><p class="small muted">Didit keeps the verification session for up to one year under our current setting, or deletes it sooner if you delete your Handova account. Its face template is deleted with the session. Handova receives only the result and the name on your document, which only our administrators can see. You can withdraw your consent at any time by writing to ${e(config.contactEmail)}. See the <a href="#privacy">privacy notice</a>.</p><div class="row"><button type="button" class="btn" data-action="verify-id" data-consented="1">I consent, continue to Didit</button><button type="button" class="btn secondary" data-action="close">Not now</button></div></div>`);
+    openDialog("Before you start", `<div class="stack" style="--gap:14px"><p>Our provider <strong>Didit</strong> will ask for a photo of your passport or ID card and a short selfie, and compare the two. Comparing faces uses biometric data.</p><p class="small muted">Didit keeps the verification session for up to one year under our current setting, or deletes it sooner if you delete your Handova account. Its face template is deleted with the session. Handova receives only the result and the name on your document, which only our administrators can see. You can withdraw your consent at any time by writing to ${e(config.contactEmail)}. See the <a href="#privacy">privacy notice</a>.</p><div class="row"><button type="button" class="btn" data-action="verify-id" data-consented="1">I consent, continue to Didit</button><button type="button" class="btn secondary" data-action="close">Not now</button></div><p class="small muted">Prefer not to use Didit? <button type="button" class="link-btn" data-action="id-video">Ask for a short video call instead</button>, where you show your ID to Handova on camera.</p><div hidden></div></div>`);
     return;
   }
   el?.setAttribute("disabled", "");
@@ -471,13 +480,31 @@ export function bindPhotoFields() {
 }
 
 // ---------- account settings ----------
+// Two-step sign-in for admins (Data Protection Policy, security): a 6-digit code from an authenticator app.
+const codeField = () => field("code", "6-digit code from your authenticator app", { required: true, attrs: 'inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" autofocus' });
+export function mfaDialog(next = "") {
+  openDialog("Enter your sign-in code", `<form class="form" data-form="mfa-verify" data-next="${e(next)}"><p class="muted">Your account uses two-step sign-in. Open your authenticator app and type the current code.</p>${codeField()}${formEnd("Continue")}</form>`);
+}
+export async function mfaEnroll() {
+  try {
+    const listed = await db.auth.mfa.listFactors();
+    for (const f of listed?.data?.all || []) if (f.status !== "verified") await db.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
+    const { data, error } = await db.auth.mfa.enroll({ factorType: "totp", friendlyName: `Handova admin ${new Date().toISOString().slice(0, 10)}` });
+    if (error) throw error;
+    openDialog("Set up two-step sign-in", `<form class="form" data-form="mfa-enroll-verify" data-id="${e(data.id)}"><ol class="bullets"><li>Install an authenticator app on your phone, such as Google Authenticator, Microsoft Authenticator or 1Password.</li><li>Scan this code with the app.</li><li>Type the 6-digit code the app shows.</li></ol><div style="text-align:center"><img src="${e(data.totp.qr_code)}" width="200" height="200" alt="QR code for your authenticator app"></div><p class="small muted">Can’t scan? Enter this key in the app: <code data-no-i18n>${e(data.totp.secret)}</code></p>${codeField()}${formEnd("Turn on two-step sign-in", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  } catch (err) { toast(errorMessage(err)); }
+}
+
 export async function account() {
   if (!state.user) return { redirect: "#signin?next=%23account" };
   const pref = await result(db.from("user_settings").select("email_notifications").eq("user_id", state.user.id).maybeSingle()).catch(() => null);
   const emailOn = pref ? pref.email_notifications !== false : true;
+  const mfaOn = (state.isAdmin || state.needsMfa) ? await db.auth.mfa?.listFactors?.().then((r) => (r?.data?.totp || []).some((f) => f.status === "verified")).catch(() => false) : false;
+  const mfaCard = state.isAdmin || state.needsMfa ? `<div class="card stack"><h2 style="font-size:1.6rem">Two-step sign-in</h2>${mfaOn ? `<p>${icon("check", 18, "#0f6f63")} <strong>On.</strong> Admin access needs a code from your authenticator app each time you sign in.</p>` : `<p class="muted">Protect admin access with a 6-digit code from an app on your phone, so a password alone isn’t enough. Once it is on, Handova asks for the code every time you sign in.</p><div><button class="btn" type="button" data-action="mfa-enroll">Set up two-step sign-in</button></div>`}</div>` : "";
   const html = `<div class="wrap" style="max-width:820px;padding-block:48px 80px"><div class="stack" style="--gap:28px">
     ${eyebrow("Account and privacy")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Your account</h1>
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Change password")}</form></div>
+    ${mfaCard}
     <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show a short title, a one-line summary and a link. They never include what people write in Messages.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
     <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications, messages, uploaded profile photos and identity checks held by Handova and Didit. If a provider deletion fails, we stop and ask you to contact us. Organisations keep a private record of completed work with your name replaced by “Former member”. We keep signed Handova professional or organisation agreement records for six years after deletion, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
@@ -515,8 +542,25 @@ export async function submitAccount(kind, form) {
   if (kind === "signin") return withForm(form, async (fd) => {
     await result(db.auth.signInWithPassword({ email: val(fd, "email"), password: String(fd.get("password")) }));
     await loadSession();
+    if (state.needsMfa) return mfaDialog(form.dataset.next || "");
     // No role to choose at sign-in: everyone lands in their own workspace.
     go(form.dataset.next || homeFor());
+  });
+  if (kind === "mfa-verify") return withForm(form, async (fd) => {
+    const { data } = await db.auth.mfa.listFactors();
+    const f = (data?.totp || []).find((x) => x.status === "verified");
+    if (!f) throw Error("No authenticator app is set up for this account.");
+    await result(db.auth.mfa.challengeAndVerify({ factorId: f.id, code: val(fd, "code") }));
+    closeDialog();
+    await loadSession();
+    go(form.dataset.next || homeFor());
+  });
+  if (kind === "mfa-enroll-verify") return withForm(form, async (fd) => {
+    await result(db.auth.mfa.challengeAndVerify({ factorId: form.dataset.id, code: val(fd, "code") }));
+    closeDialog();
+    await loadSession();
+    toast("Two-step sign-in is on. From now on, admin access needs a code from your app.");
+    go("#account");
   });
   if (kind === "reset") return withForm(form, async (fd) => {
     await result(db.auth.resetPasswordForEmail(val(fd, "email"), { redirectTo: config.siteUrl }));

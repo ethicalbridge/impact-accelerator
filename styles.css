@@ -40,12 +40,13 @@ p { margin: 0; }
 .grid-2 { display: grid; gap: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .faq-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 /* Questions: heading on one line, questions in two compact columns */
-.faq-grid [data-faq] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; align-items: start; }
+.faq-grid [data-faq] { columns: 2; column-gap: 48px; }
+.faq-grid [data-faq] details.faq { break-inside: avoid; }
 .faq-grid details.faq { padding: 10px 0; }
 .faq-grid details.faq summary { font-size: 1.05rem; }
 .faq-grid details.faq p { margin-top: 4px; font-size: 1rem; }
 .faq-grid .faq-icon { width: 28px; height: 28px; }
-@media (max-width: 760px) { .faq-grid [data-faq] { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .faq-grid [data-faq] { columns: 1; } }
 .grid-4 { display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 section.block { padding-block: clamp(56px, 8vw, 110px); }
 
@@ -279,8 +280,9 @@ legend { font-weight: 700; margin-bottom: 12px; }
 .founder-quote footer .avatar { border: 2px solid rgba(255, 253, 248, 0.6); border-radius: 50%; object-fit: cover; }
 .fq-arch { position: absolute; right: clamp(-40px, -2vw, 0px); bottom: 24px; width: clamp(180px, 26vw, 340px); height: auto; color: rgba(127, 169, 155, 0.25); pointer-events: none; }
 /* Working responsibly: the longer sections side by side, using the full width */
-.wr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 24px 40px; }
-.wr-col h2 { font-size: 1.55rem; line-height: 1.2; margin-bottom: 10px; }
+.wr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 24px; margin-top: 24px; }
+.wr-col.card { display: flex; flex-direction: column; gap: 12px; }
+.wr-col h2, .wr-col h3 { margin: 0; }
 .wr-col p { color: var(--muted); font-size: 1rem; line-height: 1.65; }
 .reading h2 { font-size: 2rem; margin-top: 44px; margin-bottom: 12px; }
 .reading h3 { margin-top: 24px; margin-bottom: 8px; }
@@ -1489,3 +1491,29 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 .pf-steps li span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ivory); font-size: .85rem; }
 .pf-steps li[aria-current] { background: #0f6f63; border-color: #0f6f63; color: #fff; }
 .pf-steps li[aria-current] span { color: #0f6f63; }
+
+/* Policies */
+.policy-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.policy-card h2 a { color: inherit; text-decoration: none; }
+.policy-card h2 a:hover { text-decoration: underline; }
+.policy-page .reading table.data { font-size: .95rem; margin: 12px 0 4px; }
+.policy-page .reading table.data td, .policy-page .reading table.data th { padding: 10px 12px; }
+.policy-page .reading td p, .policy-page .reading td li { font-size: .95rem; }
+.policy-page .reading h2 + h3 { margin-top: 8px; }
+.wr-policies { margin-top: 8px; }
+
+/* Contact */
+.contact-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.contact-addr { font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+
+/* Need safety questions */
+.sg-box { display: flex; flex-direction: column; gap: 18px; border-top: 1px solid var(--line); padding-top: 22px; }
+.sg-q { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.sg-q legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+.sg-opts { display: flex; flex-direction: column; gap: 6px; }
+.sg-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* FAQ & safety: reporting first */
+.concern-bar { border-color: #e6b9a6; margin: 8px 0 28px; }
+.policy-links a { white-space: nowrap; }
+.faq-contact { text-align: center; padding: 22px; border-top: 1px solid var(--line); color: var(--muted); }

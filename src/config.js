@@ -6,8 +6,8 @@ export const config = {
   siteUrl: "https://handova.org/",
   contactEmail: "hello@handova.org",
   // Versions of the Terms of use and the Privacy notice, saved with each new account. Change them whenever the texts change.
-  termsVersion: "terms-2026-10-20",
-  privacyVersion: "privacy-2026-10-20",
+  termsVersion: "terms-2026-10-20-2",
+  privacyVersion: "privacy-2026-10-20-2",
   safeguardingEmail: "safeguarding@handova.org",
   // Google Analytics 4 measurement ID (G-XXXXXXX). Empty = no analytics and no consent banner.
   gaMeasurementId: "G-151TT1KXTL",
