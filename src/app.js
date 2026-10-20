@@ -80,7 +80,7 @@ async function render() {
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
   document.documentElement.classList.toggle("signed-in", !!state.user);
-  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || ["safety", "policies", "report", "contact"].includes(r.name) ? "#about/faq" : ACTIVE[r.name]);
+  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || ["safety", "report"].includes(r.name) ? "#about/faq" : r.name === "contact" ? "#contact" : r.name === "policies" ? "#about" : ACTIVE[r.name]);
   const main = $("#main");
   const staticHome = r.name === "home" && main.dataset.staticHome === "1";
   if (!staticHome) main.setAttribute("aria-busy", "true");

@@ -545,9 +545,9 @@ export function contributionCard(c, { example = false, owner = false, cvUrl = ""
 }
 
 export function header(active) {
-  const links = [["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"], ["FAQ & safety", "#about/faq"]];
+  const links = [["How it works", "#how"], ["Needs", "#needs"], ["Talent", "#talent"], ["FAQ & safety", "#about/faq"], ["Contact", "#contact"]];
   // About opens a short menu of separate pages.
-  const aboutPages = [["Our mission", "#about/mission", "What Handova is and why it exists"], ["Ethical Bridge", "#about/ethical-bridge", "How the two fit together"], ["Our founder", "#about/founder", "Who is behind Handova"]];
+  const aboutPages = [["Our mission", "#about/mission", "What Handova is and why it exists"], ["Ethical Bridge", "#about/ethical-bridge", "How the two fit together"], ["Our founder", "#about/founder", "Who is behind Handova"], ["Our policies", "#policies", "Safeguarding, conduct, data and more"]];
   const here = typeof location === "undefined" ? "" : location.hash.split("?")[0];
   const aboutMenu = `<details class="nav-drop"><summary${active === "#about" ? ' class="current"' : ""}>About${icon("chevron", 16, "currentColor", 2.2)}</summary><div class="menu">${aboutPages.map(([l, h, d]) => `<a href="${h}" ${here === h || (h === "#about/mission" && here === "#about") ? 'aria-current="page"' : ""}><strong>${l}</strong><span>${d}</span></a>`).join("")}</div></details>`;
   const nav = aboutMenu + links.map(([l, h]) => `<a href="${h}" ${active === h ? 'aria-current="page"' : ""}>${l}</a>`).join("");
@@ -571,9 +571,9 @@ export function footer(cfg) {
   return `<div class="wrap"><div class="ft-row">
     <a class="ft-brand" href="#home" aria-label="Handova home"><span class="ft-top">${mark(30, true)}<span class="ft-name">Handova</span></span><span class="ft-tag">Skills handed over. <b>Capability that stays.</b></span></a>
     <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="190" height="52" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
-    <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a class="ft-join" href="#join">Join free</a></nav>
+    <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a href="#contact">Contact</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
-    <span class="ft-legal"><a href="#contact">Contact</a><a href="#report">Report a concern</a><a href="#policies">Policies</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
+    <span class="ft-legal"><a href="#report">Report a concern</a><a href="#policies">Policies</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
     <span class="ft-social">${social.map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank" aria-label="Ethical Bridge on ${n} (opens in a new tab)">${icon(n.toLowerCase(), 17)}</a>`).join("")}</span>
   </div></div>`;
 }
