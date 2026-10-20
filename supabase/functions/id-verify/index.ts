@@ -91,6 +91,10 @@ Deno.serve(async (req) => {
     const { data: prof } = await db.from("profiles").select("name,id_status").eq("user_id", user.id).maybeSingle();
     if (!prof) return json({ error: "Create your professional profile first." }, 400);
     if (prof.id_status === "approved") return json({ error: "Your identity is already verified." }, 400);
+    // The person must have recorded their consent to the identity check first (Data Protection Policy).
+    const { count: consents, error: consentError } = await db.from("id_consents").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if (consentError) return json({ error: "The identity service is not available right now. Please try again later." }, 502);
+    if (!consents) return json({ error: "Please agree to the identity check first, then try again." }, 400);
     // At most 3 new checks a day per person.
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const { count } = await db.from("id_verifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", since);
