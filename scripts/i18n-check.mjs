@@ -22,7 +22,7 @@ const LANGS = (args.find((a) => a.startsWith("--lang="))?.slice(7).split(",")) |
 const EXCLUDE = [/^src\/agreement\.js$/, /^src\/agreement-translations\//, /^src\/config\.js$/];
 // Parts of files that are not interface text: analytics page names, and the founder's own profile (people's own
 // content is never translated).
-const SKIP_RANGES = { "src/consent.js": [[/const PAGE_NAMES = \{/, /\n\};/]], "src/examples.js": [[/export const exampleProfile = \{/, /\n\};/]] };
+const SKIP_RANGES = { "src/pages/workspace.js": [[/const SUCCESS_LABELS = \{/, /\};/], [/const NEED_TEMPLATES = \[/, /\n\];/]], "src/consent.js": [[/const PAGE_NAMES = \{/, /\n\};/]], "src/examples.js": [[/export const exampleProfile = \{/, /\n\};/]] };
 // Object properties whose string values are names, places or addresses, not interface text.
 const DATA_KEYS = new Set(["name", "city", "location", "organisation", "logo", "photo", "photo_url", "id", "user_id", "linkedin", "website", "href", "src", "url", "email", "slug", "key", "org_logo"]);
 
@@ -32,7 +32,7 @@ const SAME = new Set(["Handova", "Ethical Bridge", "Ethical Bridge LLC", "Didit"
   "Julieta Castiñeira de Dios", "Water for Tomorrow", "Bahasa Indonesia", "English", "Español", "Português", "Français", "Wyoming", "Escape", "Enter", "Tab", "ArrowDown", "ArrowUp",
   "ArrowLeft", "ArrowRight", "Home", "End", "Backspace", "Delete", "Esc", "Ctrl", "Meta", "Shift", "Alt", "Spacebar"]);
 // Text in src/ that is never shown in the interface (sent to other services).
-const NOT_UI = new Set(["Handova admin {…}", "Handova contribution: {…}"]);
+const NOT_UI = new Set(["btn secondary sm", "Script error.", "Handova admin {…}", "Handova contribution: {…}"]);
 const IGNORE_RE = [/^[^A-Za-z]*$/, /^https?:\/\//, /@[\w-]+\.\w/, /^[\w.-]+\.(org|com|net|test|js|css|json|html|pdf|svg|png|jpg|webp|mp4|vtt)\b/i, /^UTC[+−-]?\d/, /^[A-Z0-9_]+$/, /^#/, /(^|[\s,])\.[a-z][\w-]*[\s,]/];
 
 const walk = (dir) => readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : p.endsWith(".js") ? [p] : []; });

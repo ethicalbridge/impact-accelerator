@@ -27,6 +27,8 @@ jobs:
           grep -Eq 'app\.js\?v=[0-9a-f]{10}"' index.html || { echo "index.html has no hashed app.js version"; exit 1; }
       - name: Translation files are valid JSON
         run: for f in i18n/*.json; do node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1; done
+      - name: Every interface string has ES/PT/FR translations
+        run: node scripts/i18n-check.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       # The committed app.js, chunks/, consent-boot.js and index.html (its ?v= hashes and CSP hash) must be exactly what the
