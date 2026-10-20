@@ -1,0 +1,61 @@
+# Publishes handova.org from a fresh build, only after "Check application" has passed on main, and uploads only the
+# built folder (dist/), so the source code and test accounts are no longer served.
+# Safe until switched on: it deploys only when the repository variable PAGES_FROM_ACTIONS is "true", which is set after
+# Settings > Pages > Source is changed to "GitHub Actions". Until then Pages keeps publishing the branch root.
+name: Publish site
+on:
+  workflow_run:
+    workflows: ["Check application"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: >-
+      vars.PAGES_FROM_ACTIONS == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The exact commit that passed the checks (workflow_run otherwise checks out the latest main).
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Built with the published @supabase/supabase-js package from the lockfile (not a local source checkout).
+      - name: Build the production site
+        run: pnpm build
+      - name: The built site is complete and has no test backend
+        run: |
+          for f in index.html app.js consent-boot.js styles.css CNAME i18n/es.json i18n/pt.json i18n/fr.json; do test -s "dist/$f" || { echo "missing dist/$f"; exit 1; }; done
+          test -n "$(ls dist/chunks/*.js)"
+          if grep -rq "ia-mock-db" dist/app.js dist/chunks; then echo "The build contains the test backend"; exit 1; fi
+          grep -rq "jcfezemkbseaqbwuojhs" dist/app.js dist/chunks
+          for d in src tests supabase scripts node_modules; do if test -e "dist/$d"; then echo "dist/$d must not be published"; exit 1; fi; done
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

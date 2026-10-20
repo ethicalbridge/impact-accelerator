@@ -44,13 +44,30 @@ function loadAnalytics() {
   });
 }
 
+// Campaign links (LinkedIn, WhatsApp, newsletters) keep their source: utm_source, utm_medium, utm_campaign and
+// utm_content, read from before or after the #, go with the first page view of the visit. Nothing else from the
+// address is ever sent: no ids, no names, no other parameters.
+const UTM = ["utm_source", "utm_medium", "utm_campaign", "utm_content"];
+export function campaignQuery() {
+  const from = [new URLSearchParams(location.search), new URLSearchParams(location.hash.split("?")[1] || "")];
+  const keep = new URLSearchParams();
+  for (const k of UTM) {
+    const v = from.map((p) => p.get(k)).find((x) => x && x.trim());
+    if (v) keep.set(k, v.trim().slice(0, 100));
+  }
+  const q = keep.toString();
+  return q ? `?${q}` : "";
+}
+// consent-boot.js and app.js each carry a copy of this file, so "first page view" is kept on window, shared by both.
 export function trackPage() {
   if (window.gtag && get() === "accepted") {
     const requestedRoute = location.hash.slice(1).split(/[/?]/)[0] || "home";
     const route = Object.hasOwn(PAGE_NAMES, requestedRoute) ? requestedRoute : "other";
+    const campaign = window.__hvViewSent ? "" : campaignQuery();
+    window.__hvViewSent = true;
     window.gtag("event", "page_view", {
       page_title: PAGE_NAMES[route] || "Other page",
-      page_location: `${location.origin}${location.pathname}#${route}`,
+      page_location: `${location.origin}${location.pathname}${campaign}#${route}`,
     });
   }
 }

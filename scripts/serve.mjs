@@ -17,7 +17,7 @@ http
       const body = await readFile(file);
       res.setHeader(
         "Content-Type",
-        { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" }[
+        { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".woff2": "font/woff2", ".vtt": "text/vtt", ".mp4": "video/mp4" }[
           path.extname(file)
         ] || "application/octet-stream",
       );

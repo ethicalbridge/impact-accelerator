@@ -344,6 +344,8 @@ function updateRow(t, r, v) {
 
 // ---------- server functions ----------
 const rpcs = {
+  // Browser error counter (W8): the real function stores the message, page and version; here it is a no-op.
+  log_client_error() { return null; },
   sign_org_agreement({ p_version, p_name, p_role, p_text }) {
     if (!me()) throw Error("Please sign in first.");
     if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");

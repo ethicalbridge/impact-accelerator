@@ -6,6 +6,33 @@ export const db = createClient(config.supabaseUrl, config.supabaseKey, {
   auth: { storageKey: "impact-accelerator-v1", flowType: "pkce", detectSessionInUrl: true, persistSession: true },
 });
 
+// Errors in visitors' browsers are counted, so a broken page doesn't go unnoticed. Only the error text (max 300
+// characters, with anything that looks like an email address, id or long number removed), the page name without ids,
+// and the app version are sent. Never names, emails or what people typed. At most 3 per page load.
+let errorsSent = 0;
+const ROUTE_NAME = /^[a-z][a-z-]{0,29}$/;
+export function reportError(err) {
+  try {
+    if (errorsSent >= 3 || document.documentElement.classList.contains("hv-framed")) return;
+    let msg = String((err && (err.message || err.reason?.message)) || err || "").trim();
+    if (!msg || msg === "Script error." || /ResizeObserver loop/.test(msg)) return;
+    msg = msg
+      .replace(/[^\s@]+@[^\s@]+/g, "[email]")
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "[id]")
+      .replace(/\d{5,}/g, "[n]")
+      .slice(0, 300);
+    const route = location.hash.slice(1).split(/[/?]/)[0] || "home";
+    const version = (document.querySelector('script[src*="app.js"]')?.src.match(/[?&]v=([\w.-]{1,40})/) || [])[1] || "dev";
+    errorsSent++;
+    db.rpc("log_client_error", { p_message: msg, p_page: ROUTE_NAME.test(route) ? route : "other", p_version: version }).then(() => {}, () => {});
+  } catch {}
+}
+// Only errors from Handova's own scripts (not browser extensions or the Google tag).
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (ev) => { if (!ev.filename || ev.filename.startsWith(location.origin)) reportError(ev.error || ev.message); });
+  window.addEventListener("unhandledrejection", (ev) => reportError(ev.reason));
+}
+
 // Everything the interface knows about the signed-in person.
 export const state = { user: null, profile: null, memberships: [], isAdmin: false, unread: 0, ready: false };
 export const $ = (s, root = document) => root.querySelector(s);
