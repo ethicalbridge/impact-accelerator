@@ -862,45 +862,48 @@ const rpcs = {
   },
   // 20261019000600_conversation_retention.sql. Only reachable through the account-delete function below.
   // ---------- 20261020123000_org_team.sql (O2): team members and ownership ----------
+  // 20261020140000_team_invites_consent: joining a team always needs the person's consent.
   invite_org_member: (a) => {
     const u = me(); if (!u) fail("Please sign in first.");
     if (!orgOwner(a.p_org)) fail("Only the organisation’s owner can add team members.");
-    if (orgBlocked(a.p_org)) fail("This organisation can’t add team members at the moment.");
+    const org = D.organisations.find((o) => o.id === a.p_org);
+    if (!org || org.status !== "approved") fail("You can add team members once Handova has approved your organisation.");
     const email = trimmed(a.p_email).toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) fail("Type a full email address.");
-    const members = D.organisation_members.filter((m) => m.organisation_id === a.p_org);
-    const existing = D.users.find((x) => x.email.toLowerCase() === email);
-    if (existing && members.some((m) => m.user_id === existing.id)) fail("This person is already on the team.");
-    if (D.org_member_invites.some((i) => i.organisation_id === a.p_org && i.email === email)) fail("This email address has already been invited.");
-    if (members.length + D.org_member_invites.filter((i) => i.organisation_id === a.p_org).length >= 3) fail("An organisation can have up to 3 team members, including invitations.");
-    const org = D.organisations.find((o) => o.id === a.p_org);
-    if (existing) {
-      if (D.organisation_members.filter((m) => m.user_id === existing.id).length >= 3) fail("This person already manages three organisations, the most Handova allows.");
-      D.organisation_members.push({ organisation_id: a.p_org, user_id: existing.id, role: "member", full_name: existing.user_metadata?.full_name || "", created_at: now() });
-      notify(existing.id, "team", "You were added to an organisation’s team", org.name, "#org");
-      notifyAdmins("team", "Team member added", org.name, "#admin-list/organisations");
-      return "added";
-    }
-    D.org_member_invites.push({ id: uid(), organisation_id: a.p_org, email, invited_by: u, created_at: now() });
+    const pending = (i) => i.organisation_id === a.p_org && (i.status || "pending") === "pending" && !ago(i.created_at, 30);
+    if (D.org_member_invites.filter((i) => i.organisation_id === a.p_org && !ago(i.created_at, 1)).length >= 10) fail("You have sent many invitations today. Please try again tomorrow.");
+    if (D.org_member_invites.some((i) => pending(i) && i.email === email)) fail("This email address has already been invited.");
+    if (D.organisation_members.filter((m) => m.organisation_id === a.p_org).length + D.org_member_invites.filter(pending).length >= 3) fail("An organisation can have up to 3 team members, including invitations.");
+    D.org_member_invites = D.org_member_invites.filter((i) => !(i.organisation_id === a.p_org && i.email === email));
+    D.org_member_invites.push({ id: uid(), organisation_id: a.p_org, email, invited_by: u, created_at: now(), status: "pending", responded_at: null });
+    const existing = D.users.find((x) => x.email.toLowerCase() === email && x.email_confirmed_at !== null);
+    if (existing && !D.organisation_members.some((m) => m.organisation_id === a.p_org && m.user_id === existing.id)) notify(existing.id, "team", "An organisation invited you to its team", `${org.name} invited you to help manage it on Handova. Accept or decline the invitation.`, "#team-invites");
     notifyAdmins("team", "Team member invited", org.name, "#admin-list/organisations");
     return "invited";
   },
-  claim_org_invites: () => {
-    const u = me(); if (!u) return 0;
+  my_org_invites: () => {
+    const u = me(); if (!u) return [];
     const email = (D.users.find((x) => x.id === u)?.email || "").toLowerCase();
-    let n = 0;
-    for (const i of D.org_member_invites.filter((x) => x.email === email)) {
-      if (D.organisation_members.filter((m) => m.user_id === u).length >= 3) break;
-      if (!D.organisation_members.some((m) => m.organisation_id === i.organisation_id && m.user_id === u) && D.organisation_members.filter((m) => m.organisation_id === i.organisation_id).length < 3) {
-        D.organisation_members.push({ organisation_id: i.organisation_id, user_id: u, role: "member", full_name: D.users.find((x) => x.id === u)?.user_metadata?.full_name || "", created_at: now() });
-        notifyOrg(i.organisation_id, "team", "A colleague joined your organisation’s team", D.users.find((x) => x.id === u)?.user_metadata?.full_name || email, "#org/details");
-        n++;
-      }
-      D.org_member_invites = D.org_member_invites.filter((x) => x.id !== i.id);
-    }
-    return n;
+    return D.org_member_invites.filter((i) => i.email === email && (i.status || "pending") === "pending" && !ago(i.created_at, 30) && !D.organisation_members.some((m) => m.organisation_id === i.organisation_id && m.user_id === u))
+      .map((i) => ({ id: i.id, organisation_id: i.organisation_id, organisation_name: D.organisations.find((o) => o.id === i.organisation_id)?.name || "", created_at: i.created_at }))
+      .filter((i) => D.organisations.find((o) => o.id === i.organisation_id)?.status === "approved");
   },
-  cancel_org_invite: (a) => { const i = D.org_member_invites.find((x) => x.id === a.p_id); if (!i || !orgOwner(i.organisation_id)) fail("Invitation not found."); D.org_member_invites = D.org_member_invites.filter((x) => x.id !== a.p_id); },
+  respond_org_invite: (a) => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    const email = (D.users.find((x) => x.id === u)?.email || "").toLowerCase();
+    const inv = D.org_member_invites.find((i) => i.id === a.p_id && i.email === email && (i.status || "pending") === "pending" && !ago(i.created_at, 30));
+    if (!inv) fail("This invitation is no longer open.");
+    if (!a.p_accept) { inv.status = "declined"; inv.responded_at = now(); return null; }
+    if (D.organisation_members.filter((m) => m.user_id === u).length >= 3) fail("You already help manage three organisations, the most Handova allows.");
+    if (D.organisation_members.filter((m) => m.organisation_id === inv.organisation_id).length >= 3) fail("This organisation’s team is full.");
+    const nm = D.users.find((x) => x.id === u)?.user_metadata?.full_name || "";
+    D.organisation_members.push({ organisation_id: inv.organisation_id, user_id: u, role: "member", full_name: nm, created_at: now() });
+    inv.status = "accepted"; inv.responded_at = now();
+    notifyOrg(inv.organisation_id, "team", "A colleague joined your organisation’s team", nm || email, "#org/details");
+    return null;
+  },
+  claim_org_invites: () => 0,
+  cancel_org_invite: (a) => { const i = D.org_member_invites.find((x) => x.id === a.p_id && (x.status || "pending") === "pending"); if (!i || !orgOwner(i.organisation_id)) fail("Invitation not found."); i.status = "cancelled"; i.responded_at = now(); },
   remove_org_member: (a) => {
     const u = me(); if (!u) fail("Please sign in first.");
     const target = D.organisation_members.find((m) => m.organisation_id === a.p_org && m.user_id === a.p_user);

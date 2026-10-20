@@ -3,7 +3,7 @@ import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, inv
 import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
-import { list, languages, safeURL } from "../utils.js";
+import { list, languages, safeURL, date } from "../utils.js";
 import { config } from "../config.js";
 import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView } from "../agreement.js";
@@ -158,10 +158,10 @@ export function newPasswordDialog() {
 export async function onboarding() {
   if (!state.user) return { redirect: /[?&]code=/.test(location.search) ? "#email-confirmed" : "#join" };
   const r = state.user.user_metadata?.role;
-  // Invited to an organisation's team with this email (O2)? Join it now.
+  // Invited to an organisation's team (O2)? The person accepts or declines first.
   if (!state.memberships.length) {
-    const joined = await result(db.rpc("claim_org_invites")).catch(() => 0);
-    if (joined) { await loadSession(); toast("Welcome. You now have access to your organisation’s workspace."); return { redirect: "#org" }; }
+    const invites = await result(db.rpc("my_org_invites")).catch(() => []);
+    if (invites?.length) return { redirect: "#team-invites" };
   }
   if (state.memberships.length && (r === "organisation" || !r)) return { redirect: "#org" };
   if (state.profile && r !== "organisation") return { redirect: "#workspace" };
@@ -853,5 +853,23 @@ export async function confirmDelete(form) {
     await loadSession();
     toast("Your account has been deleted.");
     go("#home");
+  });
+}
+
+// ---------- team invitations (O2, consent) ----------
+export async function teamInvites() {
+  if (!state.user) return { redirect: "#signin?next=%23team-invites" };
+  const invites = await result(db.rpc("my_org_invites")).catch(() => []);
+  const rows = (invites || []).map((i) => `<div class="list-row team-row"><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(i.organisation_name)}</strong><span class="small muted">${tf("Invited on {date}", { date: date(i.created_at) })}</span></span><span class="row" style="--gap:8px"><form data-form="team-invite" data-id="${e(i.id)}" data-accept="1"><button class="btn sm" type="submit">Accept</button></form><form data-form="team-invite" data-id="${e(i.id)}" data-accept="0"><button class="btn secondary sm" type="submit">Decline</button></form></span></div>`).join("");
+  const html = `<div class="wrap" style="max-width:720px;padding-block:56px 80px"><div class="card stack" style="--gap:16px"><span class="icon-tile lg">${icon("people", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">Team invitations</h1>${rows ? `<p class="lead">If you accept, you can help manage the organisation on Handova: post needs, reply to applicants, sign agreements and review hours. You can leave at any time.</p><div>${rows}</div>` : `<p class="lead">You have no open invitations. Invitations last 30 days.</p>${btn("Go to my workspace", "#workspace", "secondary")}`}</div></div>`;
+  return { title: "Team invitations", html };
+}
+export async function submitTeamInvite(form) {
+  const accept = form.dataset.accept === "1";
+  await withForm(form, async () => {
+    await result(db.rpc("respond_org_invite", { p_id: form.dataset.id, p_accept: accept }));
+    await loadSession();
+    toast(accept ? "Welcome. You now have access to your organisation’s workspace." : "Invitation declined.");
+    go(accept ? "#org" : "#team-invites");
   });
 }

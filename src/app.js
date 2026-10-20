@@ -61,6 +61,7 @@ async function page(r) {
     case "signin": return acc.signin(r.params);
     case "reset": return acc.reset(r.params);
     case "onboarding": return acc.onboarding();
+    case "team-invites": return acc.teamInvites();
     case "account": return acc.account();
     case "workspace": return ws.workspace(r.a, r.params);
     case "org": return ws.org(r.a, r.b);
@@ -263,7 +264,7 @@ const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
   "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "org-resign": (f) => acc.submitAccount("org-resign", f), "pro-resign": (f) => acc.submitAccount("pro-resign", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
-  "confirm-delete": (f) => acc.confirmDelete(f), team: (f) => ws.submitTeam(f), "public-report": (f) => legal.submitPublicReport(f),
+  "confirm-delete": (f) => acc.confirmDelete(f), team: (f) => ws.submitTeam(f), "team-invite": (f) => acc.submitTeamInvite(f), "public-report": (f) => legal.submitPublicReport(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
