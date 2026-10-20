@@ -6,7 +6,7 @@ const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].m
 import { list, languages, safeURL, date } from "../utils.js";
 import { config } from "../config.js";
 import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView } from "../agreement.js";
+import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView, loadAgreementCopy } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 // Handova is for non-profits only (founder decision, 20 Oct 2026).
@@ -54,7 +54,7 @@ const honeypot = `<div class="hp-field" aria-hidden="true"><label>Leave this emp
 function teamJoin() {
   const form = `<form class="form" data-form="signup" novalidate>
     <div class="row between"><h2 style="font-size:2.3rem">Join your organisation’s team</h2><a href="#signin" style="font-weight:600">I already have an account</a></div>
-    <p class="muted">Use the email address your colleague invited. Once you confirm it and sign in, you have access to your organisation’s workspace.</p>
+    <p class="muted">Use the email address your colleague invited. Once you confirm it and sign in, you can accept the invitation and open your organisation’s workspace.</p>
     <input type="hidden" name="role" value="organisation"><input type="hidden" name="team" value="1">${honeypot}
     <div class="form-grid">${field("contact_name", "Your full name", { required: true, full: true, attrs: 'autocomplete="name" maxlength="120"' })}${field("email", "Email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
     <div class="checkbox-box" style="margin-top:18px">${check("adult", "I am 18 or older.", false, true)}${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true)}</div>
@@ -169,6 +169,7 @@ export async function onboarding() {
   if (state.user.user_metadata?.team && r === "organisation" && !state.memberships.length) {
     return { title: "Join your organisation’s team", html: `<div class="wrap" style="max-width:720px;padding-block:56px 80px"><div class="card stack" style="--gap:18px"><span class="icon-tile lg">${icon("people", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">We couldn’t find your invitation yet</h1><p class="lead">${tf("There is no team invitation for {email}.", { email: `<strong data-no-i18n>${e(state.user.email || "")}</strong>` })} Ask your colleague to add this exact email address under Organisation profile › Team, then reload this page.</p><div class="row"><button class="btn" type="button" data-action="reload">Check again</button><button class="btn secondary" type="button" data-team-new-org>Set up a new organisation instead</button></div></div></div>` };
   }
+  await loadAgreementCopy();
   const adminNote = state.isAdmin ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>You are an administrator.</strong> You don’t need a profile to run Handova. <a href="#admin">Go to Admin</a></p></div>` : "";
   if (r === "organisation") {
     return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name, state.user.user_metadata?.org_role || "")}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
@@ -204,7 +205,7 @@ export function orgForm(o = {}, fullName = "", role = "") {
     ${edit ? "" : field("full_name", "Your name", { value: fullName, required: true, attrs: 'maxlength="120" autocomplete="name"' })}
     ${edit ? "" : `<div class="full form-sec"><h2>Organisation agreement</h2><p class="muted small">Please read it in full. It covers safeguarding, data, how you work with professionals and what you can expect from us.</p></div>
     <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
-      <div class="checkbox-box">${check("locally_led", "We are a locally led non-profit organisation listed in the Ethical Bridge directory: our leadership is based where we work, we don’t distribute profits to owners, and we are registered, or fiscally hosted by a registered non-profit that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}</div>
+      <div class="checkbox-box">${check("locally_led", "We are a locally led non-profit organisation listed in the Ethical Bridge directory: our leadership is based where we work, we don’t distribute profits to owners, and we are registered, or fiscally hosted by a registered non-profit that manages our funds.", false, true)}${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}${termsTick()}</div>
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { value: role, required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>`}
   </div>${formEnd(edit ? "Save changes" : "Submit for review")}</form>`;
@@ -405,13 +406,19 @@ export function profileStep(form, n) {
   if (btn) { const label = n === 2 ? "Create profile" : "Continue to the agreement"; btn.dataset.label = label; btn.textContent = label; }
   form.querySelector(".pf-steps")?.scrollIntoView({ block: "start", behavior: "smooth" });
 }
+// Signing a Handova agreement also records acceptance of the current Terms of use and Privacy notice (L20), so the
+// signing steps ask for it explicitly (L28). The agreement text itself is unchanged.
+const termsTick = () => check("terms_ok", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true);
 const signedCurrent = () => state.proAgreement?.version === PRO_AGREEMENT_VERSION;
-// Organisations that signed an older organisation agreement sign the new one here (from the organisation workspace).
+// Organisations that signed an older organisation agreement sign the new one here (from the organisation workspace),
+// with the same three-line "What changed" note professionals see (O17).
+const ORG_CHANGES = ["It is now an agreement with Ethical Bridge LLC, and it includes the Handova Code of Conduct and policies.", "Your organisation gets a free, permanent right to use, adapt and share the work professionals hand over, instead of owning it.", "Clearer safety rules: no contact between professionals and the people you serve, no personal data in AI tools, conflicts declared in writing, and concerns sent to safeguarding@handova.org within 24 hours."];
 export function orgResignForm(o) {
   return `<form class="form" data-form="org-resign" data-id="${e(o.id)}" novalidate>
     <p class="notice" role="note">We updated the Handova organisation agreement on 20 October 2026. Please read it and sign the new version for ${e(o.name)}. Until then you can keep working on contributions in progress, but you can’t send new needs for review.</p>
+    <div class="notice resign-what" role="note"><strong>What changed on 20 October 2026</strong><ul class="bullets">${ORG_CHANGES.map((c) => `<li>${c}</li>`).join("")}</ul></div>
     <div class="full agreement">${agreementBody(ORG_AGREEMENT, "Handova organisation agreement")}
-      <div class="checkbox-box">${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}</div>
+      <div class="checkbox-box">${check("authorised", "I am authorised to represent this organisation and to sign this agreement on its behalf.", false, true)}${check("org_declare", "Our organisation, its leaders and partners are not involved in any of the activities listed in section 1.", false, true)}${check("org_agree", `On behalf of the organisation, I have read and agree to the Handova organisation agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including its safeguarding and reporting duties.`, false, true)}${termsTick()}</div>
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>${formEnd("Sign the new agreement")}</form>`;
 }
@@ -430,6 +437,7 @@ export function proResignForm(next = "") {
         ${check("unpaid_confirmed", "I understand contributions are unpaid, voluntary and remote.", false, true)}
         ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred from working with them.", false, true)}
         ${check("agree_rules", `I have read and agree to the Handova professional agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.`, false, true)}
+        ${termsTick()}
       </div>
       ${field("sign_name", "Type your full name to sign", { required: true, value: "", attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with your email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to." })}
     </div>${formEnd("Sign the new agreement", `<a href="${next && /^#agreement\//.test(next) ? e(next) : "#workspace"}" class="btn secondary">Not now</a>`)}</form>`;
@@ -451,6 +459,7 @@ function agreementBlock() {
       ${check("unpaid_confirmed", "I understand contributions are unpaid, voluntary and remote.", false, true)}
       ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred from working with them.", false, true)}
       ${check("agree_rules", `I have read and agree to the Handova professional agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.`, false, true)}
+        ${termsTick()}
     </div>
     ${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with your email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to." })}
   </div>`;
@@ -636,7 +645,7 @@ export async function account() {
     ${eyebrow("Account and privacy")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Your account</h1>
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Change password")}</form></div>
     ${mfaCard}
-    <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show a short title, a one-line summary and a link. They never include what people write in Messages.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
+    <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show a short title, a one-line summary and a link. They never include what people write in Messages.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${state.isAdmin ? `<p class="small muted">As an admin, you always get report and identity-check alerts by email.</p>` : ""}${formEnd("Save email preference")}</form></div>
     <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">Download a copy of the information Handova holds about you, as a file you can open or keep. For any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p><div><button class="btn secondary" type="button" data-action="export-data">${icon("download", 16)} Download my data</button></div></div>
     <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2>${deleteWording()}${state.profile ? `<p><a href="#profile/${e(state.user.id)}" style="font-weight:700">Save your impact CV as PDF first</a> <span class="small muted">Open it and choose Save as PDF.</span></p>` : ""}<div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
@@ -728,6 +737,7 @@ export async function submitAccount(kind, form) {
     if (website && !safeURL(website)) throw Error("Check the website address, for example www.yourorganisation.org");
     if (!EB_URL.test(val(fd, "ethical_bridge_url"))) throw Error("Add your organisation’s Ethical Bridge directory page, starting with https://ethicalbridge.org/");
     if (!["locally_led", "authorised", "org_declare", "org_agree"].every((k) => fd.has(k))) throw Error("Read the organisation agreement and tick all four boxes to sign it.");
+    if (!fd.has("terms_ok")) throw fieldError(form.querySelector('[name="terms_ok"]'), "Please tick this box to continue.");
     await result(db.rpc("sign_org_agreement", { p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
     const newOrg = await result(db.rpc("create_organisation", { p_name: val(fd, "name"), p_country: val(fd, "country"), p_city: val(fd, "city"), p_website: safeURL(website), p_summary: val(fd, "summary"), p_org_type: val(fd, "org_type"), p_full_name: val(fd, "full_name"), p_locally_led: fd.has("locally_led") }));
     if (newOrg) await result(db.from("organisations").update({ ethical_bridge_url: val(fd, "ethical_bridge_url"), logo_url: val(fd, "logo_url") || null, staff_size: val(fd, "staff_size") || null }).eq("id", newOrg));
@@ -745,7 +755,7 @@ export async function submitAccount(kind, form) {
   });
   if (kind === "pro-resign") return withForm(form, async (fd) => {
     const q = (n) => form.querySelector(`[name="${n}"]`);
-    const problems = ["age_confirmed", "unpaid_confirmed", "declare_conduct", "agree_rules"].filter((k) => !fd.has(k)).map((k) => [q(k), "Please tick this box to continue."]);
+    const problems = ["age_confirmed", "unpaid_confirmed", "declare_conduct", "agree_rules", "terms_ok"].filter((k) => !fd.has(k)).map((k) => [q(k), "Please tick this box to continue."]);
     if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
     if (problems.length) throw fieldErrors(problems);
     const hours = Math.max(4, Number(state.profile?.hours_available) || 4);
@@ -770,7 +780,7 @@ export async function submitAccount(kind, form) {
   if (kind === "profile") return withForm(form, async (fd) => {
     // Collect every problem, so people can fix the whole form in one pass.
     const problems = [], q = (n) => form.querySelector(`[name="${n}"]`);
-    form.querySelectorAll("input:invalid, textarea:invalid, select:invalid").forEach((el) => { if (!el.closest(".entry-editor") && !["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct", "sign_name"].includes(el.name)) problems.push([el, fieldProblem(el)]); });
+    form.querySelectorAll("input:invalid, textarea:invalid, select:invalid").forEach((el) => { if (!el.closest(".entry-editor") && !["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct", "terms_ok", "sign_name"].includes(el.name)) problems.push([el, fieldProblem(el)]); });
     const website = val(fd, "website");
     if (website && !safeURL(website)) problems.push([q("website"), "Use a full web address starting with https://"]);
     const linkedin = val(fd, "linkedin");
@@ -788,6 +798,7 @@ export async function submitAccount(kind, form) {
     if (needsResign() && fd.has("published") && !state.profile?.published) problems.push([q("published"), "Sign the new Handova agreement first: open “Read and sign the new version” above. Then publish your profile."]);
     if (!signedCurrent() && !needsResign()) {
       if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) problems.push([["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct"].map(q).find((el) => el && !el.checked), "Read the agreement and tick all four boxes to sign it."]);
+      if (!fd.has("terms_ok")) problems.push([q("terms_ok"), "Please tick this box to continue."]);
       if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
     }
     if (form.dataset.step === "1") {

@@ -3,7 +3,7 @@ import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, c
 import { profileForm, orgForm, identityCard, orgResignForm, proResignForm, needsResign, loadPersonState, suspendedBanner } from "./account.js";
 import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
 import { getLang, t, tf } from "../i18n.js";
-import { PRO_AGREEMENT_VERSION } from "../agreement.js";
+import { PRO_AGREEMENT_VERSION, loadAgreementCopy } from "../agreement.js";
 import { QUESTIONS, SURVEY_VERSION, questionHtml, readAnswers, wireExclusive, STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 
 const sideNav = (items, active) => `<nav class="side-nav" aria-label="Workspace">${items.map(([ic, label, href, badge]) => `<a href="${href}" ${href === active ? 'aria-current="page"' : ""}>${icon(ic, 20)}<span>${label}</span>${badge ? `<span class="badge"><span class="visually-hidden">Waiting: </span>${badge}</span>` : ""}</a>`).join("")}</nav>`;
@@ -19,6 +19,8 @@ export async function workspace(sub, params = new URLSearchParams()) {
   const [priv] = await Promise.all([
     result(db.from("user_private").select("career_stage,research_contact").eq("user_id", uid).maybeSingle()).catch(() => null),
     loadPersonState().catch(() => {}),
+    // Only the pages that show the agreement download its reading copy (W15).
+    sub === "agreement" || sub === "profile" ? loadAgreementCopy() : null,
   ]);
   // A new professional agreement version, signed on its own page (T13). ?next= brings them back to a contribution.
   if (sub === "agreement") {
@@ -216,6 +218,7 @@ export async function org(sub, id) {
   const blocked = o.status === "suspended" || o.status === "rejected";
   // A new organisation agreement version must be signed before new needs go for review.
   const resign = !blocked && await result(db.rpc("org_agreement_current", { p_org: o.id })).then((v) => v === false).catch(() => false);
+  if (sub === "agreement") await loadAgreementCopy();
   if (sub === "agreement") return shell(`<div class="stack" style="--gap:20px">${back("Back to To do", "#org")}${head("Organisation agreement")}${resign ? orgResignForm(o) : `<p class="muted">Your organisation has signed the current Handova organisation agreement. <a href="#agreements/organisation">Read it</a>.</p>`}</div>`);
   const resignNote = resign ? `<div class="banner warn">${icon("doc", 22, "#7a4f0e")}<p><strong>We updated the Handova organisation agreement.</strong> Please read and sign the new version before you send new needs for review. <a href="#org/agreement">Read and sign</a></p></div>` : "";
   const banner = suspendedBanner() + orgBanner(o) + resignNote + heldNote + paused;
@@ -342,7 +345,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   else meta = parts([`${n.hours} hours`, `${plural(n.places || 1, "person", "people")} needed`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"]);
 
   // ---- Next step: the one thing to do now ----
-  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? `Works in ${e(a.person.languages.join(", "))}` : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p>${a.conflict_note ? `<div class="small notice declared-link" role="note"><strong>Declared link:</strong><span data-no-i18n>${e(a.conflict_note)}</span><span>Agree with Handova how it is managed before you accept.</span></div>` : ""}</div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
+  const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? e(tf("Works in {langs}", { langs: a.person.languages.map((l) => t(l)).join(", ") })) : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p>${a.conflict_note ? `<div class="small notice declared-link" role="note"><strong>Declared link:</strong><span data-no-i18n>${e(a.conflict_note)}</span><span>Agree with Handova how it is managed before you accept.</span></div>` : ""}</div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
   const boxes = [];
   if (st === "draft") {
     if (n.review_note) boxes.push(box("alert", "alert", "Handova asked for changes", `<span data-no-i18n>${quoted(n.review_note)}</span> <span>Update the need and send it again.</span>`, btn("Update need", `#org/need/${n.id}`, "sm")));
@@ -436,7 +439,7 @@ async function teamCard(o, m) {
   const rows = members.map((x) => `<div class="list-row team-row"><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(x.full_name || "Team member")}</strong><span class="small muted"><span>${x.role === "owner" ? "Owner" : "Team member"}</span>${x.user_id === me ? " · <span>you</span>" : ""}</span></span><span class="row" style="--gap:8px">${!blocked && isOwner && x.user_id !== me ? act("transfer", "Make owner", { user: x.user_id, name: x.full_name || "" }) + act("remove", "Remove", { user: x.user_id, name: x.full_name || "" }, "link-btn danger-link") : ""}${!blocked && x.user_id === me && x.role !== "owner" && members.length > 1 ? act("leave", "Leave this organisation", { user: me, name: x.full_name || "" }, "link-btn") : ""}</span></div>`);
   const invRows = invites.map((i) => `<div class="list-row team-row"><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(i.email)}</strong><span class="small muted">${tf("Invited on {date}. They join only once they accept.", { date: date(i.created_at) })}</span></span><span class="row">${!blocked && isOwner ? act("cancel", "Cancel invitation", { id: i.id, name: i.email }, "link-btn") : ""}</span></div>`);
   const joinLink = `${location.origin}${location.pathname}#join?team=1`;
-  const form = blocked || !isOwner ? "" : o.status !== "approved" ? `<p class="small muted">You can add team members once Handova has approved your organisation.</p>` : used >= TEAM_MAX ? `<p class="small muted">Your team is full: up to ${TEAM_MAX} people can manage an organisation. Remove someone or cancel an invitation to add another.</p>` : `<form class="form team-form" data-form="team" data-op="invite" data-org="${e(o.id)}" novalidate><div class="row team-add">${field("email", "Colleague’s email address", { type: "email", required: true, attrs: 'autocomplete="off" maxlength="254"' })}<button class="btn" type="submit">Add team member</button></div><p class="form-error" role="alert"></p><p class="small muted"><span>If they already have a Handova account, they get access straight away.</span> <span>If not, send them this link and ask them to sign up with the same email:</span> <code data-no-i18n>${e(joinLink)}</code></p></form>`;
+  const form = blocked || !isOwner ? "" : o.status !== "approved" ? `<p class="small muted">You can add team members once Handova has approved your organisation.</p>` : used >= TEAM_MAX ? `<p class="small muted">Your team is full: up to ${TEAM_MAX} people can manage an organisation. Remove someone or cancel an invitation to add another.</p>` : `<form class="form team-form" data-form="team" data-op="invite" data-org="${e(o.id)}" novalidate><div class="row team-add">${field("email", "Colleague’s email address", { type: "email", required: true, attrs: 'autocomplete="off" maxlength="254"' })}<button class="btn" type="submit">Add team member</button></div><p class="form-error" role="alert"></p><p class="small muted"><span>If they already use Handova, they see your invitation there and can accept it. Invitations last 30 days.</span> <span>If not, send them this link and ask them to sign up with the same email:</span> <code data-no-i18n>${e(joinLink)}</code></p></form>`;
   return `<section class="card stack team-card" style="--gap:10px" id="team" tabindex="-1"><h2 class="card-title">Team</h2><p class="small muted">${tf("Everyone here can post needs, reply to applicants, sign agreements and review hours for {org}. Up to {n} people.", { org: e(o.name), n: String(TEAM_MAX) })}</p><div>${[...rows, ...invRows].join("")}</div>${form}${isOwner ? "" : `<p class="small muted">Only the owner can add or remove people.</p>`}</section>`;
 }
 export function teamAction(el) {
@@ -456,8 +459,8 @@ export async function submitTeam(form) {
     if (op === "invite") {
       const email = val(fd, "email").toLowerCase(), input = form.querySelector('[name="email"]');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fieldError(input, "Type a full email address, for example name@organisation.org.");
-      const res = await result(db.rpc("invite_org_member", { p_org: org, p_email: email }));
-      toast(res && "Invitation sent. If they already use Handova, they’ll see it there; if not, send them the sign-up link. They join only once they accept.");
+      await result(db.rpc("invite_org_member", { p_org: org, p_email: email }));
+      toast("Invitation sent. If they already use Handova, they’ll see it there; if not, send them the sign-up link. They join only once they accept.");
     } else {
       const call = { transfer: ["transfer_org_ownership", { p_org: org, p_user: form.dataset.user }, "Done. They are now the owner."], remove: ["remove_org_member", { p_org: org, p_user: form.dataset.user }, "Removed from the team."], leave: ["remove_org_member", { p_org: org, p_user: state.user.id }, "You left the organisation."], cancel: ["cancel_org_invite", { p_id: form.dataset.id }, "Invitation cancelled."] }[op];
       await result(db.rpc(call[0], call[1]));

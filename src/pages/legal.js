@@ -2,6 +2,7 @@ import { getLang } from "../i18n.js";
 import { state, e, db, result, withForm, val, fieldError } from "../core.js";
 import { icon, eyebrow, btn, field, select, formEnd } from "../ui.js";
 import { config } from "../config.js";
+import { date } from "../utils.js";
 // Agreement texts and their reading copies are loaded only on the agreements page (they are large).
 
 const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
@@ -14,23 +15,29 @@ const legalBody = (body) => {
   const list = `<ol>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol>`;
   return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span>${list}</nav><details class="toc-m"><summary>${icon("doc", 18)}<span>On this page</span><span class="toc-n">${heads.length}</span></summary><nav aria-label="On this page">${list}</nav></details><article class="reading">${html}</article></div>`;
 };
+// "Last updated" in the visitor's language, like the policy pages (W12).
+const updated = () => { const legalUpdated = date(config.legalUpdated, { day: "numeric", month: "long", year: "numeric" }); return `<p class="small muted">Last updated ${legalUpdated}</p>`; };
 const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
 export function privacy() {
-  const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
+  const body = `${updated()}
   <h2>Who is responsible for your information</h2><p>Handova is an initiative of Ethical Bridge LLC, a limited liability company registered in Wyoming, United States. Ethical Bridge LLC decides how personal information collected through Handova is used. Write to ${mail(config.contactEmail)} with any privacy question or request. Our <a href="#policies/data-protection">Data Protection Policy</a> explains how we work in more detail. Where the EU or UK GDPR applies to us, we follow it, and Ethical Bridge LLC appoints an EU representative where Article 27 of the GDPR requires it.</p>
   <h2>What we collect</h2><ul>
     <li><strong>Account details:</strong> your email address and a securely hashed password.</li>
+    <li><strong>Acceptance of our terms:</strong> which versions of the Terms of use and this notice you accepted, when, and your confirmation that you are 18 or over. We record this when you create your account and when you sign a new version of a Handova agreement.</li>
     <li><strong>Professional profiles:</strong> name, title, introduction, photo, country, time zone, languages, skills, roles and qualifications, the hours you commit each month, your LinkedIn profile link (required) and any other professional link, and your confirmations that you are 18 or over and that contributions are unpaid.</li>
     <li><strong>Conduct declaration:</strong> that you ticked the declaration that you have no relevant dismissals or convictions. We store only that you ticked it, never any details.</li>
     <li><strong>Identity check:</strong> the result (verified or not), the date and the name on your document. Our provider Didit compares a selfie with the photo on your passport or ID card; that comparison uses biometric data. Your document and selfie are processed by Didit and never stored by Handova. Only our administrators can see the name on your document. When you start the check we record your consent: the date and time and the wording you agreed to. If you prefer not to use Didit, you can ask for a short video call instead, where you show your ID to Handova on camera; we then record only that your identity was confirmed this way and the date.</li>
     <li><strong>Signed agreements:</strong> when you sign the professional or organisation agreement, your name (and role, for organisations), email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to.</li>
     <li><strong>Organisations:</strong> name, country, city, type, website, a summary, its Ethical Bridge directory page, and the name of the person who represents it.</li>
+    <li><strong>Team invitations:</strong> when an organisation invites a colleague to help manage it, the colleague’s email address, who sent the invitation, the date, and whether it is pending, accepted, declined or cancelled. An invitation lasts 30 days, and the person joins the team only if they accept it. Until then, the organisation sees only the email address it typed.</li>
     <li><strong>Activity:</strong> needs, applications, invitations, messages, contribution agreements and signatures, logged hours, reviews, endorsements, confirmed skills, private notes and the private “would you work together again” answer, saved needs, notifications, activity dates used for the inactivity rule, and reports of concern.</li>
     <li><strong>Handova decisions:</strong> when Handova approves, declines, suspends or removes a profile, organisation, need or contribution, we record who decided, when, what was decided and the note.</li>
     <li><strong>Questionnaires:</strong> after a contribution, and six months later for organisations, we ask a few optional questions about how it went. Answers can include free text. We also ask, once, whether an independent evaluator working for Handova may contact you about your experience.</li>
     <li><strong>Profile basics:</strong> an organisation’s number of paid staff (shown on its public page) and a professional’s career stage (private to Handova).</li>
-    <li><strong>Technical information:</strong> our hosting and database providers keep short-term logs (such as IP address and browser) to run and secure the service.</li></ul>
+    <li><strong>Reports made without an account:</strong> what you tell us and, only if you choose to give it, your email address so we can reply.</li>
+    <li><strong>Technical information:</strong> our hosting and database providers keep short-term logs (such as IP address and browser) to run and secure the service.</li>
+    <li><strong>Error reports:</strong> when a page fails in your browser, the site sends Handova the error message, the page name and the site version. Anything that looks like an email address or an ID is removed first, and we don’t record who you are, your IP address or your browser.</li></ul>
   <h2>Why we use it, and on what legal basis</h2><ul>
     <li><strong>To provide the service you asked for</strong> (contract): your account, profile, matching, agreements, hours, notifications and your impact CV.</li>
     <li><strong>To keep people safe and prevent misuse</strong> (legitimate interests): reviewing organisations and profiles before they are public, marking inactive profiles, keeping records of signed agreements, and handling reports of concern.</li>
@@ -56,8 +63,10 @@ export function privacy() {
     <li><strong>Hostinger</strong> (email hosting) sends account emails and notifications from hello@handova.org.</li></ul>
   <p>Where a provider processes information outside your country, including in the United States, we rely on safeguards such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
   <h2>How long we keep it</h2><ul>
-    <li><strong>Your account and profile:</strong> until you delete them. A profile closed for inactivity is kept, unpublished, so you can publish it again; if you don’t sign in for 24 months, we remind you and then delete it. An organisation suspended because its last member left is deleted after 24 months, after a reminder.</li>
+    <li><strong>Your account and profile:</strong> until you delete them, or until they have not been used for a long time. A profile closed for inactivity is kept, unpublished, so you can publish it again; if you don’t sign in for 24 months, we remind you and then delete it. An account with no profile and no organisation, such as a sign-up that was never finished, is treated the same way: after 24 months without signing in, we remind you and then delete it. An organisation suspended because its last member left is deleted after 24 months, after a reminder.</li>
     <li><strong>When you delete your account:</strong> we remove your profile, photos, applications, saved needs, notifications and identity checks, and your messages except those described under Messages below. Signed agreements are kept as described below. Organisations keep a private record of completed work (need, hours, what was handed over, endorsement and questionnaire answers) with your displayed name replaced by “Former member”. If you are the only member of an organisation, the organisation is suspended.</li>
+    <li><strong>Record of accepting the Terms and this notice:</strong> kept for six years after you close your account, then deleted, like signed agreements.</li>
+    <li><strong>Team invitations:</strong> an invitation can be accepted for 30 days. We keep the email address with the invitation’s status (pending, accepted, declined or cancelled) until the organisation is deleted, so the organisation and Handova can see who was invited and what happened.</li>
     <li><strong>Signed Handova professional or organisation agreements:</strong> the signature record, including your name, email, signing time, IP address, browser and agreement text, is kept for six years after you close your account, then deleted. This helps us respond to questions or legal claims about what was agreed.</li>
     <li><strong>Messages:</strong> Handova may post messages into a conversation, such as the suggested agenda for your first call. If you delete your account, your messages in conversations linked to a contribution or a reported concern are kept for six years, shown as “Former member”, then deleted; your other messages are deleted straight away.</li>
     <li><strong>Signed contribution agreements:</strong> for each contribution agreement you sign, we keep the signed text and its reference, your name, email, role (for organisations), the safeguarding focal point named, your confirmations, the language shown, signing time, IP address and browser. They are kept for six years after you close your account, then deleted, so both parties can rely on what was agreed.</li>
@@ -67,16 +76,17 @@ export function privacy() {
     <li><strong>Reports of concern:</strong> six years after the case closes, or longer if legal proceedings are ongoing or expected. Cases involving a child are kept until the child turns 25 or for six years after closure, whichever is later. We review them once a year.</li>
     <li><strong>Records of Handova decisions:</strong> six years. <strong>Email notification log:</strong> 12 months. <strong>Privacy requests and data breach records:</strong> three years after they are closed.</li>
     <li><strong>Analytics:</strong> Google Analytics cookies may remain for up to two years unless you withdraw consent or clear them sooner. Analytics user and event data retention is set to two months. You can withdraw consent at any time in the cookie settings.</li>
+    <li><strong>Error reports:</strong> 90 days.</li>
     <li><strong>Technical logs:</strong> for the short period our providers set, usually days to weeks.</li></ul>
   <h2>If something goes wrong</h2><p>If a data breach is likely to affect you, we will tell you and the relevant authority without undue delay.</p>
-  <h2>Your rights</h2><p>You can view and correct your profile at any time, unpublish it, and delete your account from <a href="#account">Account and privacy</a>. You can also ask us for a copy of your information, ask us to correct or erase it, object to how we use it, ask us to restrict it, or withdraw consent, by writing to ${mail(config.contactEmail)}. We reply within one month, and tell you if we need longer for a complex request. If you are unhappy with how we handle your information, you can complain to the data protection authority where you live or work where that right applies.</p>
+  <h2>Your rights</h2><p>You can view and correct your profile at any time, unpublish it, download a copy of your information with “Download my data”, and delete your account, all from <a href="#account">Account and privacy</a>. You can also ask us to correct or erase your information, object to how we use it, ask us to restrict it, or withdraw consent, by writing to ${mail(config.contactEmail)}. We reply within one month, and tell you if we need longer for a complex request. If you are unhappy with how we handle your information, you can complain to the data protection authority where you live or work where that right applies.</p>
   <h2>Age</h2><p>Handova is for people aged 18 and over.</p>
   <h2>Changes</h2><p>We will update this notice when the service changes and highlight important changes on the site.</p>`;
   return { title: "Privacy notice", description: "How Handova uses your personal information.", html: page("Privacy", "Privacy notice", "What we collect, why, who can see it, and how to control it.", body) };
 }
 
 export function terms() {
-  const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
+  const body = `${updated()}
   <h2>1. About Handova</h2><p>Handova is an initiative of Ethical Bridge LLC, registered in Wyoming, United States. It connects locally led organisations with professionals who contribute their skills, unpaid, to needs the organisation defines. Contact: ${mail(config.contactEmail)}.</p>
   <h2>2. Who can use it</h2><p>You must be 18 or over. Organisations must be non-profit, listed in the Ethical Bridge directory and locally led, and registered or fiscally hosted by a registered non-profit; businesses and other for-profit organisations can’t use Handova. The person creating an organisation account must be authorised to represent it. We review organisations and profiles before they become public and may decline or remove them.</p>
   <h2>3. Your account</h2><p>Keep your password safe and your information accurate. You are responsible for what happens under your account. You can delete your account at any time.</p>
@@ -102,7 +112,7 @@ export function terms() {
 }
 
 export function cookies() {
-  const body = `<p class="small muted">Last updated ${config.legalUpdated}</p>
+  const body = `${updated()}
   <h2>Necessary storage</h2><p>Your browser stores a secure session so you stay signed in, and remembers your language and cookie choices. For the current visit only, it also keeps small settings such as which organisation you are working on and, while you sign up, the email address you typed. These are needed for the service to work and are not used to track you.</p>
   <h2>Analytics (optional)</h2><p>${config.gaMeasurementId ? "Only if you select Accept analytics, we load Google Analytics to understand page views. It uses <code>_ga</code> to distinguish visitors and <code>_ga_*</code> to maintain session state; Google's default lifetime for both is up to two years. Information about your visit is sent to Google. Analytics user and event data retention is set to two months. We do not use Analytics for advertising. If you decline, the Analytics tag is not loaded." : "We do not use analytics at the moment. If we add analytics, we will ask for your consent first."}</p>
   <h2>No advertising</h2><p>We don’t use advertising or social-media tracking cookies.</p>
@@ -130,7 +140,8 @@ ${workingResponsibly()}
 }
 
 export async function agreements(which) {
-  const { PRO_AGREEMENT_VERSION, ORG_AGREEMENT_VERSION, platformAgreementView } = await import("../agreement.js");
+  const { PRO_AGREEMENT_VERSION, ORG_AGREEMENT_VERSION, platformAgreementView, loadAgreementCopy } = await import("../agreement.js");
+  await loadAgreementCopy();
   const org = which === "organisation";
   const title = org ? "Handova organisation agreement" : "Handova professional agreement";
   const lead = org ? `Read it before you join. An authorised person signs it for the organisation when creating the organisation account. Version ${ORG_AGREEMENT_VERSION}.` : `Read it before you join. You sign it when creating your profile. Version ${PRO_AGREEMENT_VERSION}.`;

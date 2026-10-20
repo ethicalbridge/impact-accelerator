@@ -159,7 +159,8 @@ const actions = {
   "mfa-enroll": () => acc.mfaEnroll(),
   "mfa-code": () => acc.mfaDialog(location.hash),
   "admin-id": async (el) => { await result(db.rpc("admin_confirm_identity", { p_user: el.dataset.id, p_approve: el.dataset.ok === "1" })); toast("Identity decision saved."); render(); },
-  "copy-link": async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied."); } catch { prompt("Copy this link", location.href); } },
+  // The address to share is built by the page (M17); never the visitor's own query string.
+  "copy-link": async (el) => { const url = el.dataset.url || location.origin + location.pathname + location.hash.split("?")[0]; try { await navigator.clipboard.writeText(url); toast("Link copied."); } catch { prompt("Copy this link", url); } },
   print: () => window.print(),
   "goto-focus": (el) => { try { sessionStorage.setItem("hv-focus", el.dataset.target); } catch {} if (el.dataset.href && location.hash !== el.dataset.href) go(el.dataset.href); else { const t = document.getElementById(el.dataset.target); t?.scrollIntoView({ block: "center" }); t?.focus?.({ preventScroll: true }); } },
   apply: (el) => pub.applyDialog(el.dataset.id),

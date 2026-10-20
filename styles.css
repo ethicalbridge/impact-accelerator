@@ -2060,3 +2060,14 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .team-row .row { flex-wrap: wrap; }
 .silent-org { margin-top: 8px; }
 .id-card.hero .link-btn { color: #fff; text-decoration-color: currentColor; }
+/* M11 (round 3): on laptops and wider, the cookie notice is a small card in the bottom-right corner instead of a bar
+   across the bottom. The two doors on the home page sit on the left, so the card covers only the illustration there
+   (bottom-left would cover "I'm an organisation" and "Offer your skills" at 1366x768). */
+@media (min-width: 901px) {
+  .consent { right: 16px; left: auto; bottom: 16px; width: 420px; max-width: calc(100vw - 32px); margin: 0; flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+  .consent p { flex: 1 1 100%; }
+  .consent .row { flex-wrap: nowrap; gap: 8px; }
+  /* Room at the end of the page so the card never hides the last footer links. */
+  body:has(.consent:not([hidden])) { padding-bottom: 150px; }
+  html:has(.consent:not([hidden])) { scroll-padding-bottom: 150px; }
+}

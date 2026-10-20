@@ -5,7 +5,11 @@ import assert from "node:assert/strict";
 import {
   PRO_AGREEMENT, PRO_AGREEMENT_VERSION, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, CONTRIBUTION_VERSION, PRO_SUMMARY, ORG_SUMMARY,
   AGREEMENT_TRANSLATIONS, translatedSections, translatedContribution, contributionSections, contributionText, proAgreementText, orgAgreementText,
+  loadAgreementCopy,
 } from "../src/agreement.js";
+
+// The reading copies are downloaded only when needed (W15); load all three for the checks below.
+for (const lang of ["es", "pt", "fr"]) await loadAgreementCopy(lang);
 
 const scope = { need_title: "Need", organisation: "Org", organisation_country: "Kenya", talent: "Pro", talent_country: "Brazil", output: "Out", description: "Desc", hours: 8, languages: ["English", "Spanish"] };
 

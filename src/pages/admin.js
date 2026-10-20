@@ -321,7 +321,7 @@ const rpcForm = (fn, args, msg) => (f) => withForm(f, async (fd) => {
 export function liftDialog(id, hidden) {
   const n = Number(hidden) || 0;
   const ask = n ? `<fieldset class="field"><legend>Restore their hidden impact CV entries (${n})?</legend><label class="check"><input type="radio" name="restore_cv" value="yes" required><span>Yes, make them available again. They choose which to show.</span></label><label class="check"><input type="radio" name="restore_cv" value="no" required><span>No, keep them hidden for now</span></label></fieldset>` : "";
-  decisionDialog("Lift the suspension?", "They can use Handova again and publish their profile.", "admin-lift", id, `${NOTE("Note (optional)", 1000)}${ask}`, "Lift suspension");
+  decisionDialog("Lift the suspension?", "They can use Handova again. Their profile stays offline until they send it for review and you approve it.", "admin-lift", id, `${NOTE("Note (optional)", 1000)}${ask}`, "Lift suspension");
 }
 async function submitLift(form) {
   await withForm(form, async (fd) => {
