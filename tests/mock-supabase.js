@@ -25,10 +25,11 @@ function seed() {
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", approved_at: now(), created_at: now(), updated_at: now() }],
     applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [], app_settings: [{ key: "require_id_verification", value: "true" }], id_verifications: [],
     user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], organisation_changes: [], account_deletion_authorizations: [],
+    terms_acceptances: [], client_errors: [],
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes"];
+const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -42,6 +43,20 @@ const own = (x, u = me()) => u != null && x === u;
 const isAdmin = (u = me()) => u != null && D.admins.some((a) => a.user_id === u);
 const requireAdmin = () => { if (!isAdmin()) fail("Administrator access required."); };
 const isMember = (org, u = me()) => u != null && D.organisation_members.some((m) => m.organisation_id === org && m.user_id === u);
+// is_suspended / suspension_guard (20261020021003, 20261020120300): an active suspension or removal blocks acting.
+const isSuspended = (u) => u != null && D.user_suspensions.some((s) => s.user_id === u && !s.lifted_at);
+const SUSPENDED = "Your account is suspended while Handova looks into a concern. Write to safeguarding@handova.org if you have questions.";
+const suspensionGuard = () => { const u = me(); if (u && !isAdmin(u) && isSuspended(u)) fail(SUSPENDED); };
+// current_policy_version / record_agreement_terms (20261020120200): the current Terms and privacy notice.
+const TERMS = "terms-2026-10-20-2", PRIVACY = "privacy-2026-10-20-2";
+const CURRENT_AGREEMENT = { professional: "professional-2026-10-20-v3", organisation: "organisation-2026-10-20-v3" };
+const acceptTerms = (user_id, terms_version, privacy_version, source, extra = {}) => {
+  if (!user_id || !terms_version || D.terms_acceptances.some((t) => t.user_id === user_id && t.terms_version === terms_version && t.privacy_version === privacy_version)) return;
+  D.terms_acceptances.push({ id: uid(), user_id, terms_version, privacy_version, accepted_at: now(), source, adult_confirmed: null, account_closed_at: null, ...extra });
+};
+const agreementTerms = (sig) => { if (sig.version === CURRENT_AGREEMENT[sig.kind]) acceptTerms(sig.user_id, TERMS, PRIVACY, "agreement " + sig.version); };
+// An open report about something (status open or reviewing).
+const openReport = (f) => D.reports.some((r) => r.status !== "resolved" && f(r));
 // need_safety_guard (20261020100000): every safety question answered before a need goes for review.
 const safetyCheck = (sg = {}) => {
   if (["remote", "no_contact", "no_child_images", "no_money"].some((k) => sg[k] !== "yes")) fail("Confirm the safety questions before sending the need for review: all work is remote, no contact with the people you serve, no images of children, and no handling of your money.");
@@ -120,12 +135,17 @@ function visible(table, r) {
     case "need_safety_notes": return admin || isMember(needOrg(r.need_id));
     case "id_consents": case "id_video_requests": case "user_suspensions": return own(r.user_id) || admin;
     case "removed_identities": case "report_cases": return admin;
+    // 20261020120200, 20261020120500
+    case "terms_acceptances": return own(r.user_id) || admin;
+    case "client_errors": return admin;
     case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
     default: return false;
   }
 }
+const STRICT_COLUMNS = new Set(["user_suspensions"]);
 // Column grants: signers see each other's name, role, focal point and version, not email, IP or browser.
-const GRANTED = { contribution_signatures: ["id", "engagement_id", "organisation_id", "party", "full_name", "signer_role", "focal_point_name", "focal_point_contact", "version", "text_sha256", "language", "signed_at"] };
+// 20261020120000: a suspended person reads their own suspension, not the reason Handova wrote (admins read it in admin_actions).
+const GRANTED = { user_suspensions: ["user_id", "removed", "suspended_at", "lifted_at"], contribution_signatures: ["id", "engagement_id", "organisation_id", "party", "full_name", "signer_role", "focal_point_name", "focal_point_contact", "version", "text_sha256", "language", "signed_at"] };
 
 // ---------- select parsing and embedding ----------
 function splitTop(s) { const out = []; let depth = 0, cur = ""; for (const ch of s) { if (ch === "(") depth++; if (ch === ")") depth--; if (ch === "," && !depth) { out.push(cur.trim()); cur = ""; } else cur += ch; } if (cur.trim()) out.push(cur.trim()); return out; }
@@ -181,10 +201,13 @@ class Query {
       D = load();
       const rows = D[this.t];
       if (!rows) fail(`Unknown table ${this.t}`);
+      // Column grants that make a select of other columns (or *) fail, as in the database.
+      if (STRICT_COLUMNS.has(this.t) && this.returning && (this.cols === "*" || splitTop(this.cols).some((c) => !GRANTED[this.t].includes(c)))) fail(`permission denied for table ${this.t}`, "42501");
       let data;
       if (this.op === "insert") data = (Array.isArray(this.val) ? this.val : [this.val]).map((v) => insertRow(this.t, { ...v }));
       else if (this.op === "upsert") {
         const pk = { need_safety_notes: "need_id", report_cases: "report_id", user_settings: "user_id", user_private: "user_id" }[this.t] || "id";
+        if (this.t === "need_safety_notes") suspensionGuard();
         data = (Array.isArray(this.val) ? this.val : [this.val]).map((v) => { const ex = rows.find((r) => String(r[pk]) === String(v[pk]) && visible(this.t, r)); if (ex) { Object.assign(ex, v); return ex; } return insertRow(this.t, { ...v }); });
       }
       else {
@@ -214,10 +237,13 @@ function insertRow(t, v) {
   const row = { id: uid(), created_at: now(), ...v };
   if (t === "user_settings") { if (v.user_id && v.user_id !== u) RLS(); row.user_id = u; delete row.id; }
   if (t === "id_consents") row.user_id = u;
+  if (["messages", "applications", "invitations", "hours", "needs", "need_safety_notes"].includes(t)) suspensionGuard();
+  if (["terms_acceptances", "client_errors", "user_suspensions", "removed_identities", "id_video_requests"].includes(t)) fail(`permission denied for table ${t}`, "42501");
   if (["need_safety_notes", "report_cases"].includes(t)) delete row.id;
   if (t === "profiles") {
     if (v.user_id !== u) fail("permission", "42501");
     if (v.published && !(v.age_confirmed && v.unpaid_confirmed)) fail("check", "23514");
+    if (v.published && isSuspended(u) && !isAdmin(u)) fail("Your account is suspended while Handova looks into a concern, so your profile can’t be published. Write to safeguarding@handova.org if you have questions.");
     Object.assign(row, { review_status: v.published ? "pending" : "draft", updated_at: now() });
     delete row.id;
     if (v.published) notifyAdmins("profile_review", "Profile to review", v.name, "#admin");
@@ -245,6 +271,9 @@ function insertRow(t, v) {
     Object.assign(row, { status: "pending", decided_at: null });
     conversationFor(v.need_id, v.user_id);
     if (t === "applications") notifyOrg(n.organisation_id, "application", "New application", n.title, "#org"); else notify(v.user_id, "invitation", "You have been invited to a need", n.title, "#workspace");
+    // conflict_notify (20261020120100): a declared link reaches Handova.
+    const note = trimmed(v.conflict_note);
+    if (note) notifyAdmins("conflict_declared", "Declared link: " + n.title, `${t === "applications" ? "Application from " : "Invitation to "}${D.profiles.find((p) => p.user_id === v.user_id)?.name || "a professional"}: ${note.slice(0, 500)}`, "#admin");
   }
   if (t === "messages") {
     const c = D.conversations.find((x) => x.id === v.conversation_id);
@@ -273,7 +302,7 @@ function insertRow(t, v) {
     if (D.reports.filter((r) => r.reporter_id === u && !ago(r.created_at, 1)).length >= 10) RLS();
     const details = trimmed(v.details);
     if (!REPORT_TYPES.includes(v.target_type) || !REPORT_REASONS.includes(v.reason) || details.length < 10 || details.length > 4000) CHECK("reports");
-    notifyAdmins("report", v.reason === "exploitation" ? "Urgent: sexual exploitation or abuse reported" : "New concern reported", `${v.reason} · ${v.target_type}`, "#admin");
+    notifyAdmins("report", v.reason === "exploitation" ? "Urgent: sexual exploitation or abuse reported" : v.reason === "safety" ? "Urgent: safety or safeguarding concern reported" : "New concern reported", `${v.reason} · ${v.target_type}`, "#admin");
     notify(u, "report_received", "We received your report", `Thank you. Our safeguarding lead reads every report and will contact you if we need more information. Reference ${String(row.id).slice(0, 8).toUpperCase()}.`, "#report");
   }
   if (t === "saved_needs") delete row.id;
@@ -287,6 +316,7 @@ function updateRow(t, r, v) {
     if (r.user_id !== u) fail("permission", "42501");
     if ("review_status" in v) fail("permission denied", "42501");
     const was = r.published;
+    if (v.published && !was && isSuspended(r.user_id) && !isAdmin()) fail("Your account is suspended while Handova looks into a concern, so your profile can’t be published. Write to safeguarding@handova.org if you have questions.");
     Object.assign(r, v, { updated_at: now() });
     if (r.published && !(r.age_confirmed && r.unpaid_confirmed)) fail("check", "23514");
     if (r.published && !was && ["draft", "changes_requested"].includes(r.review_status)) { r.review_status = "pending"; notifyAdmins("profile_review", "Profile to review", r.name, "#admin"); }
@@ -296,6 +326,7 @@ function updateRow(t, r, v) {
     // needs_update policy, then need_guard (20261019000500_audit_fixes.sql)
     const adm = isAdmin(), org = r.organisation_id;
     if (!isMember(org)) fail("permission", "42501");
+    suspensionGuard();
     if (["open", "closed"].includes(r.status) && ["draft", "pending"].includes(v.status)) fail("Close a published need instead of returning it to draft.");
     if (!adm && v.status === "closed" && ["draft", "pending"].includes(r.status)) fail("Only a need Handova has approved can be closed. Send it for review first.");
     if (v.status === "open" && r.status !== "open") {
@@ -350,7 +381,7 @@ const rpcs = {
     if (String(p_role || "").trim().length < 2) throw Error("Add your role in the organisation.");
     D.agreement_signatures = D.agreement_signatures || [];
     const row = { id: uid(), user_id: me(), kind: "organisation", version: p_version, full_name: p_name.trim(), signer_role: p_role.trim(), agreement_text: p_text, signed_at: now(), organisation_id: null };
-    D.agreement_signatures.push(row); return row.id;
+    D.agreement_signatures.push(row); agreementTerms(row); return row.id;
   },
   sign_agreement({ p_kind, p_version, p_name, p_text, p_hours }) {
     if (!me()) throw Error("Please sign in first.");
@@ -358,7 +389,7 @@ const rpcs = {
     if (String(p_text || "").length < 500) throw Error("The agreement text is missing.");
     D.agreement_signatures = D.agreement_signatures || [];
     const row = { id: uid(), user_id: me(), kind: p_kind, version: p_version, full_name: p_name.trim(), hours_committed: p_hours, agreement_text: p_text, signed_at: now() };
-    D.agreement_signatures.push(row); return row.id;
+    D.agreement_signatures.push(row); agreementTerms(row); return row.id;
   },
   // agreements v3 (20261020…_agreements_v3): organisations sign a new organisation agreement version from the workspace.
   org_agreement_current: (a) => { if (!isMember(a.p_org) && !isAdmin()) return null; return (D.agreement_signatures || []).some((s) => s.organisation_id === a.p_org && s.kind === "organisation" && s.version === "organisation-2026-10-20-v3"); },
@@ -368,7 +399,7 @@ const rpcs = {
     if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");
     if (String(p_role || "").trim().length < 2) throw Error("Add your role in the organisation.");
     const row = { id: uid(), user_id: me(), kind: "organisation", version: p_version, full_name: p_name.trim(), signer_role: p_role.trim(), agreement_text: p_text, signed_at: now(), organisation_id: p_org };
-    D.agreement_signatures.push(row); return row.id;
+    D.agreement_signatures.push(row); agreementTerms(row); return row.id;
   },
   is_admin: () => isAdmin(),
   // The organisation agreement just signed is linked to the new organisation (20261019000800).
@@ -394,6 +425,7 @@ const rpcs = {
     const o = D.organisations.find((x) => x.id === a.p_org);
     if (!o) fail("Organisation not found.");
     const note = orNull(a.p_note);
+    if (d === "suspended" && o.status !== "suspended") o.suspended_at = now(); else if (d !== "suspended") o.suspended_at = null;
     o.status = d;
     if (d === "approved") o.approved_at ||= now();
     if (["suspended", "rejected"].includes(d)) D.needs.filter((n) => n.organisation_id === o.id && n.status === "open").forEach(closeNeed);
@@ -446,9 +478,14 @@ const rpcs = {
     requireAdmin();
     if (!["open", "reviewing", "resolved"].includes(a.p_status)) CHECK("reports");
     const r = D.reports.find((x) => x.id === a.p_id);
-    if (r) Object.assign(r, { status: a.p_status, admin_note: a.p_note || "", resolved_at: a.p_status === "resolved" ? now() : null });
+    if (!r) fail("Report not found.");
+    // 20261020120100: the note lives in the admin-only case record; the reporter's row keeps admin_note empty.
+    const note = trimmed(a.p_note).slice(0, 2000);
+    if (note) { let c = D.report_cases.find((x) => x.report_id === r.id); if (!c) D.report_cases.push(c = { report_id: r.id }); Object.assign(c, { admin_note: note, updated_at: now(), updated_by: me() }); }
+    Object.assign(r, { status: a.p_status, admin_note: "", resolved_at: a.p_status === "resolved" ? now() : null });
   },
   decide_application: (a) => {
+    suspensionGuard();
     const x = D.applications.find((y) => y.id === a.p_id);
     if (!x || !isMember(needOrg(x.need_id))) fail("You cannot decide on this application.");
     if (x.status !== "pending") fail("This application has already been decided.");
@@ -468,6 +505,7 @@ const rpcs = {
   },
   admin_introduce: (a) => { if (!isAdmin()) fail("Administrator access required."); const n = D.needs.find((x) => x.id === a.p_need); if (!n || n.status !== "open" || !orgApproved(n.organisation_id)) fail("This need is not open."); if (!profilePublic(a.p_user)) fail("Only approved, published profiles can be introduced."); if (D.invitations.some((x) => x.need_id === a.p_need && x.user_id === a.p_user) || D.applications.some((x) => x.need_id === a.p_need && x.user_id === a.p_user && ["pending", "accepted"].includes(x.status))) fail("This person is already connected to this need."); if (String(a.p_message || "").trim().length < 30) fail("Write a short introduction of at least 30 characters."); const id = uid(); D.invitations.push({ id, need_id: a.p_need, user_id: a.p_user, invited_by: me(), message: "[Introduced by Handova] " + a.p_message.trim(), status: "pending", decided_at: null, created_at: now() }); conversationFor(a.p_need, a.p_user); notify(a.p_user, "invitation", "You have been invited to a need", n.title, "#workspace"); notifyOrg(n.organisation_id, "introduction", "Handova introduced a professional", n.title, "#org"); return id; },
   respond_invitation: (a) => {
+    suspensionGuard();
     const x = D.invitations.find((y) => y.id === a.p_id && own(y.user_id));
     if (!x) fail("Invitation not found.");
     if (x.status !== "pending") fail("You have already responded.");
@@ -480,6 +518,7 @@ const rpcs = {
   // Contribution agreement v2 (20261018000600_kickoff_and_messages.sql): keeps the exact text, its hash and each confirmation;
   // the organisation names its signer's role and a safeguarding focal point. When both have signed, Handova posts the first-call agenda.
   sign_engagement: (a) => {
+    suspensionGuard();
     const u = me();
     if (a.p_text === undefined && a.p_version === undefined) fail("Handova was updated. Please reload the page and sign again.");
     if (!u) fail("Please sign in first.");
@@ -527,9 +566,10 @@ const rpcs = {
     }
     return e.status;
   },
-  review_hours: (a) => { const h = D.hours.find((x) => x.id === a.p_id); const e = D.engagements.find((x) => x.id === h?.engagement_id); if (!h || !isMember(e.organisation_id) || own(h.user_id)) fail("You cannot review this entry."); if (h.status !== "pending") fail("This entry has already been reviewed."); if (!a.p_approve && trimmed(a.p_note).length < 5) fail("Explain what needs to change."); Object.assign(h, { status: a.p_approve ? "approved" : "changes_requested", review_note: trimmed(a.p_note), reviewed_by: me(), reviewed_at: now() }); notify(h.user_id, "hours_review", a.p_approve ? "Hours approved" : "Changes requested on your hours", e.scope.need_title, "#workspace"); },
+  review_hours: (a) => { suspensionGuard(); const h = D.hours.find((x) => x.id === a.p_id); const e = D.engagements.find((x) => x.id === h?.engagement_id); if (!h || !isMember(e.organisation_id) || own(h.user_id)) fail("You cannot review this entry."); if (h.status !== "pending") fail("This entry has already been reviewed."); if (!a.p_approve && trimmed(a.p_note).length < 5) fail("Explain what needs to change."); Object.assign(h, { status: a.p_approve ? "approved" : "changes_requested", review_note: trimmed(a.p_note), reviewed_by: me(), reviewed_at: now() }); notify(h.user_id, "hours_review", a.p_approve ? "Hours approved" : "Changes requested on your hours", e.scope.need_title, "#workspace"); },
   // A professional corrects a time entry the organisation returned; it goes back for review (20261019000900).
   amend_hours: (a) => {
+    suspensionGuard();
     const h = D.hours.find((x) => x.id === a.p_id);
     if (!h || !own(h.user_id)) fail("You cannot change this entry.");
     if (h.status !== "changes_requested") fail("Only entries the organisation returned can be corrected.");
@@ -548,6 +588,7 @@ const rpcs = {
   },
   // 20261019000500_audit_fixes.sql: "partly delivered" can be completed without an endorsement (stored as '').
   complete_engagement: (a) => {
+    suspensionGuard();
     if (a.p_delivered === undefined && "p_rating" in a) fail("Handova was updated. Please reload the page and complete it again.");
     const e = D.engagements.find((x) => x.id === a.p_id);
     if (!e || !isMember(e.organisation_id)) fail("You cannot complete this contribution.");
@@ -586,6 +627,7 @@ const rpcs = {
   },
   // 20261019000900_flow_fixes.sql: 1 to 3 skills; an empty endorsement only for "partly"; the corrected endorsement waits for the professional again.
   edit_endorsement: (a) => {
+    suspensionGuard();
     const e = D.engagements.find((x) => x.id === a.p_id);
     if (!e || !isMember(e.organisation_id)) fail("You cannot edit this endorsement.");
     if (!e.correction_requested_at) fail("Endorsements can be edited only when the professional asks for a correction.");
@@ -641,6 +683,7 @@ const rpcs = {
     if (trimmed(a.p_confirm).toUpperCase() !== "DELETE") fail("Type DELETE to confirm.");
     const e = D.engagements.find((x) => x.id === a.p_id);
     if (!e) fail("Contribution not found.");
+    if (openReport((r) => (r.target_type === "contribution" && r.target_id === e.id) || (r.target_type === "conversation" && D.conversations.some((c) => c.id === r.target_id && c.need_id === e.need_id && c.user_id != null && c.user_id === e.user_id)))) fail("A report about this contribution or its conversation is still open. Resolve the report first, so the evidence is kept.");
     adminAction("contribution_deleted", "contribution", e.id, { need_title: e.scope.need_title, organisation: e.scope.organisation, professional: e.scope.talent, status: e.status, created_at: e.created_at, completed_at: e.completed_at, reason: a.p_reason || "", test: !!a.p_test });
     if (a.p_test) D.contribution_signatures = D.contribution_signatures.filter((s) => s.engagement_id !== e.id);
     else D.contribution_signatures.forEach((s) => { if (s.engagement_id === e.id) s.engagement_id = null; });
@@ -658,6 +701,8 @@ const rpcs = {
     const o = D.organisations.find((x) => x.id === a.p_org);
     if (!o) fail("Organisation not found.");
     if (trimmed(a.p_confirm) !== o.name) fail("Type the organisation’s name exactly to confirm.");
+    const orgNeed = (id) => D.needs.some((n) => n.id === id && n.organisation_id === o.id);
+    if (openReport((r) => (r.target_type === "organisation" && r.target_id === o.id) || (r.target_type === "need" && orgNeed(r.target_id)) || (r.target_type === "conversation" && D.conversations.some((c) => c.id === r.target_id && orgNeed(c.need_id))) || (r.target_type === "contribution" && D.engagements.some((x) => x.id === r.target_id && x.organisation_id === o.id)))) fail("A report about this organisation, one of its needs or one of its conversations is still open. Resolve the report first, so the evidence is kept.");
     if (D.engagements.some((e) => e.organisation_id === o.id)) fail("This organisation has contribution records. Professionals rely on them for their impact CVs and the signed agreements must be kept, so suspend it instead.");
     D.needs.filter((n) => n.organisation_id === o.id && n.status === "open").forEach(closeNeed);
     notifyOrg(o.id, "org_decision", "Your organisation was removed from Handova", trimmed(a.p_reason) || "Contact hello@handova.org if you have questions.", "#onboarding");
@@ -700,7 +745,7 @@ const rpcs = {
   request_id_video_call: () => { const u = me(); if (!u) fail("Please sign in first."); D.id_video_requests = D.id_video_requests.filter((x) => x.user_id !== u); D.id_video_requests.push({ user_id: u, requested_at: now(), status: "requested" }); },
   admin_confirm_id_video: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const p = D.profiles.find((x) => x.user_id === a.p_user); if (!p) fail("Profile not found."); Object.assign(p, { id_status: "approved", id_verified_at: now(), id_document_name: a.p_document_name }); const r = D.id_video_requests.find((x) => x.user_id === a.p_user); if (r) r.status = "confirmed"; adminAction("id_confirmed_video_call", "profile", a.p_user, { name: a.p_document_name }); },
   admin_suspend_user: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); if (String(a.p_reason || "").trim().length < 5) fail("Give a short reason. It is kept in the activity log."); D.user_suspensions = D.user_suspensions.filter((x) => x.user_id !== a.p_user); D.user_suspensions.push({ user_id: a.p_user, reason: a.p_reason, removed: !!a.p_remove, suspended_at: now(), lifted_at: null }); const p = D.profiles.find((x) => x.user_id === a.p_user); if (p) p.published = false; if (a.p_remove) D.engagements.filter((e) => e.user_id === a.p_user && e.status === "completed").forEach((e) => { e.public = false; e.hidden_by_handova = now(); }); adminAction(a.p_remove ? "person_removed" : "person_suspended", "profile", a.p_user, { reason: a.p_reason }); },
-  admin_lift_suspension: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const r = D.user_suspensions.find((x) => x.user_id === a.p_user && !x.lifted_at); if (!r) fail("This person is not suspended."); r.lifted_at = now(); adminAction("suspension_lifted", "profile", a.p_user, { note: a.p_note }); },
+  admin_lift_suspension: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const r = D.user_suspensions.find((x) => x.user_id === a.p_user && !x.lifted_at); if (!r) fail("This person is not suspended."); r.lifted_at = now(); const p = D.profiles.find((x) => x.user_id === a.p_user); if (p && (p.published || ["approved", "pending"].includes(p.review_status))) Object.assign(p, { published: false, review_status: "draft" }); adminAction("suspension_lifted", "profile", a.p_user, { note: a.p_note }); notify(a.p_user, "account", "Your Handova account is active again", "Thank you for your patience. If you have a professional profile, send it for review from your workspace; Handova checks it before it goes back online.", "#workspace"); },
   admin_set_conversation_frozen: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const c = D.conversations.find((x) => x.id === a.p_id); if (!c) fail("Conversation not found."); if (a.p_frozen) Object.assign(c, { status: "closed", closed_reason: "Paused by Handova", closed_at: now() }); else if (c.closed_reason === "Paused by Handova") Object.assign(c, { status: "open", closed_reason: null, closed_at: null }); else fail("Conversation not found, or it was not paused by Handova."); adminAction(a.p_frozen ? "conversation_frozen" : "conversation_unfrozen", "conversation", a.p_id, { reason: a.p_reason }); },
   admin_take_down_need: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const n = D.needs.find((x) => x.id === a.p_id); if (!n) fail("Need not found."); Object.assign(n, { status: "closed", review_note: "Taken down by Handova: " + a.p_reason }); adminAction("need_taken_down", "need", a.p_id, { reason: a.p_reason, title: n.title }); },
   admin_hide_contribution: (a) => { if (!isAdmin()) fail("Only Handova admins can do this."); const e = D.engagements.find((x) => x.id === a.p_id); if (!e) fail("Contribution not found."); if (a.p_hidden) Object.assign(e, { public: false, hidden_by_handova: now() }); else e.hidden_by_handova = null; adminAction(a.p_hidden ? "cv_entry_hidden" : "cv_entry_restored", "engagement", a.p_id, { reason: a.p_reason }); },
@@ -715,6 +760,52 @@ const rpcs = {
     row.changes = {};
     notifyOrg(o.id, "org_decision", a.p_approve ? "Your organisation changes are live" : "Your organisation changes were not approved", String(a.p_note || "").trim() || (a.p_approve ? "Thank you. Your updated details are now public." : "Your current details stay as they were. Reply to us if you have questions."), "#org");
     adminAction(a.p_approve ? "org_changes_approved" : "org_changes_declined", "organisation", o.id, { changes: pc, note: a.p_note, name: o.name });
+  },
+  // 20261020120600: "Download my data".
+  export_my_data: () => {
+    const u = me(); if (!u) fail("Please sign in first.");
+    const omit = (r, ...k) => { const x = { ...r }; k.forEach((y) => delete x[y]); return x; };
+    const user = D.users.find((x) => x.id === u) || {};
+    const title = (id) => D.needs.find((n) => n.id === id)?.title ?? null;
+    const sus = D.user_suspensions.find((x) => x.user_id === u);
+    return {
+      exported_at: now(),
+      account: { id: u, email: user.email, created_at: user.created_at ?? null, email_confirmed_at: null, last_sign_in_at: null, details_given_at_sign_up: user.user_metadata || {} },
+      terms_acceptances: D.terms_acceptances.filter((t) => t.user_id === u).map((t) => omit(t, "id", "user_id")),
+      settings: (() => { const x = D.user_settings.find((r) => r.user_id === u); return x ? omit(x, "user_id") : null; })(),
+      research_answers: (() => { const x = D.user_private.find((r) => r.user_id === u); return x ? omit(x, "user_id") : null; })(),
+      profile: D.profiles.find((p) => p.user_id === u) || null,
+      organisations: D.organisation_members.filter((m) => m.user_id === u).map((m) => ({ your_role: m.role, your_name: m.full_name, joined_at: m.created_at, organisation: D.organisations.find((o) => o.id === m.organisation_id) || null })),
+      applications: D.applications.filter((x) => x.user_id === u).map((x) => ({ ...x, need_title: title(x.need_id) })),
+      invitations_received: D.invitations.filter((x) => x.user_id === u).map((x) => ({ ...omit(x, "invited_by"), need_title: title(x.need_id) })),
+      invitations_sent: D.invitations.filter((x) => x.invited_by === u).map((x) => ({ id: x.id, need_title: title(x.need_id), message: x.message, conflict_note: x.conflict_note ?? "", status: x.status, created_at: x.created_at })),
+      contributions: D.engagements.filter((e) => e.user_id === u || e.org_signed_by === u || e.endorsed_by === u),
+      hours: D.hours.filter((h) => h.user_id === u),
+      agreement_signatures: D.agreement_signatures.filter((x) => x.user_id === u).map((x) => omit(x, "ip")),
+      contribution_signatures: D.contribution_signatures.filter((x) => x.user_id === u).map((x) => omit(x, "ip")),
+      saved_needs: D.saved_needs.filter((x) => x.user_id === u).map((x) => ({ need_id: x.need_id, need_title: title(x.need_id), saved_at: x.created_at })),
+      messages_sent: D.messages.filter((m) => m.sender_id === u).map((m) => ({ id: m.id, conversation_id: m.conversation_id, body: m.body, sent_at: m.created_at })),
+      notifications: D.notifications.filter((n) => n.user_id === u).map((n) => ({ kind: n.kind, title: n.title, body: n.body, link: n.link, created_at: n.created_at, read_at: n.read_at, emailed_at: n.emailed_at ?? null })),
+      reports_made: D.reports.filter((r) => r.reporter_id === u).map((r) => ({ id: r.id, about: r.target_type, target_id: r.target_id, reason: r.reason, details: r.details, status: r.status, created_at: r.created_at, resolved_at: r.resolved_at })),
+      identity_check: {
+        consents: D.id_consents.filter((x) => x.user_id === u).map((x) => omit(x, "user_id")),
+        checks: D.id_verifications.filter((x) => x.user_id === u).map((x) => ({ provider: x.provider, status: x.status, name_on_document: x.document_name, created_at: x.created_at, updated_at: x.updated_at })),
+        video_call_request: (() => { const x = D.id_video_requests.find((r) => r.user_id === u); return x ? omit(x, "user_id", "decided_by") : null; })(),
+      },
+      questionnaire_answers: D.survey_responses.filter((x) => x.respondent === u).map((x) => omit(x, "respondent")),
+      suspension: sus ? { removed: sus.removed, suspended_at: sus.suspended_at, lifted_at: sus.lifted_at } : null,
+    };
+  },
+  // 20261020120500: browser errors (anyone may call; scrubbed, capped at 20 a minute across the site).
+  log_client_error: (a) => {
+    const scrub = (t) => String(t ?? "").replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]").replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, "[id]").replace(/[A-Za-z0-9_.-]{40,}/g, "[token]");
+    const message = scrub(String(a.p_message ?? "").slice(0, 2000)).trim().slice(0, 500);
+    if (!message) return null;
+    const page = scrub(String(a.p_page ?? "").slice(0, 1000).split("?")[0].split("access_token")[0]).trim().slice(0, 200);
+    const app_version = String(a.p_version ?? "").replace(/[^A-Za-z0-9._-]/g, "").slice(0, 40);
+    if (D.client_errors.filter((x) => !ago(x.created_at, 1 / 1440)).length >= 20) return null;
+    D.client_errors.push({ id: uid(), created_at: now(), message, page, app_version });
+    return null;
   },
   // 20261019001100_soft_launch_flow_fixes.sql
   account_deletion_blocker: () => {
@@ -768,7 +859,7 @@ const rpcs = {
     const gone = new Set(D.conversations.filter((c) => c.user_id === u && !kept.has(c.id)).map((c) => c.id));
     D.conversations = D.conversations.filter((c) => !gone.has(c.id));
     D.messages = D.messages.filter((m) => !gone.has(m.conversation_id));
-    D.organisations.forEach((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); if (ms.length && ms.every((m) => m.user_id === u)) { o.status = "suspended"; notifyAdmins("org_without_member", "An organisation no longer has anyone managing it", `${o.name}: its only member deleted their account, so it was suspended.`, "#admin-list/organisations"); } });
+    D.organisations.forEach((o) => { const ms = D.organisation_members.filter((m) => m.organisation_id === o.id); if (ms.length && ms.every((m) => m.user_id === u)) { if (o.status !== "suspended") o.suspended_at = now(); o.status = "suspended"; notifyAdmins("org_without_member", "An organisation no longer has anyone managing it", `${o.name}: its only member deleted their account, so it was suspended.`, "#admin-list/organisations"); } });
     // delete from auth.users: cascades and "on delete set null".
     for (const tb of ["profiles", "applications", "invitations", "saved_needs", "notifications", "organisation_members", "user_settings", "user_private", "id_verifications", "admins", "account_deletion_authorizations"]) D[tb] = D[tb].filter((r) => r.user_id !== u);
     const unset = (rows, ...keys) => rows.forEach((r) => keys.forEach((k) => { if (r[k] === u) r[k] = null; }));
@@ -843,7 +934,7 @@ const emit = (event) => listeners.forEach((cb) => cb(event, session()));
 const auth = {
   async getSession() { return { data: { session: session() }, error: null }; },
   onAuthStateChange(cb) { listeners.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
-  async signUp({ email, password, options }) { D = load(); if (D.users.some((x) => x.email === email)) return { data: {}, error: { message: "User already registered" } }; const user = { id: uid(), email, password, user_metadata: options?.data || {} }; D.users.push(user); save(); return { data: { user, session: null }, error: null }; },
+  async signUp({ email, password, options }) { D = load(); if (D.users.some((x) => x.email === email)) return { data: {}, error: { message: "User already registered" } }; const user = { id: uid(), email, password, user_metadata: options?.data || {}, created_at: now() }; D.users.push(user); const m = user.user_metadata; if (m.terms_version) acceptTerms(user.id, String(m.terms_version), String(m.privacy_version || ""), "signup", { adult_confirmed: "adult_confirmed" in m ? m.adult_confirmed === true : null }); save(); return { data: { user, session: null }, error: null }; },
   async signInWithPassword({ email, password }) { D = load(); const user = D.users.find((x) => x.email === email && (x.password ? x.password === password : String(password).length > 0)); if (!user) return { data: {}, error: { message: "Invalid login credentials" } }; localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); emit("SIGNED_IN"); return { data: { user, session: session() }, error: null }; },
   async signOut() { localStorage.removeItem(SKEY); emit("SIGNED_OUT"); return { error: null }; },
   async updateUser({ data, password }) { D = load(); const user = D.users.find((x) => x.id === me()); if (data) user.user_metadata = { ...user.user_metadata, ...data }; if (password) user.password = password; save(); localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); return { data: { user }, error: null }; },
@@ -856,6 +947,9 @@ async function invokeFunction(name, body) {
   D = load(); const u = me();
   if (!u) return { data: null, error: { message: "Please sign in first." } };
   if (name === "account-delete") {
+    // account-delete (re-audit L12): the function checks account_deletion_blocker first and stops before deleting anything.
+    const blocker = rpcs.account_deletion_blocker();
+    if (blocker) return { data: null, error: { message: blocker } };
     try {
       D.account_deletion_authorizations = D.account_deletion_authorizations.filter((x) => x.user_id !== u).concat({ user_id: u, verified_at: now() });
       rpcs.delete_my_account();
@@ -868,6 +962,7 @@ async function invokeFunction(name, body) {
   const p = D.profiles.find((x) => x.user_id === u);
   if (!p) return { data: null, error: { message: "Create your professional profile first." } };
   if (body?.action === "start") {
+    if (!D.id_consents.some((x) => x.user_id === u)) return { data: null, error: { message: "Please agree to the identity check first, then try again." } };
     if (p.id_status === "approved") return { data: null, error: { message: "Your identity is already verified." } };
     if (!p.id_status) p.id_status = "started";
     D.id_verifications.push({ id: uid(), user_id: u, provider: "didit", session_id: uid(), status: "Not Started", document_name: "", created_at: now(), updated_at: now() });

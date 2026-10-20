@@ -50,8 +50,14 @@ export async function admin() {
   const [signals, videoReqs, suspended] = await Promise.all([
     result(db.rpc("admin_integrity_signals")).catch(() => []),
     result(db.from("id_video_requests").select("user_id,requested_at,status").eq("status", "requested").order("requested_at")).catch(() => []),
-    result(db.from("user_suspensions").select("user_id,reason,removed,suspended_at").is("lifted_at", null).order("suspended_at", { ascending: false })).catch(() => []),
+    result(db.from("user_suspensions").select("user_id,removed,suspended_at").is("lifted_at", null).order("suspended_at", { ascending: false })).catch(() => []),
   ]);
+  // The suspended person can read their own suspension row, so the reason lives only in the activity log (admins only).
+  const suspensionLog = suspended.length ? await result(db.from("admin_actions").select("target_id,detail,created_at").in("action", ["person_suspended", "person_removed"]).in("target_id", suspended.map((x) => x.user_id)).order("created_at", { ascending: false })).catch(() => []) : [];
+  suspended.forEach((x) => { x.reason = suspensionLog.find((l) => l.target_id === x.user_id)?.detail?.reason || ""; });
+  // Handova's notes on open reports live in the admin-only case records (the reporter can read their own report row).
+  const reportNotes = reports.length ? await result(db.from("report_cases").select("report_id,admin_note").in("report_id", reports.map((r) => r.id))).catch(() => []) : [];
+  reports.forEach((r) => { r.admin_note = reportNotes.find((c) => c.report_id === r.id)?.admin_note || ""; });
   const peopleIds = [...new Set([...videoReqs, ...suspended].map((x) => x.user_id))];
   const people = peopleIds.length ? await result(db.from("profiles").select("user_id,name").in("user_id", peopleIds)).catch(() => []) : [];
   const nameOf = (id) => people.find((p) => p.user_id === id)?.name || "Unknown";
