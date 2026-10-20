@@ -1051,7 +1051,7 @@ ul.xp-roles > li::before { content: ""; position: absolute; left: -22px; top: 6p
   .header-actions { gap: 8px; min-width: 0; }
   .header-actions .btn.sm { padding-inline: 14px; }
 }
-@media (max-width: 380px) { .brand span { display: none; } }
+@media (max-width: 380px) { .brand span { font-size: 1.02rem; } .site-header .wrap { gap: 8px; } .header-actions { gap: 4px; } .header-actions .btn { padding-inline: 12px; } }
 /* Audit design fixes */
 .role-tag { display: inline-flex; padding: 4px 10px; border-radius: 6px; background: var(--mint); color: var(--deep); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .skills-more { margin-top: 12px; } .skills-more summary { cursor: pointer; font-weight: 700; color: var(--teal); min-height: 44px; display: inline-flex; align-items: center; } .skills-more[open] summary { margin-bottom: 8px; }
@@ -1468,3 +1468,24 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 /* Printed impact CV: a line with the link and date; screen-only controls are left out. */
 .print-only { display: none; }
 @media print { .print-only { display: block; margin: 0 0 12px; color: #33413e; } a.back { display: none !important; } }
+
+/* Messages on phones: the privacy note folds into one line, and the conversation and the message box fit the first screen. */
+.chat-privacy { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.chat-privacy > summary { display: flex; gap: 8px; align-items: center; padding: 10px 14px; min-height: 44px; cursor: pointer; font-weight: 600; font-size: .92rem; color: var(--teal); list-style: none; }
+.chat-privacy > summary::-webkit-details-marker { display: none; }
+.chat-privacy > summary::after { content: "+"; margin-left: auto; font-weight: 700; }
+.chat-privacy[open] > summary::after { content: "−"; }
+.chat-privacy > p { margin: 0; padding: 0 14px 12px; }
+@media (max-width: 640px) {
+  .chat-log { min-height: 200px; max-height: 52vh; padding: 12px; }
+  .chat-head { padding: 10px 14px; }
+  .chat-hint { display: none; }
+}
+
+/* First-time professional set-up: two steps in one form */
+.pf-part:not([hidden]) { display: contents; }
+.pf-steps { display: flex; gap: 10px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; scroll-margin-top: 90px; }
+.pf-steps li { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); font-weight: 600; font-size: .95rem; }
+.pf-steps li span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ivory); font-size: .85rem; }
+.pf-steps li[aria-current] { background: #0f6f63; border-color: #0f6f63; color: #fff; }
+.pf-steps li[aria-current] span { color: #0f6f63; }

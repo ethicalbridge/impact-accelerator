@@ -10,6 +10,7 @@ export const LISTS = {
   needs: "Needs",
   contributions: "Contributions",
   followups: "Six-month follow-ups",
+  activity: "Activity log",
 };
 
 export async function adminList(kind, params) {
@@ -65,6 +66,19 @@ export async function adminList(kind, params) {
     filters = [["", "All", needs.length], ["open", "Open", by("open")], ["pending", "Waiting for review", by("pending")], ["draft", "Drafts", by("draft")], ["closed", "Closed", by("closed")]];
     rows = needs.filter((n) => (!show || n.status === show) && match(n.title, n.organisation?.name));
     body = rows.map((n) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#need/${n.id}" style="font-weight:700" data-no-i18n>${e(n.title)}</a>${status(n.status)}</div><span class="small muted"><span data-no-i18n>${e(n.organisation?.name || "")}</span> · ${n.hours} hours · created ${date(n.created_at)}${n.approved_at ? ` · approved ${date(n.approved_at)}` : ""}</span></div><div class="al-actions">${btn("View need", `#need/${n.id}`, "secondary sm")}</div></div>`).join("");
+  }
+
+  if (kind === "activity") {
+    // Every admin decision, newest first: who decided, what changed, and the note (B9, 20 Oct 2026).
+    const acts = await result(db.from("admin_actions").select("id,admin_id,action,target_type,target_id,detail,created_at").order("created_at", { ascending: false }).limit(300)).catch(() => []);
+    const kinds = [...new Set(acts.map((a) => a.target_type))];
+    filters = [["", "All", acts.length], ...kinds.map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1), acts.filter((a) => a.target_type === k).length])];
+    rows = acts.filter((a) => (!show || a.target_type === show) && match(a.action, JSON.stringify(a.detail || {})));
+    const link = (a) => a.target_type === "profile" ? `#profile/${a.target_id}` : a.target_type === "need" ? `#need/${a.target_id}` : a.target_type === "engagement" ? `#agreement/${a.target_id}` : a.target_type === "organisation" ? `#admin-list/organisations` : "#admin";
+    const label = (a) => String(a.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+    body = rows.map((a) => { const d = a.detail || {}; const what = d.name || d.title || d.reason || ""; const note = d.note || "";
+      return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="${link(a)}" style="font-weight:700">${e(label(a))}</a>${d.from || d.to ? `<span class="small muted">${e(d.from || "—")} → ${e(d.to || "—")}</span>` : ""}</div>
+        <span class="small muted">${e(new Date(a.created_at).toLocaleString())}${what ? ` · <span data-no-i18n>${e(what)}</span>` : ""}</span>${note ? `<span class="small"><strong>Note:</strong> <span data-no-i18n>${e(note)}</span></span>` : ""}</div></div>`; }).join("") || `<p class="muted">No admin decisions recorded yet.</p>`;
   }
 
   if (kind === "contributions" || kind === "followups") {
