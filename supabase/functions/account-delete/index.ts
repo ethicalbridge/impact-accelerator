@@ -1,6 +1,8 @@
 // Delete a member's verification sessions and profile photos before removing
 // the Supabase account. The signed agreement evidence remains until its expiry.
 // Nothing is deleted while account_deletion_blocker() says no (open report about the person, or open work).
+// A Handova admin can call it with { user_id } to delete someone else's account (for example a profile closed
+// for 24 months): the same steps run for that person, then admin_delete_account() runs their delete_my_account().
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
@@ -25,18 +27,29 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   if (authError || !auth.user) return json({ error: "Please sign in first." }, 401);
-  const userId = auth.user.id;
-
-  // Use the member's JWT so the SQL functions can verify auth.uid().
+  // Use the caller's JWT for the SQL functions, so they can check auth.uid() and admin access.
   const member = createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const body = await req.json().catch(() => ({})) as { user_id?: string; reason?: string };
+  const target = typeof body?.user_id === "string" && body.user_id !== auth.user.id ? body.user_id : "";
+  if (target) {
+    const { data: isAdmin } = await member.rpc("is_admin");
+    if (isAdmin !== true) return json({ error: "Only Handova admins can delete another account." }, 403);
+    const { data: blocker, error: blockerError } = await member.rpc("admin_account_deletion_blocker", { p_user: target });
+    if (blockerError) return json({ error: "Could not check this account. Please try again." }, 502);
+    if (blocker) return json({ error: String(blocker) }, 409);
+  }
+  const userId = target || auth.user.id;
+
   // Check first, before anything is deleted at Didit or in storage: an open report (legal hold) or open work stops
   // the deletion here, so the identity evidence is kept.
-  const { data: blocker, error: blockerError } = await member.rpc("account_deletion_blocker");
-  if (blockerError) return json({ error: "Could not check your account. Your account is still active; please try again or write to hello@handova.org." }, 502);
-  if (typeof blocker === "string" && blocker) return json({ error: blocker }, 409);
+  if (!target) {
+    const { data: blocker, error: blockerError } = await member.rpc("account_deletion_blocker");
+    if (blockerError) return json({ error: "Could not check your account. Your account is still active; please try again or write to hello@handova.org." }, 502);
+    if (typeof blocker === "string" && blocker) return json({ error: blocker }, 409);
+  }
 
   const sessions: Array<{ session_id: string }> = [];
   for (let offset = 0; offset <= 10000; offset += 500) {
@@ -81,7 +94,9 @@ Deno.serve(async (req) => {
     .upsert({ user_id: userId, verified_at: new Date().toISOString() }, { onConflict: "user_id" });
   if (authorizationError) return json({ error: "Could not finish checking account deletion. Please write to hello@handova.org." }, 502);
 
-  const { error: deleteError } = await member.rpc("delete_my_account");
+  const { error: deleteError } = target
+    ? await member.rpc("admin_delete_account", { p_user: target, p_reason: String(body?.reason ?? "").slice(0, 600) })
+    : await member.rpc("delete_my_account");
   if (deleteError) return json({ error: "Could not finish deleting your account. Please write to hello@handova.org." }, 502);
   return json({ ok: true });
 });

@@ -1,7 +1,8 @@
 // Handova only: the records behind each number on the Admin page, with actions where they make sense.
-import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, val, PROFILE_COLS } from "../core.js";
+import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, val, PROFILE_COLS, errorMessage } from "../core.js";
 import { icon, eyebrow, back, empty, pill, status, field, formEnd, btn } from "../ui.js";
 import { date } from "../utils.js";
+import { loadReports, sortReports, reportSummary, targetLink, refOf, REASONS } from "./admin.js";
 
 const STAFF = { none: "Volunteers only", "1-5": "1–5 paid staff", "6-20": "6–20 paid staff", "21-50": "21–50 paid staff", "50+": "More than 50 paid staff" };
 export const LISTS = {
@@ -10,6 +11,7 @@ export const LISTS = {
   needs: "Needs",
   contributions: "Contributions",
   followups: "Six-month follow-ups",
+  reports: "Reports",
   activity: "Activity log",
 };
 
@@ -53,11 +55,11 @@ export async function adminList(kind, params) {
   if (kind === "professionals") {
     const profs = await result(db.from("profiles").select(PROFILE_COLS).order("created_at", { ascending: false }));
     const pub = (p) => p.published && p.review_status === "approved";
-    filters = [["", "All", profs.length], ["approved", "Approved and public", profs.filter(pub).length], ["pending", "Under review", profs.filter((p) => p.review_status === "pending").length], ["draft", "Private drafts", profs.filter((p) => !p.published).length], ["verified", "ID verified", profs.filter((p) => p.id_status === "approved").length]];
-    rows = profs.filter((p) => (!show || (show === "approved" ? pub(p) : show === "draft" ? !p.published : show === "verified" ? p.id_status === "approved" : p.review_status === show)) && match(p.name, p.headline, p.country, (p.skills || []).join(" ")));
+    filters = [["", "All", profs.length], ["approved", "Approved and public", profs.filter(pub).length], ["pending", "Under review", profs.filter((p) => p.review_status === "pending").length], ["draft", "Private drafts", profs.filter((p) => !p.published).length], ["verified", "ID verified", profs.filter((p) => p.id_status === "approved").length], ["closed", "Closed profiles", profs.filter((p) => p.closed_at).length]];
+    rows = profs.filter((p) => (!show || (show === "approved" ? pub(p) : show === "draft" ? !p.published : show === "verified" ? p.id_status === "approved" : show === "closed" ? !!p.closed_at : p.review_status === show)) && match(p.name, p.headline, p.country, (p.skills || []).join(" ")));
     body = rows.map((p) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#profile/${p.user_id}" style="font-weight:700" data-no-i18n>${e(p.name)}</a>${pub(p) ? pill("Public") : status(p.published ? p.review_status : "draft")}${p.id_status === "approved" ? pill("ID verified") : ""}</div>
-      <span class="small muted" data-no-i18n>${e(p.headline || "")}</span><span class="small muted">${[e(p.country || ""), `${p.hours_available || 0} h a month`, `joined ${date(p.created_at)}`].filter(Boolean).join(" · ")}</span></div>
-      <div class="al-actions">${p.review_status === "pending" ? `<button class="btn sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="approved">Approve</button><button class="btn secondary sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="changes_requested">Ask for changes</button>` : ""}${btn("View profile", `#profile/${p.user_id}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-suspend" data-id="${p.user_id}">Suspend…</button></div></div>`).join("");
+      <span class="small muted" data-no-i18n>${e(p.headline || "")}</span><span class="small muted">${[e(p.country || ""), `${p.hours_available || 0} h a month`, `joined ${date(p.created_at)}`, p.closed_at ? `closed ${date(p.closed_at)}` : ""].filter(Boolean).join(" · ")}</span></div>
+      <div class="al-actions">${p.review_status === "pending" ? `<button class="btn sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="approved">Approve</button><button class="btn secondary sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="changes_requested">Ask for changes</button>` : ""}${btn("View profile", `#profile/${p.user_id}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-suspend" data-id="${p.user_id}">Suspend…</button>${p.user_id === state.user.id ? "" : `<button class="btn secondary sm danger-outline" type="button" data-action="admin-delete-account" data-id="${p.user_id}" data-name="${e(p.name)}">Delete account…</button>`}</div></div>`).join("");
   }
 
   if (kind === "needs") {
@@ -68,17 +70,45 @@ export async function adminList(kind, params) {
     body = rows.map((n) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#need/${n.id}" style="font-weight:700" data-no-i18n>${e(n.title)}</a>${status(n.status)}</div><span class="small muted"><span data-no-i18n>${e(n.organisation?.name || "")}</span> · ${n.hours} hours · created ${date(n.created_at)}${n.approved_at ? ` · approved ${date(n.approved_at)}` : ""}</span></div><div class="al-actions">${btn("View need", `#need/${n.id}`, "secondary sm")}${n.status === "open" || n.status === "pending" ? `<button class="btn secondary sm" type="button" data-action="admin-takedown" data-id="${n.id}">Take down…</button>` : ""}</div></div>`).join("");
   }
 
+  if (kind === "reports") {
+    // Every report, open or closed, with its reference (A17). Each row opens its case record.
+    const all = sortReports(await loadReports());
+    const open = all.filter((r) => r.status !== "resolved");
+    filters = [["", "All", all.length], ["open", "Open", open.length], ["resolved", "Resolved", all.length - open.length], ["child", "Child cases", all.filter((r) => r.child_case).length]];
+    const ref = qtext.replace(/^#/, "").toUpperCase();
+    rows = all.filter((r) => (!show || (show === "open" ? r.status !== "resolved" : show === "resolved" ? r.status === "resolved" : !!r.child_case))
+      && (!qtext || (r.reference || refOf(r.id)).startsWith(ref) || match(r.details, r.reporter_name, r.reporter_email, r.admin_note)));
+    body = rows.map((r) => `<div class="al-row"><div class="stack" style="--gap:6px;min-width:0">${reportSummary(r)}${r.admin_note ? `<p class="small muted" style="white-space:pre-line"><span>Handova note:</span> <span data-no-i18n>${e(r.admin_note)}</span></p>` : ""}</div>
+      <div class="al-actions"><button class="btn sm" type="button" data-action="admin-case" data-id="${r.id}">Case record…</button>${targetLink(r) ? btn("Open what was reported", targetLink(r), "secondary sm") : ""}${r.status === "resolved" ? `<button class="btn secondary sm" type="button" data-action="admin-report-reopen" data-id="${r.id}">Reopen…</button>` : `<button class="btn secondary sm" type="button" data-action="admin-report-resolve" data-id="${r.id}">Resolve…</button>`}</div></div>`).join("");
+  }
+
   if (kind === "activity") {
     // Every admin decision, newest first: who decided, what changed, and the note (B9, 20 Oct 2026).
     const acts = await result(db.from("admin_actions").select("id,admin_id,action,target_type,target_id,detail,created_at").order("created_at", { ascending: false }).limit(300)).catch(() => []);
     const kinds = [...new Set(acts.map((a) => a.target_type))];
     filters = [["", "All", acts.length], ...kinds.map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1), acts.filter((a) => a.target_type === k).length])];
-    rows = acts.filter((a) => (!show || a.target_type === show) && match(a.action, JSON.stringify(a.detail || {})));
-    const link = (a) => a.target_type === "profile" ? `#profile/${a.target_id}` : a.target_type === "need" ? `#need/${a.target_id}` : a.target_type === "engagement" ? `#agreement/${a.target_id}` : a.target_type === "organisation" ? `#admin-list/organisations` : "#admin";
-    const label = (a) => String(a.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
-    body = rows.map((a) => { const d = a.detail || {}; const what = d.name || d.title || d.reason || ""; const note = d.note || "";
+    // Who or what each row is about (A24): names looked up now, falling back to the name saved with the decision.
+    const ids = (t) => [...new Set(acts.filter((a) => t.includes(a.target_type) && a.target_id).map((a) => a.target_id))];
+    const [pp, nn, oo, ee] = await Promise.all([
+      ids(["profile"]).length ? result(db.from("profiles").select("user_id,name").in("user_id", ids(["profile"]))).catch(() => []) : [],
+      ids(["need"]).length ? result(db.from("needs").select("id,title").in("id", ids(["need"]))).catch(() => []) : [],
+      ids(["organisation"]).length ? result(db.from("organisations").select("id,name").in("id", ids(["organisation"]))).catch(() => []) : [],
+      ids(["engagement", "contribution"]).length ? result(db.from("engagements").select("id,scope").in("id", ids(["engagement", "contribution"]))).catch(() => []) : [],
+    ]);
+    const about = (a) => { const d = a.detail || {}, id = a.target_id;
+      if (a.target_type === "profile") return pp.find((x) => x.user_id === id)?.name || d.name || "";
+      if (a.target_type === "need") return nn.find((x) => x.id === id)?.title || d.title || "";
+      if (a.target_type === "organisation") return oo.find((x) => x.id === id)?.name || d.name || "";
+      if (["engagement", "contribution"].includes(a.target_type)) { const x = ee.find((y) => y.id === id); return x ? [x.scope?.need_title, x.scope?.talent].filter(Boolean).join(" · ") : d.need_title || ""; }
+      if (a.target_type === "report") return [d.reference || (id ? refOf(id) : ""), REASONS[d.reason] || ""].filter(Boolean).join(" · ");
+      return d.name || d.title || ""; };
+    const link = (a) => a.target_type === "profile" ? `#profile/${a.target_id}` : a.target_type === "need" ? `#need/${a.target_id}` : ["engagement", "contribution"].includes(a.target_type) ? `#agreement/${a.target_id}` : a.target_type === "organisation" ? `#admin-list/organisations` : a.target_type === "report" ? `#admin-list/reports?q=${refOf(a.target_id)}` : a.target_type === "signal" && a.detail?.link ? a.detail.link : "#admin";
+    rows = acts.filter((a) => (!show || a.target_type === show) && match(a.action, JSON.stringify(a.detail || {}), about(a)));
+    const LABEL = { cv_entries_restored: "Impact CV entries restored", cv_entry_hidden: "Impact CV entry hidden", cv_entry_restored: "Impact CV entry restored", id_video_not_verified: "Identity not verified on a video call", id_confirmed_video_call: "Identity confirmed on a video call" };
+    const label = (a) => LABEL[a.action] || String(a.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+    body = rows.map((a) => { const d = a.detail || {}; const what = about(a); const note = d.note || (a.target_type === "report" ? "" : d.reason) || "";
       return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="${link(a)}" style="font-weight:700">${e(label(a))}</a>${d.from || d.to ? `<span class="small muted">${e(d.from || "—")} → ${e(d.to || "—")}</span>` : ""}</div>
-        <span class="small muted">${e(new Date(a.created_at).toLocaleString())}${what ? ` · <span data-no-i18n>${e(what)}</span>` : ""}</span>${note ? `<span class="small"><strong>Note:</strong> <span data-no-i18n>${e(note)}</span></span>` : ""}</div></div>`; }).join("") || `<p class="muted">No admin decisions recorded yet.</p>`;
+        ${what ? `<span class="small" data-no-i18n style="font-weight:600">${e(what)}</span>` : ""}<span class="small muted">${date(a.created_at, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>${note ? `<span class="small"><strong>Note:</strong> <span data-no-i18n>${e(note)}</span></span>` : ""}</div></div>`; }).join("") || `<p class="muted">No admin decisions recorded yet.</p>`;
   }
 
   if (kind === "contributions" || kind === "followups") {
@@ -101,8 +131,8 @@ export async function adminList(kind, params) {
     ${back("Admin", "#admin")}
     <div>${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1></div>
     <nav class="rs-tabs" aria-label="Lists">${Object.entries(LISTS).map(([k, t]) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
-    ${chips(filters)}
-    <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="Search by name, country…"></form>
+    ${kind === "reports" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn secondary sm" type="button" data-action="admin-record-report">Record an emailed report</button></div>` : chips(filters)}
+    <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="${kind === "reports" ? "Search by reference or words" : "Search by name, country…"}"></form>
     <section class="card">${rows.length ? `<p class="small muted">${rows.length} ${rows.length === 1 ? "record" : "records"}</p>${body}` : empty("Nothing here", "No records match this view.")}</section>
   </div></div>`;
   return {
@@ -112,6 +142,15 @@ export async function adminList(kind, params) {
       f?.addEventListener("submit", (ev) => { ev.preventDefault(); const p = new URLSearchParams(); if (show) p.set("show", show); const v = f.q.value.trim(); if (v) p.set("q", v); location.hash = `#admin-list/${kind}${p.toString() ? `?${p}` : ""}`; });
     },
   };
+}
+
+// When the server refuses a deletion because a report is still open (A20), say so plainly and link to the reports.
+function reportBlock(form, err, what) {
+  const msg = errorMessage(err);
+  if (!/report/i.test(msg)) throw err;
+  form.querySelector(".report-block")?.remove();
+  form.querySelector(".form-error")?.insertAdjacentHTML("beforebegin", `<div class="banner alert report-block" role="alert"><p><strong>${what === "organisation" ? "This organisation has an open report." : "This contribution has an open report."}</strong> <span>Records linked to an open report are evidence, so they can’t be deleted. Resolve the report first.</span></p><p><a href="#admin-list/reports?show=open">See open reports</a></p><p class="small" data-no-i18n>${e(msg)}</p></div>`);
+  throw Object.assign(Error("Resolve the open report first."), { quiet: true });
 }
 
 export function deleteOrgDialog(id, name, blocked) {
@@ -127,7 +166,7 @@ export function deleteOrgDialog(id, name, blocked) {
 }
 export async function submitDeleteOrg(form) {
   await withForm(form, async (fd) => {
-    await result(db.rpc("admin_delete_organisation", { p_org: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason") }));
+    await result(db.rpc("admin_delete_organisation", { p_org: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason") })).catch((err) => reportBlock(form, err, "organisation"));
     closeDialog();
     toast("Organisation deleted.");
     go(location.hash);
@@ -155,14 +194,14 @@ export function deleteContribDialog(id, title) {
     <p><strong data-no-i18n>${e(title)}</strong></p>
     <p><span>Its hours, completion details and questionnaire answers are deleted, and it disappears from the professional’s impact CV.</span> <span>This can’t be undone.</span></p>
     ${field("reason", "Reason (optional)", { type: "textarea", attrs: 'maxlength="600"' })}
-    <label class="check"><input type="checkbox" name="test" checked><span>This was a test or example. Also delete its signature records and don’t notify anyone.</span></label>
-    <p class="small muted">Untick for a real contribution: both parties are told, and the signed agreement records are kept for six years.</p>
+    <label class="check"><input type="checkbox" name="test"><span>This was a test or example. Also delete its signature records and don’t notify anyone.</span></label>
+    <p class="small muted">Leave it unticked for a real contribution: both parties are told, and the signed agreement records are kept for six years.</p>
     ${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off"' })}
     ${formEnd("Delete contribution", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`).replace('class="btn"', 'class="btn danger"')}</form>`);
 }
 export async function submitDeleteContrib(form) {
   await withForm(form, async (fd) => {
-    await result(db.rpc("admin_delete_contribution", { p_id: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason"), p_test: fd.has("test") }));
+    await result(db.rpc("admin_delete_contribution", { p_id: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason"), p_test: fd.has("test") })).catch((err) => reportBlock(form, err, "contribution"));
     closeDialog();
     toast("Contribution deleted.");
     go(location.hash);

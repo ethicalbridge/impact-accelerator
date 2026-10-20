@@ -29,7 +29,7 @@ function seed() {
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors"];
+const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -139,7 +139,7 @@ function visible(table, r) {
     case "terms_acceptances": return own(r.user_id) || admin;
     case "client_errors": return admin;
     case "organisation_members": return own(r.user_id) || isMember(r.organisation_id) || admin;
-    default: return false;
+    default: return ["report_case_versions", "integrity_signal_checks", "client_errors"].includes(table) ? admin : false;
   }
 }
 const STRICT_COLUMNS = new Set(["user_suspensions"]);
@@ -297,7 +297,7 @@ function insertRow(t, v) {
     notifyOrg(e.organisation_id, "hours", "Hours to review", e.scope.need_title, "#org");
   }
   if (t === "reports") {
-    Object.assign(row, { reporter_id: u, status: "open", admin_note: "", resolved_at: null });
+    Object.assign(row, { reporter_id: u, status: "open", admin_note: "", resolved_at: null, source: "platform", source_ref: null, reporter_name: "", reporter_email: "", outcome_message: "", outcome_sent_at: null });
     if (v.target_type === "conversation" && !isParty(D.conversations.find((c) => c.id === v.target_id))) RLS();
     if (D.reports.filter((r) => r.reporter_id === u && !ago(r.created_at, 1)).length >= 10) RLS();
     const details = trimmed(v.details);
@@ -868,6 +868,105 @@ const rpcs = {
     D.users = D.users.filter((x) => x.id !== u);
   },
 };
+// ---------- admin fixes, 20 Oct 2026 (20261020121000–121500) ----------
+const reportRef = (id) => String(id || "").slice(0, 8).toUpperCase();
+const signalKey = (g) => [g.kind, g.link || "", g.detail || ""].join("|");
+const integritySignalsAll = rpcs.admin_integrity_signals;
+// Run fn as another user (the database functions do this by setting the request's user for one statement).
+const asUser = (user, fn) => { const keep = localStorage.getItem(SKEY); localStorage.setItem(SKEY, JSON.stringify({ user: user ? { id: user } : null })); try { return fn(); } finally { if (keep == null) localStorage.removeItem(SKEY); else localStorage.setItem(SKEY, keep); } };
+Object.assign(rpcs, {
+  admin_reports: () => { requireAdmin(); return [...D.reports].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).map((r) => { const u = D.users.find((x) => x.id === r.reporter_id), p = D.profiles.find((x) => x.user_id === r.reporter_id), m = D.organisation_members.find((x) => x.user_id === r.reporter_id && x.full_name), c = D.report_cases.find((x) => x.report_id === r.id) || {};
+    return { id: r.id, reference: reportRef(r.id), target_type: r.target_type, target_id: r.target_id, reason: r.reason, details: r.details, status: r.status, admin_note: r.admin_note || "", created_at: r.created_at, resolved_at: r.resolved_at, source: r.source || "platform", source_ref: r.source_ref || null, reporter_id: r.reporter_id || null, reporter_name: r.reporter_name || p?.name || m?.full_name || u?.user_metadata?.full_name || "", reporter_email: r.reporter_email || u?.email || "", severity: c.severity || "", child_case: !!c.child_case, case_updated_at: c.updated_at || null, outcome_message: r.outcome_message || "", outcome_sent_at: r.outcome_sent_at || null }; }); },
+  admin_record_report: (a) => {
+    requireAdmin();
+    const src = a.p_source || "email", d = trimmed(a.p_details), em = trimmed(a.p_reporter_email).toLowerCase(), tt = a.p_target_type || "other";
+    if (!["email", "questionnaire"].includes(src)) fail("Choose where the report came from.");
+    if (d.length < 10) fail("Describe the concern in at least 10 characters.");
+    if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) fail("Check the reporter’s email address.");
+    if (a.p_received && a.p_received > today()) fail("The date received can’t be in the future.");
+    if (a.p_source_ref && D.reports.some((r) => r.source_ref === a.p_source_ref)) fail("A case is already open for this answer. Find it in Admin › Reports.");
+    if (!REPORT_TYPES.includes(tt) || !REPORT_REASONS.includes(a.p_reason)) CHECK("reports");
+    const id = uid();
+    notifyAdmins("report", a.p_reason === "exploitation" ? "Urgent: sexual exploitation or abuse reported" : "New concern reported", `${a.p_reason} · ${tt}`, "#admin");
+    D.reports.push({ id, reporter_id: null, target_type: tt, target_id: tt === "other" ? null : a.p_target_id || null, reason: a.p_reason, details: d.slice(0, 4000), status: "open", admin_note: "", resolved_at: null, source: src, source_ref: a.p_source_ref || null, reporter_name: trimmed(a.p_reporter_name).slice(0, 160), reporter_email: em.slice(0, 254), outcome_message: "", outcome_sent_at: null, created_at: !a.p_received || a.p_received >= today() ? now() : `${a.p_received}T12:00:00.000Z` });
+    adminAction("report_recorded", "report", id, { reference: reportRef(id), source: src, reason: a.p_reason });
+    return reportRef(id);
+  },
+  admin_resolve_report: (a) => {
+    requireAdmin();
+    const note = trimmed(a.p_note).slice(0, 2000), tell = trimmed(a.p_tell).slice(0, 1000);
+    if (note.length < 10) fail("Write what was done, in at least 10 characters. Only Handova sees this note.");
+    const r = D.reports.find((x) => x.id === a.p_id); if (!r) fail("Report not found.");
+    const from = r.status;
+    Object.assign(r, { status: "resolved", admin_note: note, resolved_at: now() });
+    if (tell) { r.outcome_message = tell; if (r.reporter_id) r.outcome_sent_at = now(); }
+    adminAction("report_resolved", "report", r.id, { from, to: "resolved", reason: r.reason, note });
+    if (tell && r.reporter_id) { notify(r.reporter_id, "report_outcome", "An update on the concern you reported", `Reference ${reportRef(r.id)}. ${tell}`, "#report"); adminAction("reporter_told", "report", r.id, { reference: reportRef(r.id), note: tell }); }
+  },
+  admin_reopen_report: (a) => {
+    requireAdmin();
+    const reason = trimmed(a.p_reason).slice(0, 600);
+    if (reason.length < 5) fail("Say briefly why it is reopened.");
+    const r = D.reports.find((x) => x.id === a.p_id && x.status === "resolved"); if (!r) fail("Only a resolved report can be reopened.");
+    Object.assign(r, { status: "reviewing", resolved_at: null, admin_note: (`Reopened ${utcStamp().slice(0, 11)}: ${reason}` + (r.admin_note ? `\n\nEarlier: ${r.admin_note}` : "")).slice(0, 2000) });
+    adminAction("report_reviewing", "report", r.id, { from: "resolved", to: "reviewing", reason: r.reason, note: r.admin_note });
+  },
+  admin_save_case: (a) => {
+    requireAdmin();
+    const sev = a.p_severity || "";
+    if (!["", "urgent", "high", "standard"].includes(sev)) fail("Choose a severity.");
+    if (!D.reports.some((r) => r.id === a.p_report)) fail("Report not found.");
+    const F = ["protective_actions", "informed", "referral", "wishes", "decision", "outcome"];
+    const next = { report_id: a.p_report, severity: sev, child_case: !!a.p_child_case, ...Object.fromEntries(F.map((k) => [k, String(a["p_" + k] || "").slice(0, 2000)])) };
+    const old = D.report_cases.find((c) => c.report_id === a.p_report);
+    if (old) {
+      if (["severity", "child_case", ...F].every((k) => old[k] === next[k])) return;
+      D.report_case_versions.push({ id: uid(), report_id: old.report_id, severity: old.severity, child_case: old.child_case, ...Object.fromEntries(F.map((k) => [k, old[k] || ""])), saved_at: old.updated_at, saved_by: old.updated_by, replaced_at: now(), replaced_by: me() });
+      Object.assign(old, next, { updated_at: now(), updated_by: me() });
+    } else D.report_cases.push({ ...next, updated_at: now(), updated_by: me() });
+    adminAction("case_record_updated", "report", a.p_report, { reference: reportRef(a.p_report), severity: sev, child_case: !!a.p_child_case, first_save: !old });
+  },
+  admin_user_emails: (a) => { requireAdmin(); return D.users.filter((u) => (a.p_users || []).includes(u.id)).map((u) => ({ user_id: u.id, email: u.email })); },
+  admin_decline_id_video: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const reason = trimmed(a.p_reason).slice(0, 600);
+    if (reason.length < 10) fail("Explain briefly why the identity couldn’t be verified. The person sees this.");
+    const r = D.id_video_requests.find((x) => x.user_id === a.p_user && x.status === "requested"); if (!r) fail("There is no open video-call request for this person.");
+    Object.assign(r, { status: "declined", decided_at: now(), decided_by: me(), decline_reason: reason });
+    adminAction("id_video_not_verified", "profile", a.p_user, { reason, name: D.profiles.find((p) => p.user_id === a.p_user)?.name });
+    notify(a.p_user, "id_check", "We couldn’t verify your identity on the video call", `${reason} You can try the online identity check from your profile, or ask for another video call.`, "#workspace");
+  },
+  admin_integrity_signals: () => integritySignalsAll().map((g) => ({ seen_at: null, ...g, signal_key: signalKey(g) })).filter((g) => !D.integrity_signal_checks.some((c) => c.signal_key === g.signal_key && (!g.seen_at || c.checked_at >= g.seen_at))),
+  admin_check_signal: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const g = integritySignalsAll().find((x) => signalKey(x) === a.p_key); if (!g) fail("This signal has changed or gone. Reload the page.");
+    const note = trimmed(a.p_note).slice(0, 600);
+    D.integrity_signal_checks = D.integrity_signal_checks.filter((c) => c.signal_key !== a.p_key).concat({ signal_key: a.p_key, kind: g.kind, title: g.title, detail: g.detail || "", note, checked_at: now(), checked_by: me() });
+    adminAction("signal_checked", "signal", null, { title: g.title, name: g.detail || "", note, link: g.link });
+  },
+  admin_account_deletion_blocker: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    if (!a.p_user || a.p_user === me()) return "Use Account and privacy to delete your own account.";
+    if (D.admins.some((x) => x.user_id === a.p_user)) return "An admin account can’t be deleted here.";
+    if (!D.users.some((x) => x.id === a.p_user)) return "This account no longer exists.";
+    return asUser(a.p_user, () => rpcs.account_deletion_blocker());
+  },
+  admin_delete_account: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const blocker = rpcs.admin_account_deletion_blocker(a);
+    if (blocker) fail(blocker);
+    const admin = me(), nm = D.profiles.find((p) => p.user_id === a.p_user)?.name || D.users.find((u) => u.id === a.p_user)?.user_metadata?.full_name || "";
+    asUser(a.p_user, () => rpcs.delete_my_account());
+    D.admin_actions.push({ id: uid(), admin_id: admin, action: "account_deleted", target_type: "profile", target_id: a.p_user, detail: { name: nm, reason: trimmed(a.p_reason).slice(0, 600) }, created_at: now() });
+  },
+  admin_restore_user_cv: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const hit = D.engagements.filter((e) => e.user_id === a.p_user && e.hidden_by_handova);
+    hit.forEach((e) => { e.hidden_by_handova = null; });
+    if (hit.length) { adminAction("cv_entries_restored", "profile", a.p_user, { count: hit.length, note: a.p_note || "", name: D.profiles.find((p) => p.user_id === a.p_user)?.name }); notify(a.p_user, "cv", "Your impact CV entries are available again", "You can choose which contributions to show on your impact CV again from your workspace.", "#workspace"); }
+    return hit.length;
+  },
+});
 function needsInUse(org, except, withPending) { return D.needs.filter((n) => n.organisation_id === org && n.id !== except && (n.status === "open" || (withPending && n.status === "pending") || (n.status === "closed" && D.engagements.some((e) => e.need_id === n.id && ["awaiting_signatures", "active"].includes(e.status))))).length; }
 // need_guard, open -> closed: everyone still waiting gets an answer.
 function closeNeedApps(n) {
@@ -946,6 +1045,18 @@ const auth = {
 async function invokeFunction(name, body) {
   D = load(); const u = me();
   if (!u) return { data: null, error: { message: "Please sign in first." } };
+  if (name === "account-delete" && body?.user_id && body.user_id !== u) {
+    // An admin deleting someone else's account: same steps for that person, then admin_delete_account (20261020121400).
+    if (!isAdmin()) return { data: null, error: { message: "Only Handova admins can delete another account." } };
+    const blocker = rpcs.admin_account_deletion_blocker({ p_user: body.user_id });
+    if (blocker) return { data: null, error: { message: blocker, context: { json: async () => ({ error: blocker }) } } };
+    try {
+      D.account_deletion_authorizations = D.account_deletion_authorizations.filter((x) => x.user_id !== body.user_id).concat({ user_id: body.user_id, verified_at: now() });
+      rpcs.admin_delete_account({ p_user: body.user_id, p_reason: body.reason });
+      save();
+    } catch (err) { return { data: null, error: { message: err.message, context: { json: async () => ({ error: err.message }) } } }; }
+    return { data: { ok: true }, error: null };
+  }
   if (name === "account-delete") {
     // account-delete (re-audit L12): the function checks account_deletion_blocker first and stops before deleting anything.
     const blocker = rpcs.account_deletion_blocker();
