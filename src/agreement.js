@@ -278,11 +278,17 @@ export const contributionHtml = (sections, esc, agreedAt = -1) => sections.map((
 // src/agreement-translations/ are keyed by the English section headings and carry the version they translate: when an
 // English version changes and its translation has not caught up, the reading copy is hidden and the page says so.
 import { getLang } from "./i18n.js";
-import es from "./agreement-translations/es.js";
-import pt from "./agreement-translations/pt.js";
-import fr from "./agreement-translations/fr.js";
 
-export const AGREEMENT_TRANSLATIONS = { es, pt, fr };
+// Each language's reading copy is a separate download, fetched only when an agreement is shown in that language (W15):
+// pages call `await loadAgreementCopy()` before they draw an agreement. English visitors never download them.
+const COPIES = { es: () => import("./agreement-translations/es.js"), pt: () => import("./agreement-translations/pt.js"), fr: () => import("./agreement-translations/fr.js") };
+export const AGREEMENT_TRANSLATIONS = {};
+export async function loadAgreementCopy(lang = getLang()) {
+  if (!COPIES[lang] || AGREEMENT_TRANSLATIONS[lang]) return AGREEMENT_TRANSLATIONS[lang] || null;
+  // If it can't be downloaded, the page shows the English text with the "English only for now" note.
+  try { AGREEMENT_TRANSLATIONS[lang] = (await COPIES[lang]()).default; } catch {}
+  return AGREEMENT_TRANSLATIONS[lang] || null;
+}
 
 export const PRO_SUMMARY = [
   "Handova is free and you volunteer unpaid. This agreement is between you and Ethical Bridge LLC, which runs Handova.",
@@ -313,7 +319,9 @@ export const AGREEMENT_UI = {
   name: "English",
   summaryTitle: "What you’re agreeing to",
   summaryNote: "This summary is here to help you. The full agreement below is what you sign, and it applies if anything differs.",
-  // toTranslation, toEnglish, readingNote, englishNote, englishOnly and readingCopy exist only in the translations.
+  // toTranslation, toEnglish, readingNote, englishNote and readingCopy exist only in the translations. englishOnly is
+  // replaced by the translation's own wording when it has loaded.
+  englishOnly: "This agreement is available in English only for now.",
   download: "Download PDF",
   textLabel: "Agreement text",
   englishText: "English text",

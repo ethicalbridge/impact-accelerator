@@ -347,7 +347,8 @@ function bindFilters(rows, card, noun, failed = false) {
     // A professional area matches the skills people pick, which are grouped by the same areas.
     if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
     const found = filterRecords(rows, data);
-    $("#count").textContent = `${plural(found.length, noun)}${rows.length && rows.every((r) => r.example && !r.founder) ? " (examples)" : ""}`;
+    // Two parts, so each is translated (D27); "(examples)" only when something is listed.
+    $("#count").innerHTML = `<span>${plural(found.length, noun)}</span>${found.length && rows.every((r) => r.example && !r.founder) ? ` <span>(examples)</span>` : ""}`;
     $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
   };
   f.addEventListener("input", draw);
@@ -435,12 +436,14 @@ export async function need(id) {
 }
 
 // Sharing an open need (M16): organisations forwarding their own need is how it reaches people in the soft launch.
+// Shared links are built from scratch with their own campaign tags (M17), never from the visitor's own address, so a
+// forwarded need is credited to WhatsApp, LinkedIn or a copied link, not to whatever brought this visitor here.
+export const shareURL = (hash, source) => `${location.origin}${location.pathname}?utm_source=${source}&utm_medium=share${hash}`;
 function shareBox(n) {
-  const url = `${location.origin}${location.pathname}#need/${n.id}`;
   const text = tf("Skilled volunteers wanted: “{title}” on Handova", { title: n.title });
-  const wa = "https://wa.me/?text=" + encodeURIComponent(`${text} ${url}`);
-  const li = "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(url);
-  return `<div class="share-box no-print"><span class="label-cap">Share this need</span><div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link">${icon("link", 16)}Copy link</button><a class="btn secondary sm" href="${e(wa)}" target="_blank" rel="noopener noreferrer">${icon("chat", 16)}WhatsApp<span class="visually-hidden">(opens in a new tab)</span></a><a class="btn secondary sm" href="${e(li)}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 16)}LinkedIn<span class="visually-hidden">(opens in a new tab)</span></a></div></div>`;
+  const wa = "https://wa.me/?text=" + encodeURIComponent(`${text} ${shareURL(`#need/${n.id}`, "whatsapp")}`);
+  const li = "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(shareURL(`#need/${n.id}`, "linkedin"));
+  return `<div class="share-box no-print"><span class="label-cap">Share this need</span><div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(shareURL(`#need/${n.id}`, "copy"))}">${icon("link", 16)}Copy link</button><a class="btn secondary sm" href="${e(wa)}" target="_blank" rel="noopener noreferrer">${icon("chat", 16)}WhatsApp<span class="visually-hidden">(opens in a new tab)</span></a><a class="btn secondary sm" href="${e(li)}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 16)}LinkedIn<span class="visually-hidden">(opens in a new tab)</span></a></div></div>`;
 }
 
 // ---------- Talent ----------
@@ -534,7 +537,7 @@ export async function profile(id) {
       <div class="stack actions-col no-print" style="--gap:10px">
         ${owner ? btn("Edit profile", "#workspace/profile") : canInvite ? (invited ? `<span class="pill invited-pill">${icon("clock", 16)}<span>${e(tf("Invited to {need} · waiting for a reply", { need: `“${invited.need?.title || ""}”` }))}</span></span>` : `<button class="btn invite-btn" type="button" data-action="invite" data-id="${e(p.user_id)}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>`) : state.profile && !state.memberships.length ? "" : `<button class="btn invite-btn" type="button" data-action="invite-cta" data-id="${e(p.user_id)}" data-sample="${ex ? 1 : 0}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>`}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
         ${safeURL(p.linkedin) ? `<a class="btn linkedin" href="${e(safeURL(p.linkedin))}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 18)}View on LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}
-        <button class="btn secondary" type="button" data-action="copy-link">${icon("link", 18)}Copy profile link</button>
+        <button class="btn secondary" type="button" data-action="copy-link" data-url="${e(shareURL(`#profile/${id}`, "copy"))}">${icon("link", 18)}Copy profile link</button>
         <button class="btn secondary" type="button" data-action="print">${icon("download", 18)}Save as PDF</button>
       </div>
     </section>
@@ -635,13 +638,15 @@ export async function applyDialog(needId) {
   if (!(p.published && p.review_status === "approved")) {
     return openDialog("Your profile needs approval first", `<p>${p.review_status === "pending" ? "Your profile is awaiting approval. We usually review within two working days, and you will get a notification." : "Publish your profile from your workspace. Once approved, you can apply."}</p><div class="row">${btn("Go to your workspace", "#workspace")}</div>`);
   }
-  const nd = await result(db.from("needs").select("languages,organisation:organisations(name)").eq("id", needId).maybeSingle()).catch(() => null);
+  // Whether a video call for the ID check is already requested (T22): read with the person's own state.
+  const personState = state.personFor === state.user.id ? null : import("./account.js").then((m) => m.loadPersonState()).catch(() => {});
+  const [nd] = await Promise.all([result(db.from("needs").select("languages,organisation:organisations(name)").eq("id", needId).maybeSingle()).catch(() => null), personState]);
   const langs = (nd?.languages || []).map((l) => t(l)).join(", ");
   openDialog("Apply to this need", `<form class="form" data-form="apply" data-id="${e(needId)}">
     <p class="muted">Explain how you would approach the output and when you could do it. Only the organisation will see this.</p>
     ${langs ? `<p class="small" style="font-weight:600">${e(tf("Write in a language the organisation works in: {langs}.", { langs }))}</p>` : ""}
     ${field("message", "Your plan and availability", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "At least 30 characters. Don’t include confidential information." })}
-    ${needsIdCheck(p) ? `<p class="notice small" role="note">${icon("lock", 18)}<span>Your identity isn’t verified yet. Right after you apply, we’ll ask you to verify it (about three minutes), so the organisation can accept you without waiting.</span></p>` : ""}
+    ${needsIdCheck(p) ? `<p class="notice small" role="note">${icon("lock", 18)}<span>Your identity isn’t verified yet. Right after you apply, we’ll ask you to verify it (about three minutes), so the organisation can accept you without waiting.</span></p>` : videoCallWaiting(p) ? `<p class="notice small" role="note">${icon("clock", 18)}<span>Your video call is requested; the organisation can accept you once it’s done.</span></p>` : ""}
     <fieldset class="field full sg-q" data-sg="conflict"><legend>Do you have a personal, family, financial or work link to this organisation, its staff or funders?</legend><div class="sg-opts"><label class="check"><input type="radio" name="conflict" value="no" required><span>No</span></label><label class="check"><input type="radio" name="conflict" value="yes"><span>Yes, I’ll describe it</span></label></div><div class="field sg-note" data-when="yes" hidden><label for="f-conflict">The link, briefly</label><textarea id="f-conflict" name="conflict_note" rows="2" maxlength="600"></textarea><span class="hint">The organisation and Handova see this. A link doesn’t rule you out; we agree how it is managed.</span></div></fieldset>
     ${formEnd("Send application", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
@@ -664,8 +669,10 @@ export async function submitApply(form) {
   });
 }
 
-// Not verified, and nothing waiting for review: the check can start now.
-const needsIdCheck = (p) => !!p && !!state.idRequired && ["", "started", "declined"].includes(p.id_status || "");
+// Not verified, nothing waiting for review and no video call requested instead: the check can start now.
+const unverified = (p) => !!p && !!state.idRequired && ["", "started", "declined"].includes(p.id_status || "");
+const needsIdCheck = (p) => unverified(p) && !state.idVideo;
+const videoCallWaiting = (p) => unverified(p) && !!state.idVideo;
 // The same two routes as Account › identity: Didit (consent first, in account.js) or a short video call.
 function applyIdStep() {
   openDialog("Application sent. Now verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations can only start working with verified professionals. Doing it now means they can accept you without waiting.</p><p class="small muted">It takes about three minutes: a photo of your passport or ID card and a short selfie, handled by our provider Didit. Handova only receives the result and the name on your document, never the images.</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div><p class="small muted">Prefer not to use Didit? <button type="button" class="link-btn" data-action="id-video">Ask for a short video call instead</button>, where you show your ID to Handova on camera.</p></div>`);

@@ -47,7 +47,7 @@ export async function adminList(kind, params) {
         <div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#organisations/${o.id}" style="font-weight:700" data-no-i18n>${e(o.name)}</a>${status(o.status)}</div>
         <span class="small muted">${[e([o.city, o.country].filter(Boolean).join(", ")), e(o.org_type || ""), o.staff_size ? STAFF[o.staff_size] : "", `registered ${date(o.created_at)}`].filter(Boolean).join(" · ")}</span>
         <span class="small muted">${m.length ? `<span data-no-i18n>${e(m.map((x) => x.full_name || "Member").join(", "))}</span>` : "No members"} · ${nd.length} ${nd.length === 1 ? "need" : "needs"} (${nd.filter((x) => x.status === "open").length} open) · ${en.length} ${en.length === 1 ? "contribution" : "contributions"}</span>
-        ${o.website || o.ethical_bridge_url ? `<span class="small">${o.website ? `<a href="${e(o.website)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}${o.website && o.ethical_bridge_url ? " · " : ""}${o.ethical_bridge_url ? `<a href="${e(o.ethical_bridge_url)}" target="_blank" rel="noopener noreferrer">Ethical Bridge page</a>` : ""}</span>` : ""}</div></div>
+        ${o.website || o.ethical_bridge_url ? `<span class="small">${o.website ? `<a href="${e(o.website)}" target="_blank" rel="noopener noreferrer">Website <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}${o.website && o.ethical_bridge_url ? " · " : ""}${o.ethical_bridge_url ? `<a href="${e(o.ethical_bridge_url)}" target="_blank" rel="noopener noreferrer">Ethical Bridge page <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</span>` : ""}</div></div>
         <div class="al-actions">${acts}</div></div>`;
     }).join("");
   }
