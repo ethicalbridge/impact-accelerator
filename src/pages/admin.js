@@ -198,7 +198,7 @@ export function reportSummary(r) {
   const when = date(r.created_at, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return `<div class="row" style="--gap:10px;align-items:baseline"><strong data-no-i18n style="letter-spacing:.06em;font-variant-numeric:tabular-nums">${e(r.reference || refOf(r.id))}</strong><strong>${e(REASONS[r.reason] || r.reason)}</strong></div>
     ${reportBadges(r)}
-    <span class="small muted"><span>${e(TARGETS[r.target_type] || r.target_type)}</span> · <span>Reported ${when}</span>${r.source === "email" ? ` · <span>Recorded from an email</span>` : r.source === "questionnaire" ? ` · <span>From a questionnaire answer</span>` : ""}${r.resolved_at ? ` · <span>Resolved ${date(r.resolved_at)}</span>` : ""}</span>
+    <span class="small muted"><span>${e(TARGETS[r.target_type] || r.target_type)}</span> · <span>Reported ${when}</span>${r.source === "email" ? ` · <span>Recorded from an email</span>` : r.source === "questionnaire" ? ` · <span>From a questionnaire answer</span>` : r.source === "public" ? ` · <span>Public form, no account</span>` : ""}${r.resolved_at ? ` · <span>Resolved ${date(r.resolved_at)}</span>` : ""}</span>
     ${reporterLine(r)}
     <p class="small" style="white-space:pre-line" data-no-i18n>${e(r.details)}</p>`;
 }
@@ -258,7 +258,7 @@ export async function resolveDialog(id) {
   const tell = r.reporter_id
     ? `<div class="field"><label for="f-tell">Tell the reporter (optional)</label><textarea id="f-tell" name="tell" rows="3" maxlength="1000"></textarea><span class="hint">Sent to the reporter as a notification and an email, with their reference. Say what happened in general terms, never details about other people.</span></div>`
     : r.reporter_email
-      ? `<p class="small"><span>This report came by email, so Handova can’t notify the reporter. Write back to them:</span> <a href="mailto:${e(r.reporter_email)}?subject=${encodeURIComponent(`Your report ${r.reference}`)}" data-no-i18n>${e(r.reporter_email)}</a></p><div class="field"><label for="f-tell">What you told them (optional, kept with the report)</label><textarea id="f-tell" name="tell" rows="2" maxlength="1000"></textarea></div>`
+      ? `<p class="small"><span>${r.source === "public" ? "This report came through the public form, so Handova can’t notify the reporter. Write back to them:" : "This report came by email, so Handova can’t notify the reporter. Write back to them:"}</span> <a href="mailto:${e(r.reporter_email)}?subject=${encodeURIComponent(`Your report ${r.reference}`)}" data-no-i18n>${e(r.reporter_email)}</a></p><div class="field"><label for="f-tell">What you told them (optional, kept with the report)</label><textarea id="f-tell" name="tell" rows="2" maxlength="1000"></textarea></div>`
       : `<p class="small muted">The reporter is anonymous, so nobody can be told.</p>`;
   decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", id,
     `<p class="small"><strong data-no-i18n>${e(r.reference)}</strong> · ${e(REASONS[r.reason] || r.reason || "")}</p><label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>${tell}`, "Resolve report");
