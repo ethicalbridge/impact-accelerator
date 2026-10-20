@@ -14,22 +14,44 @@ const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "CODE", "TEXTAREA"]);
 export const getLang = () => lang;
 export const locale = () => (LANGS.find((l) => l[0] === lang) || LANGS[0])[3];
 
+// ?lang=es|pt|fr|en in the address, before or after the # (e.g. handova.org/?lang=pt or handova.org/#needs?lang=fr).
+const LANG_PARAM = /([?&])lang=(en|es|pt|fr)(?=&|$)/;
+export function urlLang() {
+  return (location.search.match(LANG_PARAM) || location.hash.match(LANG_PARAM) || [])[2] || null;
+}
+// After reading it, take ?lang= out of the address, so the language menu (which reloads the page) still works.
+export function stripLangParam() {
+  const drop = (q) => q.replace(/([?&])lang=[^&#]*&?/, "$1").replace(/[?&]$/, "");
+  const search = drop(location.search), hash = drop(location.hash);
+  if (search === location.search && hash === location.hash) return;
+  history.replaceState(history.state, "", location.pathname + search + (hash === "#" ? "" : hash));
+}
+
 export function initialLang() {
+  const fromUrl = urlLang();
+  if (fromUrl) { try { localStorage.setItem("hv-lang", fromUrl); } catch {} return fromUrl; }
   try { const s = localStorage.getItem("hv-lang"); if (s && LANGS.some((l) => l[0] === s)) return s; } catch {}
   const n = (navigator.language || "en").slice(0, 2).toLowerCase();
   return LANGS.some((l) => l[0] === n) ? n : "en";
 }
 
 const esc = (s) => s.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
-export async function loadLang(l, version = "") {
+// The small script in the page head starts downloading the dictionary at the same time as the app (window.__hvI18n);
+// it is reused here when it is for the same language. The file's ?v= is set by the build (data-i18n-v on <html>).
+export async function loadLang(l) {
   lang = LANGS.some((x) => x[0] === l) ? l : "en";
   document.documentElement.lang = lang;
   dict = null; patterns = [];
+  const early = window.__hvI18n;
+  window.__hvI18n = null;
   if (lang === "en") return;
+  const v = document.documentElement.dataset.i18nV;
   try {
-    const r = await fetch(`i18n/${lang}.json${version}`);
-    if (!r.ok) throw Error("missing");
-    dict = await r.json();
+    dict = await ((early?.lang === lang && early.p) || Promise.reject()).catch(async () => {
+      const r = await fetch(`i18n/${lang}.json${v ? `?v=${v}` : ""}`);
+      if (!r.ok) throw Error("missing");
+      return r.json();
+    });
   } catch { dict = null; lang = "en"; document.documentElement.lang = "en"; return; }
   // Keys with placeholders become patterns, longest first so the most specific wins.
   for (const [k, v] of Object.entries(dict)) {
@@ -60,12 +82,19 @@ export function t(s) {
       const m = k.match(p.re);
       if (!m) continue;
       // A short pattern such as "{degree} in {field}" must not swallow a whole sentence that merely contains " in ".
-      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > (p.lit < 8 ? 30 : 60) || /[.!?·:]\s|\s[·:]/.test(m[i + 1])))) continue;
+      // (A full stop followed by a capital starts a new sentence; "oct. 2026" or "out. de 2026" in a date does not.)
+      if (p.lit < 25 && p.names.some((name, i) => name !== "n" && (m[i + 1].length > (p.lit < 8 ? 30 : 60) || /[!?·:]\s|\s[·:]|\.\s+[A-ZÀ-Þ¿¡]/.test(m[i + 1])))) continue;
       const vals = {}; const seen = {};
       p.names.forEach((name, i) => { (vals[name] = vals[name] || []).push(m[i + 1]); });
       out = p.v.replace(/\{(\w+)\}/g, (_, name) => { const i = seen[name] = (seen[name] ?? -1) + 1; const arr = vals[name] || []; return t(arr[Math.min(i, arr.length - 1)] ?? ""); });
       break;
     }
+  }
+  // Lines built from parts, such as "8 hours · created 3 Oct 2026", are translated part by part.
+  if (out === undefined && /\s·\s|^·\s/.test(k)) {
+    const parts = k.split(/(\s*·\s*)/);
+    const tr = parts.map((x, i) => (i % 2 || !x ? x : t(x)));
+    if (tr.some((x, i) => x !== parts[i])) out = tr.join("");
   }
   if (out === undefined || out === k) return str;
   return str.replace(raw, out);

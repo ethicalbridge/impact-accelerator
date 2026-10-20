@@ -1,16 +1,18 @@
 import { getLang } from "../i18n.js";
-import { state, e } from "../core.js";
-import { icon, eyebrow, btn } from "../ui.js";
+import { state, e, db, result, withForm, val, fieldError } from "../core.js";
+import { icon, eyebrow, btn, field, select, formEnd } from "../ui.js";
 import { config } from "../config.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, agreementHtml } from "../agreement.js";
+// Agreement texts and their reading copies are loaded only on the agreements page (they are large).
 
-const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">This translation is provided for convenience. If it differs from the English version, the English version prevails.</p>`}</div>${legalBody(body)}</div>`;
-// A readable text column with a sticky list of its sections beside it.
+const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
+// A readable text column with a list of its sections (D19): on a laptop the list sits beside the text and scrolls
+// within the screen height; on a phone it folds into an "On this page" button. Choosing a section moves focus to it.
 const legalBody = (body) => {
   const heads = [];
   const html = body.replace(/<h2>(.*?)<\/h2>/g, (_, t) => { const id = "sec-" + (heads.length + 1); heads.push([id, t]); return `<h2 id="${id}">${t}</h2>`; });
   if (heads.length < 3) return `<article class="reading">${html}</article>`;
-  return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span><ol>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol></nav><article class="reading">${html}</article></div>`;
+  const list = `<ol>${heads.map(([id, t]) => `<li><button type="button" data-action="scroll-to" data-id="${id}">${t}</button></li>`).join("")}</ol>`;
+  return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span>${list}</nav><details class="toc-m"><summary>${icon("doc", 18)}<span>On this page</span><span class="toc-n">${heads.length}</span></summary><nav aria-label="On this page">${list}</nav></details><article class="reading">${html}</article></div>`;
 };
 const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
@@ -60,8 +62,7 @@ export function privacy() {
     <li><strong>Messages:</strong> Handova may post messages into a conversation, such as the suggested agenda for your first call. If you delete your account, your messages in conversations linked to a contribution or a reported concern are kept for six years, shown as “Former member”, then deleted; your other messages are deleted straight away.</li>
     <li><strong>Signed contribution agreements:</strong> for each contribution agreement you sign, we keep the signed text and its reference, your name, email, role (for organisations), the safeguarding focal point named, your confirmations, the language shown, signing time, IP address and browser. They are kept for six years after you close your account, then deleted, so both parties can rely on what was agreed.</li>
     <li><strong>Identity checks:</strong> Didit keeps verification sessions, including document and selfie images, for up to one year after verification under our current application setting. This gives us a limited period to review verification questions, suspected misuse or safety concerns. Didit deletes a face biometric template with its session; we have not enabled separate template retention. A shorter deadline may apply under the law. If you delete your Handova account sooner, we first request deletion of your Didit sessions. If that request fails, account deletion stops so the session is not lost from our records; contact ${mail(config.contactEmail)} for help. The verification result and document name stored by Handova are deleted with your account. You can also request an earlier review or deletion by writing to us.</li>
-    <li><strong>Contribution records:</strong> the private record kept by the organisation may include the need, dates, hours, deliverables and endorsement text supplied by the parties. Replacing your displayed name does not necessarily remove identifying details from that text. Write to ${mail(config.contactEmail)} to request a review of remaining personal information.</li>
-    <li><strong>Contribution records</strong> (agreements, hours, endorsements and completion notes): six years after the contribution ends or the account closes, whichever is later.</li>
+    <li><strong>Contribution records</strong> (the need, dates, hours, deliverables, endorsement and completion notes): kept by the organisation for six years after your account closes, then deleted. Once you delete your account they show “Former member” instead of your name, but that does not necessarily remove identifying details from the text the parties wrote. Write to ${mail(config.contactEmail)} to request a review of remaining personal information.</li>
     <li><strong>Questionnaire answers:</strong> with the contribution record. You can ask us to delete your answers at any time.</li>
     <li><strong>Reports of concern:</strong> six years after the case closes, or longer if legal proceedings are ongoing or expected. Cases involving a child are kept until the child turns 25 or for six years after closure, whichever is later. We review them once a year.</li>
     <li><strong>Records of Handova decisions:</strong> six years. <strong>Email notification log:</strong> 12 months. <strong>Privacy requests and data breach records:</strong> three years after they are closed.</li>
@@ -128,12 +129,17 @@ ${workingResponsibly()}
   return { title: "Working responsibly", description: "The rules that keep every contribution safe.", html };
 }
 
-export function agreements(which) {
+export async function agreements(which) {
+  const { PRO_AGREEMENT_VERSION, ORG_AGREEMENT_VERSION, platformAgreementView } = await import("../agreement.js");
   const org = which === "organisation";
   const title = org ? "Handova organisation agreement" : "Handova professional agreement";
-  const body = agreementHtml(org ? ORG_AGREEMENT : PRO_AGREEMENT, e).replace(/<h3>/g, "<h2>").replace(/<\/h3>/g, "</h2>");
+  const lead = org ? `Read it before you join. An authorised person signs it for the organisation when creating the organisation account. Version ${ORG_AGREEMENT_VERSION}.` : `Read it before you join. You sign it when creating your profile. Version ${PRO_AGREEMENT_VERSION}.`;
   const other = org ? btn("Read the professional agreement", "#agreements/professional", "secondary") : btn("Read the organisation agreement", "#agreements/organisation", "secondary");
-  return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html: page("Agreements", title, `Read it before you join. ${org ? "An authorised person signs it for the organisation" : "You sign it"} when creating ${org ? "the organisation account" : "your profile"}. Version ${org ? ORG_AGREEMENT_VERSION : PRO_AGREEMENT_VERSION}.`, body + `<div class="row" style="margin-top:32px">${other}${btn("How it works", "#how", "secondary")}</div>`) };
+  // Summary, full text, reading copy and Download PDF come from agreement.js; the English text is the one people sign.
+  const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Agreements")}<h1>${title}</h1><p class="lead">${lead}</p></div>
+    <article class="reading agr-page">${platformAgreementView(org ? "organisation" : "professional", e, { title })}</article>
+    <div class="row no-print" style="margin-top:32px">${other}${btn("How it works", "#how", "secondary")}</div></div>`;
+  return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html };
 }
 
 // The Handova policies (version 1.0, approved 20 October 2026). The text lives in assets/policies as HTML
@@ -150,7 +156,7 @@ const policyPdf = (slug) => `assets/policies/handova-${slug}-v1.0.pdf`;
 const enNote = () => (getLang() === "en" ? "" : `<p class="small muted binding-note">Our policies are available in English only for now.</p>`);
 
 export function policies() {
-  const cards = POLICIES.map(([slug, title, sum]) => `<div class="card stack policy-card" style="--gap:10px"><h2 class="h3"><a href="#policies/${slug}">${title}</a></h2><p class="muted">${sum}</p><div class="row" style="--gap:8px">${btn("Read", `#policies/${slug}`, "sm")}<a class="btn secondary sm" href="${policyPdf(slug)}" download>Download PDF</a></div></div>`).join("");
+  const cards = POLICIES.map(([slug, title, sum]) => `<div class="card stack policy-card" style="--gap:10px"><h2 class="h3"><a href="#policies/${slug}">${title}</a></h2><p class="muted">${sum}</p><div class="row" style="--gap:8px"><a class="btn sm" href="#policies/${slug}" aria-label="${e(`Read the ${title}`)}">Read</a><a class="btn secondary sm" href="${policyPdf(slug)}" download aria-label="${e(`Download PDF of the ${title}`)}">Download PDF</a></div></div>`).join("");
   const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Trust and safety")}<h1>Our policies</h1><p class="lead">The rules behind every contribution on Handova. They form part of the agreements professionals and organisations sign.</p>${enNote()}<p class="small muted">Version 1.0, approved on 20 October 2026 by Julieta Castiñeira de Dios, founder. Handova is run by Ethical Bridge LLC, registered in Wyoming, USA.</p></div>
     <div class="grid policy-grid">${cards}</div>
     <div class="card stack" style="--gap:10px;margin-top:32px"><h2 class="h3">Something worrying you?</h2><p class="muted">Report it on the platform, or write to ${mail(config.safeguardingEmail)}. If someone is in immediate danger, contact local emergency services first.</p><div class="row">${btn("Report a concern", "#report")}${btn("Working responsibly", "#safety", "secondary")}</div></div></div>`;
@@ -174,7 +180,7 @@ export async function policy(slug) {
 
 export function contact() {
   const card = (ic, title, addr, text, extra = "") => `<div class="card stack contact-card" style="--gap:12px"><span class="icon-tile lg">${icon(ic, 26, "#0f6f63")}</span><h2 class="h3">${title}</h2><p class="contact-addr"><a href="mailto:${e(addr)}">${e(addr)}</a></p><p class="muted">${text}</p>${extra}</div>`;
-  const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:80px"><div class="page-head">${eyebrow("Contact")}<h1>Get in touch</h1><p class="lead">We are a small team and read every message. We usually reply within two working days.</p></div>
+  const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:80px"><div class="page-head">${eyebrow("Contact")}<h1>Get in touch</h1><p class="lead">We read every message. We usually reply within two working days.</p></div>
     <div class="grid contact-grid">
       ${card("mail", "Questions about Handova", config.contactEmail, "Your account, needs and contributions, how Handova works, partnerships, and privacy requests.")}
       ${card("shield", "Concerns and safeguarding", config.safeguardingEmail, "Safety, harassment, abuse, fraud or anything that worries you. You don’t need proof, and you can stay anonymous. If someone is in immediate danger, contact local emergency services first.", `<div class="row" style="--gap:8px">${btn("Report a concern", "#report", "sm")}</div>`)}
@@ -184,11 +190,41 @@ export function contact() {
   return { title: "Contact", description: "Contact Handova: questions, concerns and safeguarding, and the Ethical Bridge directory.", html };
 }
 
+// The same reasons as the report form on profiles, needs and conversations. Nothing is preselected (D16).
+export const REPORT_REASONS = [["", "Choose one…"], ["exploitation", "Sexual exploitation or abuse"], ["safety", "A child or adult at risk, or another safety concern"], ["harassment", "Harassment or inappropriate behaviour"], ["fraud", "Fraud, payment requests or false hours"], ["misleading", "Misleading or false information"], ["privacy", "Privacy or data"], ["spam", "Spam"], ["other", "Something else"]];
+
+// People without an account can report here too (L17): no sign-in, email optional, a reference shown on screen.
+const publicReportForm = () => `<form class="form public-report" data-form="public-report">
+    <div class="stack" style="--gap:6px"><h2 class="h3" id="pr-title">Report without an account</h2><p class="muted">No account needed. Our safeguarding lead reads every report and keeps it confidential.</p></div>
+    ${select("reason", "What is the concern?", REPORT_REASONS, "", { full: true, required: true })}
+    ${field("details", "What happened?", { type: "textarea", required: true, full: true, attrs: 'minlength="10" maxlength="4000" rows="6"', hint: "What happened, who or which page it is about, and when. You don’t need proof." })}
+    ${field("email", "Your email (optional)", { type: "email", full: true, attrs: 'maxlength="254" autocomplete="email"', hint: "Only if you want a reply. Leave it empty to stay anonymous; we then can’t update you." })}
+    <div class="hp-field" aria-hidden="true"><label>Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+    ${formEnd("Send report")}
+  </form>`;
+
+export async function submitPublicReport(form) {
+  await withForm(form, async (fd) => {
+    if (!form.checkValidity()) { form.reportValidity(); throw Error("Please complete the form."); }
+    const email = val(fd, "email");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw fieldError(form.elements.email, "Check the email address, or leave it empty.");
+    // A filled hidden field means a bot: thank it and send nothing.
+    const ref = val(fd, "website") ? "" : await result(db.rpc("submit_public_report", { p_reason: val(fd, "reason"), p_details: val(fd, "details"), p_email: email }));
+    const box = document.createElement("div");
+    box.className = "stack public-report-done";
+    box.setAttribute("role", "status");
+    box.innerHTML = `<span class="icon-tile lg">${icon("check", 28, "#0f6f63")}</span><h2 class="h3" tabindex="-1">We received your report</h2>${ref ? `<p>Your reference is <strong data-no-i18n>${e(String(ref))}</strong>. Please note it down: quote it if you write to us about this report.</p>` : ""}<p>${email ? "We’ll reply to the email address you gave if we need more information." : "You didn’t leave an email address, so we can’t update you. You can write to us at any time and quote your reference."}</p><p class="muted">If someone is in immediate danger, contact local emergency services first.</p>`;
+    form.parentElement?.querySelector(".report-alt")?.setAttribute("hidden", "");
+    form.replaceWith(box);
+    box.querySelector("h2").focus();
+  });
+}
+
 export function report() {
   const inner = state.user
-    ? `<button class="btn dark lg" type="button" data-action="report" data-type="other" data-id="">Report a concern</button><p class="muted">You can also report directly from a profile, need or conversation.</p>`
-    : `<div class="row">${btn(`Email ${e(config.safeguardingEmail)}`, `mailto:${e(config.safeguardingEmail)}`)}${btn("Sign in to report on the platform", "#signin?next=%23report", "secondary")}</div><div class="stack" style="--gap:8px"><strong>Helpful to include</strong><ul class="bullets"><li>What happened</li><li>Who or which page it is about</li><li>When it happened</li></ul><p class="muted">Every report is read by our safeguarding lead and kept confidential. Nobody is penalised for raising a genuine concern.</p></div>`;
-  const more = `<div class="card stack" style="--gap:10px"><h2 class="h3">Good to know</h2><ul class="bullets"><li>You don’t need proof. Report any concern you honestly believe in.</li><li>You can stay anonymous: write from an email address that doesn’t identify you. We may then be unable to update you.</li><li>On the platform you get an automatic acknowledgement with a reference. We reply to emails within 2 working days, the same day if someone may be at risk.</li><li>If your concern is about Handova’s founder, it goes to our independent contact (to be confirmed soon) instead. Until then, write to ${mail(config.safeguardingEmail)} and say so; you can also raise it with the authorities.</li><li>We never penalise anyone for raising a concern.</li></ul><p class="small muted">How we handle reports: <a href="#policies/safeguarding">Safeguarding Policy</a> · <a href="#policies/whistleblowing">Whistleblowing Policy</a> · <a href="#policies/anti-harassment">Anti-Harassment Policy</a></p></div>`;
+    ? `<div class="row"><button class="btn dark lg" type="button" data-action="report" data-type="other" data-id="">Report a concern</button></div><p class="muted">You can also report directly from a profile, need or conversation.</p>`
+    : `${publicReportForm()}<div class="stack report-alt" style="--gap:10px"><strong>Or, if you prefer</strong><div class="row">${btn(`Email ${e(config.safeguardingEmail)}`, `mailto:${e(config.safeguardingEmail)}`, "secondary")}${btn("Sign in to report on the platform", "#signin?next=%23report", "secondary")}</div></div>`;
+  const more = `<div class="card stack" style="--gap:10px"><h2 class="h3">Good to know</h2><ul class="bullets"><li>You don’t need proof. Report any concern you honestly believe in.</li><li>You can stay anonymous: leave the email empty, or write from an email address that doesn’t identify you. We may then be unable to update you.</li><li>You get a reference straight away, on screen or in your notifications. We reply to emails within 2 working days, the same day if someone may be at risk.</li><li>If your concern is about Handova’s founder, it goes to our independent contact (to be confirmed soon) instead. Until then, write to ${mail(config.safeguardingEmail)} and say so; you can also raise it with the authorities.</li><li>We never penalise anyone for raising a concern.</li></ul><p class="small muted">How we handle reports: <a href="#policies/safeguarding">Safeguarding Policy</a> · <a href="#policies/whistleblowing">Whistleblowing Policy</a> · <a href="#policies/anti-harassment">Anti-Harassment Policy</a></p></div>`;
   const html = `<div class="wrap stack" style="--gap:24px;padding-bottom:80px"><div class="page-head">${eyebrow("Safety")}<h1>Report a concern</h1><p class="lead">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p></div><div class="card stack">${inner}</div>${more}</div>`;
   return { title: "Report a concern", html };
 }

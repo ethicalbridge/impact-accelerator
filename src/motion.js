@@ -119,12 +119,12 @@ function bindHeroTilt(root) {
 
 // Header gains a shadow once the page scrolls.
 let headerBound = false;
-// Demo video: subtitles start on in the site language (Spanish for Spanish, English otherwise).
-// The Español / English / Off buttons under the video switch them; the player's own CC menu still works too.
+// Demo video: subtitles start on in the site language (Spanish, Portuguese or French; English otherwise).
+// The language / Off buttons under the video switch them; the player's own CC menu still works too.
 function bindDemoVideo(root) {
   root.querySelectorAll("video[data-demo-video]").forEach((video) => {
     const buttons = [...(video.closest("figure")?.querySelectorAll("[data-subs]") || [])];
-    let want = getLang() === "es" ? "es" : "en";
+    let want = ["es", "pt", "fr"].includes(getLang()) ? getLang() : "en";
     const apply = () => {
       [...video.textTracks].forEach((tr) => { tr.mode = tr.language === want ? "showing" : "disabled"; });
       buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.subs === want)));

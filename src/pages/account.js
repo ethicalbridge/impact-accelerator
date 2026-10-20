@@ -6,7 +6,7 @@ const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].m
 import { list, languages, safeURL } from "../utils.js";
 import { config } from "../config.js";
 import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
-import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, agreementHtml } from "../agreement.js";
+import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 // Handova is for non-profits only (founder decision, 20 Oct 2026).
@@ -48,10 +48,26 @@ const bindRole = () => {
   apply();
 };
 
+// Hidden from people (and screen readers); bots that fill every field fill it, and are quietly ignored.
+const honeypot = `<div class="hp-field" aria-hidden="true"><label>Leave this empty<input type="text" name="hv_check" tabindex="-1" autocomplete="off"></label></div>`;
+// A colleague invited to an organisation's team: just their own sign-in details (O2).
+function teamJoin() {
+  const form = `<form class="form" data-form="signup" novalidate>
+    <div class="row between"><h2 style="font-size:2.3rem">Join your organisation’s team</h2><a href="#signin" style="font-weight:600">I already have an account</a></div>
+    <p class="muted">Use the email address your colleague invited. Once you confirm it and sign in, you have access to your organisation’s workspace.</p>
+    <input type="hidden" name="role" value="organisation"><input type="hidden" name="team" value="1">${honeypot}
+    <div class="form-grid">${field("contact_name", "Your full name", { required: true, full: true, attrs: 'autocomplete="name" maxlength="120"' })}${field("email", "Email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
+    <div class="checkbox-box" style="margin-top:18px">${check("adult", "I am 18 or older.", false, true)}${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use</a> and have read the <a href="#privacy" target="_blank">Privacy notice</a>.`, false, true)}</div>
+    <div style="margin-top:18px">${formEnd("Create account")}</div>
+  </form>`;
+  return { title: "Join your organisation’s team", description: "Create a free Handova account to join your organisation’s team.", html: authShell("join", "organisation", form) };
+}
+
 export async function join(params) {
   if (state.user) return { redirect: homeFor() };
+  if (params.get("team")) return teamJoin();
   const r = params.get("role") === "organisation" ? "organisation" : params.get("role") === "professional" ? "professional" : "";
-  const form = `<form class="form" data-form="signup" novalidate>
+  const form = `<form class="form" data-form="signup" novalidate>${honeypot}
     <div class="row between"><h2 style="font-size:2.3rem">Create your account</h2><a href="#signin" style="font-weight:600">I already have one</a></div>
     <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
     <fieldset data-for="organisation" class="only-organisation"><legend class="visually-hidden">Your organisation</legend><div class="form-grid">
@@ -92,32 +108,81 @@ export async function signin(params) {
   return { title: "Sign in", html: authShell("signin", "", form), after: () => { bindRole(); try { const em = sessionStorage.getItem("hv-prefill-email"); const f = document.getElementById("f-email"); if (em && f && !f.value) { f.value = em; sessionStorage.removeItem("hv-prefill-email"); document.getElementById("f-password")?.focus(); } } catch {} } };
 }
 
-export async function reset() {
-  const form = `<form class="form" data-form="reset">
-    <h2 style="font-size:2.3rem">Reset your password</h2><p class="muted">We will email you a link to choose a new password.</p>
-    ${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" autofocus' })}
-    ${formEnd("Send reset link", `<a href="#signin" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Back to sign in</a>`)}
+// The form that asks for a reset link; also offered when a reset link has expired.
+const resetRequestForm = (heading = true) => `<form class="form" data-form="reset">
+    ${heading ? `<h2 style="font-size:2.3rem">Reset your password</h2><p class="muted">We will email you a link to choose a new password.</p>` : ""}
+    ${field("email", "Email address", { type: "email", required: true, attrs: `autocomplete="email"${heading ? " autofocus" : ""}` })}
+    ${formEnd(heading ? "Send reset link" : "Send a new reset link", heading ? `<a href="#signin" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Back to sign in</a>` : "")}
   </form>`;
-  return { title: "Reset your password", html: shell("Forgotten your password?", "It happens. We will send a secure link to the email address on your account.", form) };
+const newPasswordFields = () => `${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128" autofocus', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}`;
+const resetExpired = () => ({ title: "Link expired", html: shell("This reset link has expired.", "Reset links work once and for one hour. Ask for a new one below; it can be opened on any device or browser.", `<div class="stack" style="--gap:18px"><h2 style="font-size:2.3rem">Send a new reset link</h2><p class="muted">Type the email address on your account and we’ll send a new link to choose a password.</p>${resetRequestForm(false)}<a href="#signin" style="font-weight:600">Back to sign in</a></div>`) });
+// Password reset (W1). The email links to #reset?token_hash=…&type=recovery, which works in any browser or device
+// (unlike the older code link, which only works in the browser that asked for it). The new password is chosen on this page.
+export async function reset(params = new URLSearchParams()) {
+  const th = params.get("token_hash");
+  if (th) {
+    const { error } = await db.auth.verifyOtp({ token_hash: th, type: "recovery" });
+    // Either way, the one-time code leaves the address, so a reload or "back" never tries it twice.
+    if (error) { try { history.replaceState(null, "", location.pathname + location.search + "#reset?expired=1"); } catch {} return resetExpired(); }
+    await loadSession();
+    return { redirect: "#reset?new=1" };
+  }
+  if (params.get("expired")) return resetExpired();
+  if (params.get("new") && state.user) {
+    return { title: "Choose a new password", html: shell("Choose a new password.", "You are signed in with the link we emailed. Choose a password of at least 12 characters.", `<form class="form" data-form="new-password" data-page="1" novalidate><h2 style="font-size:2.3rem">Choose a new password</h2><p class="muted">${tf("For {email}", { email: `<span data-no-i18n>${e(state.user.email || "")}</span>` })}</p>${newPasswordFields()}${formEnd("Save new password", `<a href="${homeFor()}" style="font-weight:600;min-height:44px;display:inline-flex;align-items:center">Skip for now</a>`)}</form>`) };
+  }
+  return { title: "Reset your password", html: shell("Forgotten your password?", "It happens. We will send a secure link to the email address on your account.", resetRequestForm()) };
 }
 
+// Older reset links (and links opened in the browser that asked for them) arrive as a sign-in event: ask for the new
+// password in a box that Esc or a click outside can't close by accident. "Skip for now" closes it on purpose.
 export function newPasswordDialog() {
-  openDialog("Choose a new password", `<form class="form" data-form="new-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128" autofocus', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Save new password")}</form>`);
+  // The #reset page (token link) asks for the password on the page itself.
+  if (/^#reset\b/.test(location.hash)) return;
+  const d = document.getElementById("dialog");
+  openDialog("Choose a new password", `<form class="form" data-form="new-password" novalidate><p class="muted">You opened a password reset link, so you are signed in. Choose a new password now, or skip and change it later in Account and privacy.</p>${newPasswordFields()}${formEnd("Save new password", `<button class="btn secondary" type="button" data-pw-skip>Skip for now</button>`)}</form>`);
+  d.setAttribute("data-dirty", "1");
+  d.setAttribute("data-locked", "1");
+  const block = (ev) => { if (d.hasAttribute("data-locked")) ev.preventDefault(); };
+  const skip = (ev) => { if (!ev.target.closest("[data-pw-skip]")) return; d.removeAttribute("data-locked"); closeDialog(); toast("You can change your password at any time in Account and privacy."); };
+  d.addEventListener("cancel", block);
+  d.addEventListener("click", skip);
+  d.addEventListener("close", () => {
+    d.removeEventListener("cancel", block); d.removeEventListener("click", skip);
+    // Closed without saving or skipping (for example the browser forced it): ask again.
+    if (d.hasAttribute("data-locked")) { d.removeAttribute("data-locked"); setTimeout(newPasswordDialog, 50); }
+  }, { once: true });
 }
 
 // ---------- onboarding ----------
 export async function onboarding() {
   if (!state.user) return { redirect: /[?&]code=/.test(location.search) ? "#email-confirmed" : "#join" };
   const r = state.user.user_metadata?.role;
+  // Invited to an organisation's team with this email (O2)? Join it now.
+  if (!state.memberships.length) {
+    const joined = await result(db.rpc("claim_org_invites")).catch(() => 0);
+    if (joined) { await loadSession(); toast("Welcome. You now have access to your organisation’s workspace."); return { redirect: "#org" }; }
+  }
   if (state.memberships.length && (r === "organisation" || !r)) return { redirect: "#org" };
   if (state.profile && r !== "organisation") return { redirect: "#workspace" };
   const name = state.user.user_metadata?.full_name || "";
+  if (state.user.user_metadata?.team && r === "organisation" && !state.memberships.length) {
+    return { title: "Join your organisation’s team", html: `<div class="wrap" style="max-width:720px;padding-block:56px 80px"><div class="card stack" style="--gap:18px"><span class="icon-tile lg">${icon("people", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">We couldn’t find your invitation yet</h1><p class="lead">${tf("There is no team invitation for {email}.", { email: `<strong data-no-i18n>${e(state.user.email || "")}</strong>` })} Ask your colleague to add this exact email address under Organisation profile › Team, then reload this page.</p><div class="row"><button class="btn" type="button" data-action="reload">Check again</button><button class="btn secondary" type="button" data-team-new-org>Set up a new organisation instead</button></div></div></div>` };
+  }
   const adminNote = state.isAdmin ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>You are an administrator.</strong> You don’t need a profile to run Handova. <a href="#admin">Go to Admin</a></p></div>` : "";
   if (r === "organisation") {
     return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name, state.user.user_metadata?.org_role || "")}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
   }
   return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:56px 80px"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Last step")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
+
+// "Set up a new organisation instead" on the team-invitation page: forget the team sign-up and show the organisation form.
+document.addEventListener("click", async (ev) => {
+  if (!ev.target.closest?.("[data-team-new-org]") || !state.user) return;
+  await db.auth.updateUser({ data: { team: false } });
+  await loadSession();
+  go("#onboarding");
+});
 
 // Logo: optional, fitted inside a 200px square PNG and stored in the person's own folder (see fittedPng).
 const logoField = (o = {}) => `<div class="full orglogo-field" data-orglogo><span class="orglogo-label">Logo <span class="muted">(optional)</span></span><div class="row" style="--gap:18px;align-items:center;flex-wrap:nowrap"><span class="orglogo-preview">${o.logo_url ? `<img src="${e(o.logo_url)}" width="80" height="80" alt="">` : avatar(o.name || "Organisation", 80)}</span><div class="stack" style="--gap:8px"><div class="row" style="--gap:10px"><label class="btn secondary sm orglogo-pick">${icon("plus", 16)}<span>${o.logo_url ? "Change logo" : "Upload a logo"}</span><input type="file" class="orglogo-file visually-hidden" accept="image/png,image/jpeg,image/webp"></label><button type="button" class="link-btn orglogo-edit" ${o.logo_url ? "" : "hidden"}>Adjust</button><button type="button" class="link-btn orglogo-remove" ${o.logo_url ? "" : "hidden"}>Remove</button></div><span class="small muted orglogo-status" aria-live="polite">PNG, JPG or WebP. A square logo works best. It appears on your public page and your needs.</span></div></div><input type="hidden" name="logo_url" value="${e(o.logo_url || "")}"></div>`;
@@ -202,7 +267,7 @@ export function profileForm(p = {}) {
       <div class="pf-part" data-part="2"${steps ? " hidden" : ""}>
       ${steps ? `<button type="button" class="link-btn small" data-action="pf-back" style="align-self:flex-start">← Back to your profile</button>` : ""}
       ${agreementBlock()}
-      <div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone with the link can see it (search engines may show it too). You can unpublish at any time.", p.published)}</div>
+      ${state.suspension ? `${p.published ? '<input type="hidden" name="published" value="on">' : ""}<p class="small muted" id="publish-box" tabindex="-1">Your account is suspended, so your profile can’t be sent for review or published until Handova lifts the suspension.</p>` : `<div class="checkbox-box" id="publish-box" tabindex="-1">${check("published", "<strong>Send my profile for review and publish it.</strong> Handova checks it, usually within two working days. Once approved, organisations can find and invite you, and anyone with the link can see it (search engines may show it too). You can unpublish at any time.", p.published)}</div>`}
       </div>
       ${formEnd(steps ? "Continue to the agreement" : edit ? "Save profile" : "Create profile")}
     </section>
@@ -221,25 +286,66 @@ export function identityCard(p) {
     approved: ["Identity verified", p.id_verified_at ? `Verified on ${new Date(p.id_verified_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })}. Your profile shows “ID verified”.` : "Verified. Your profile shows “ID verified”."],
   }[st] || ["Verify your identity", ""];
   const canStart = ["", "started", "declined"].includes(st);
+  // Asked for a video call instead of Didit (T15): say so, and keep Didit as a quieter option.
+  if (canStart && state.idVideo) return `<div class="full id-card hero wait"><span class="id-icon">${icon("clock", 30, "currentColor")}</span><div class="stack" style="--gap:8px"><span class="id-step">In progress</span>${idVideoText()}</div></div>`;
   if (st === "approved") return `<div class="full id-card ok"><span class="icon-tile">${icon("check", 22, "#0f6f63")}</span><div class="stack" style="--gap:6px"><strong>${text[0]}</strong><p class="small muted" style="margin:0">${text[1]}</p></div></div>`;
   return `<div class="full id-card hero ${canStart ? "" : "wait"}"><span class="id-icon">${icon(canStart ? "lock" : "clock", 30, "currentColor")}</span><div class="stack" style="--gap:8px"><span class="id-step">${canStart ? "Next step" : "In progress"}</span><strong>${text[0]}</strong><p>${text[1]}</p>${canStart ? `<div><button type="button" class="btn id-btn" data-action="verify-id">${st === "started" ? "Continue identity check" : st === "declined" ? "Try again" : "Verify my identity"} ${icon("arrow", 18)}</button></div>` : ""}</div></div>`;
 }
-export function idNudgeDialog() {
+// The video-call request, as shown wherever we would otherwise say "Verify your identity".
+const vidDate = () => new Date(state.idVideo.requested_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" });
+export const idVideoText = () => `<strong>${tf("Video call requested on {date}.", { date: vidDate() })}</strong><p style="margin:0">We’ll email you to agree a time.</p><div><button type="button" class="link-btn" data-action="verify-id">Use Didit instead</button></div>`;
+// Read this person's own suspension and video-call request (both visible only to them and Handova).
+export async function loadPersonState() {
+  if (!state.user) { state.suspension = null; state.idVideo = null; return; }
+  const uid = state.user.id;
+  const [sus, vid] = await Promise.all([
+    // Only these columns: the reason is Handova's internal note.
+    result(db.from("user_suspensions").select("user_id,removed,suspended_at").eq("user_id", uid).is("lifted_at", null).maybeSingle()).catch(() => null),
+    result(db.from("id_video_requests").select("requested_at,status").eq("user_id", uid).maybeSingle()).catch(() => null),
+  ]);
+  state.suspension = sus || null;
+  state.idVideo = vid?.status === "requested" ? vid : null;
+  state.personFor = uid;
+}
+// A suspended or removed person sees why their tools stopped working (A15).
+export const suspendedBanner = () => (state.suspension ? `<div class="banner alert" role="status">${icon("alert", 22)}<p><strong>Your account is suspended while Handova looks into a concern.</strong> <span>Write to safeguarding@handova.org.</span></p></div>` : "");
+export async function idNudgeDialog() {
+  // Already asked for a video call: no reminder to use Didit.
+  if (/^#(reset|account)\b/.test(location.hash)) return;
+  if (state.personFor !== state.user?.id) await loadPersonState().catch(() => {});
+  if (state.idVideo || state.suspension) return;
   openDialog("Verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations trust verified professionals. It takes about three minutes: a photo of your passport or ID card and a short selfie.</p><p class="small muted">Handled by our provider Didit. Handova only receives the result and the name on your document, never the images.${state.idRequired ? " <strong>Required before you sign your first contribution agreement.</strong>" : ""}</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div></div>`);
 }
 // The selfie comparison uses biometric data, so we ask for explicit consent before sending anyone to Didit.
 const ID_CONSENT = "I consent to Didit comparing a photo of my passport or ID card with a selfie, which uses biometric data, to verify my identity for Handova. Didit keeps the session for up to one year, or less if I delete my account. Handova receives only the result and the name on my document. I can withdraw this consent at any time.";
 export async function requestIdVideo() {
-  try { await result(db.rpc("request_id_video_call")); closeDialog(); toast("Thank you. Handova will email you to agree a time for a short video call."); }
-  catch (err) { toast(errorMessage(err)); }
+  try {
+    await result(db.rpc("request_id_video_call"));
+    closeDialog();
+    state.idVideo = { requested_at: new Date().toISOString(), status: "requested" };
+    state.personFor = state.user?.id;
+    toast("Thank you. Handova will email you to agree a time for a short video call.");
+    go(location.hash);
+  } catch (err) { toast(errorMessage(err)); }
 }
 export async function startIdCheck(el) {
   if (el?.dataset.consented) {
-    // Record the consent (time, wording and notice version) before going to Didit.
-    try { await result(db.from("id_consents").insert({ wording: ID_CONSENT, notice_version: config.privacyVersion })); } catch (err) { if (!/id_consents|relation|schema/i.test(String(err?.message || ""))) { toast(errorMessage(err)); return; } }
+    // Record the consent (time, the exact sentence shown and the notice version) before going to Didit (T16).
+    // The sentence is saved in the language it was shown in. If it can't be saved, we stop here.
+    const shown = t(ID_CONSENT);
+    el.setAttribute("disabled", "");
+    try { await result(db.from("id_consents").insert({ wording: shown, notice_version: config.privacyVersion })); }
+    catch (err) {
+      el.removeAttribute("disabled");
+      const box = document.getElementById("id-consent-error");
+      const msg = t("We couldn’t save your consent, so the identity check hasn’t started. Please try again in a moment, or write to hello@handova.org.");
+      if (box) box.textContent = msg; else toast(msg, true);
+      void err;
+      return;
+    }
   }
   if (!el?.dataset.consented) {
-    openDialog("Before you start", `<div class="stack" style="--gap:14px"><p>Our provider <strong>Didit</strong> will ask for a photo of your passport or ID card and a short selfie, and compare the two. Comparing faces uses biometric data.</p><p class="small muted">Didit keeps the verification session for up to one year under our current setting, or deletes it sooner if you delete your Handova account. Its face template is deleted with the session. Handova receives only the result and the name on your document, which only our administrators can see. You can withdraw your consent at any time by writing to ${e(config.contactEmail)}. See the <a href="#privacy">privacy notice</a>.</p><div class="row"><button type="button" class="btn" data-action="verify-id" data-consented="1">I consent, continue to Didit</button><button type="button" class="btn secondary" data-action="close">Not now</button></div><p class="small muted">Prefer not to use Didit? <button type="button" class="link-btn" data-action="id-video">Ask for a short video call instead</button>, where you show your ID to Handova on camera.</p><div hidden></div></div>`);
+    openDialog("Before you start", `<div class="stack" style="--gap:14px"><p>Our provider <strong>Didit</strong> will ask for a photo of your passport or ID card and a short selfie, and compare the two. Comparing faces uses biometric data.</p><p class="small muted">Didit keeps the verification session for up to one year under our current setting, or deletes it sooner if you delete your Handova account. Its face template is deleted with the session. Handova receives only the result and the name on your document, which only our administrators can see. You can withdraw your consent at any time by writing to ${e(config.contactEmail)}. See the <a href="#privacy">privacy notice</a>.</p><div class="consent-quote"><span class="small" style="font-weight:700">What you consent to (we save this sentence with the date and time):</span><blockquote class="small" data-no-i18n>${e(t(ID_CONSENT))}</blockquote></div><p class="form-error" id="id-consent-error" role="alert"></p><div class="row"><button type="button" class="btn" data-action="verify-id" data-consented="1">I consent, continue to Didit</button><button type="button" class="btn secondary" data-action="close">Not now</button></div><p class="small muted">Prefer not to use Didit? <button type="button" class="link-btn" data-action="id-video">Ask for a short video call instead</button>, where you show your ID to Handova on camera.</p></div>`);
     return;
   }
   el?.setAttribute("disabled", "");
@@ -257,7 +363,11 @@ export function emailConfirmed(params = new URLSearchParams()) {
   if (/[?&]code=/.test(location.search) || location.search.includes("error")) try { history.replaceState(null, "", location.pathname + location.hash); } catch {}
   const wrap = (inner) => `<div class="wrap" style="max-width:640px;padding-block:72px 96px"><div class="card stack" style="--gap:18px;padding:clamp(28px,5vw,48px)">${inner}</div></div>`;
   if (err) {
-    return { title: "Link expired", html: wrap(`<span class="icon-tile lg">${icon("clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">This link has expired or was already used.</h1><p class="lead">If you already confirmed your email, just sign in. Otherwise, we can send you a new link.</p><div class="row">${btn("Sign in", "#signin?next=%23onboarding")}</div><form class="form" data-form="resend-confirm" novalidate><div class="form-grid">${field("email", "Your email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}</div>${formEnd("Send a new link")}</form>`) };
+    // Supabase doesn't say which kind of link expired. A reset asked for in this browser in the last day → offer a reset link.
+    let wasReset = false;
+    try { wasReset = Date.now() - Number(localStorage.getItem("hv-reset-asked") || 0) < 864e5; } catch {}
+    if (wasReset && params.get("kind") !== "signup") return { title: "Link expired", html: wrap(`<span class="icon-tile lg">${icon("clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">This reset link has expired or was already used.</h1><p class="lead">Reset links work once and for one hour. We can send you a new one.</p>${resetRequestForm(false)}<p class="small muted">Were you confirming a new account instead? <a href="#signin?next=%23onboarding">Sign in</a>, or <a href="#email-confirmed?error=expired&amp;kind=signup">send a new confirmation link</a>.</p>`) };
+    return { title: "Link expired", html: wrap(`<span class="icon-tile lg">${icon("clock", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">This link has expired or was already used.</h1><p class="lead">If you already confirmed your email, just sign in. Otherwise, we can send you a new link.</p><div class="row">${btn("Sign in", "#signin?next=%23onboarding")}</div><form class="form" data-form="resend-confirm" novalidate><div class="form-grid">${field("email", "Your email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}</div>${formEnd("Send a new link")}</form><p class="small muted">Was it a password reset link? <a href="#reset?expired=1">Send a new reset link</a>.</p>`) };
   }
   if (state.user) {
     const r = state.user.user_metadata?.role;
@@ -305,8 +415,29 @@ export function orgResignForm(o) {
       <div class="form-grid">${field("sign_role", "Your role in the organisation", { required: true, attrs: 'maxlength="120" placeholder="e.g. Director"' })}${field("sign_name", "Type your full name to sign", { required: true, attrs: 'maxlength="160" autocomplete="name"', hint: "Your electronic signature. We store it with your role, the date and time and the exact text agreed to." })}</div>
     </div>${formEnd("Sign the new agreement")}</form>`;
 }
-export const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => `${getLang() === "en" ? "" : `<p class="small muted binding-note">${"The English text below is the binding version of this agreement. Translations of the rest of Handova are provided for convenience."}</p>`}<div class="agreement-text" tabindex="0" aria-label="${label}" lang="en" data-no-i18n>${agreementHtml(sections, e)}</div>`;
+// The platform agreement on the page: plain summary, full text (English, with a reading copy when the site is in another
+// language) and Download PDF. The English text is what is signed.
+export const agreementBody = (sections = PRO_AGREEMENT, label = "Handova professional agreement") => platformAgreementView(sections === ORG_AGREEMENT ? "organisation" : "professional", e, { title: label, id: sections === ORG_AGREEMENT ? "agr-organisation" : "agr-professional" });
+// Professionals who signed an older professional agreement sign the new one here (T13): what changed, the agreement,
+// the four confirmations and the name. Nothing else on the profile is saved, so no profile field can block it.
+export function proResignForm(next = "") {
+  const changes = ["It is now an agreement with Ethical Bridge LLC, and it includes the Handova Code of Conduct and policies.", "You give the organisation a right to use the work you hand over, instead of transferring ownership. You keep your earlier work and know-how.", "Clearer safety rules: no contact with the people organisations serve, no personal data in AI tools, conflicts declared in writing, and concerns sent to safeguarding@handova.org."];
+  return `<form class="form" data-form="pro-resign" data-next="${e(next)}" novalidate>
+    <div class="notice resign-what" role="note"><strong>What changed on 20 October 2026</strong><ul class="bullets">${changes.map((c) => `<li>${c}</li>`).join("")}</ul></div>
+    <div class="full agreement">${agreementBody()}
+      <div class="checkbox-box">
+        ${check("age_confirmed", "I am 18 or older.", false, true)}
+        ${check("unpaid_confirmed", "I understand contributions are unpaid, voluntary and remote.", false, true)}
+        ${check("declare_conduct", "I confirm the declaration in section 1: I have never been dismissed or convicted for sexual exploitation, abuse or harassment or for an offence against a child or adult at risk, and I am not barred from working with them.", false, true)}
+        ${check("agree_rules", `I have read and agree to the Handova professional agreement and the <a href="#policies" target="_blank">Code of Conduct and policies</a> it refers to, including my monthly commitment, and that my profile is marked inactive after three months without activity and closed after six.`, false, true)}
+      </div>
+      ${field("sign_name", "Type your full name to sign", { required: true, value: "", attrs: 'maxlength="160" autocomplete="name"', hint: "This is your electronic signature. We store it with your email address, the date and time, your IP address and browser, the hours you commit and the exact text you agreed to." })}
+    </div>${formEnd("Sign the new agreement", `<a href="${next && /^#agreement\//.test(next) ? e(next) : "#workspace"}" class="btn secondary">Not now</a>`)}</form>`;
+}
+// Signed an older version: the new one is signed on its own page (T13), not by re-saving the whole profile.
+export const needsResign = () => !!state.proAgreement && !signedCurrent();
 function agreementBlock() {
+  if (needsResign()) return `<div class="full agreement"><p class="notice" role="note"><span>We updated the Handova professional agreement. <a href="#workspace/agreement" style="font-weight:700">Read and sign the new version</a> before you publish your profile again or sign a new contribution agreement.</span></p></div>`;
   if (signedCurrent()) {
     const a = state.proAgreement;
     return `<div class="full agreement signed"><p>${icon("check", 20, "#0f6f63", 2.4)}<span>You signed the Handova professional agreement as <strong>${e(a.full_name)}</strong> on ${new Date(a.signed_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })}.</span></p><details><summary>Read the agreement again</summary>${agreementBody()}</details></div>`;
@@ -506,8 +637,8 @@ export async function account() {
     <div class="card stack"><h2 style="font-size:1.6rem">Sign-in details</h2><p><strong>Email:</strong> ${e(state.user.email)}</p><form class="form" data-form="change-password">${field("password", "New password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat new password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}${formEnd("Change password")}</form></div>
     ${mfaCard}
     <div class="card stack"><h2 style="font-size:1.6rem">Email notifications</h2><p class="muted">We email you when something needs your attention: a new application or invitation, a decision, an agreement to sign, hours to review, a new message (at most one message email every 30 minutes) and, for organisations, the six-month check-in. Emails show a short title, a one-line summary and a link. They never include what people write in Messages.</p><form class="form" data-form="email-settings">${check("email_notifications", "Send me email notifications", emailOn)}${formEnd("Save email preference")}</form></div>
-    <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">For a copy of your data or any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p></div>
-    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2><p class="muted">This permanently removes your account, profile, applications, messages, uploaded profile photos and identity checks held by Handova and Didit. If a provider deletion fails, we stop and ask you to contact us. Organisations keep a private record of completed work with your name replaced by “Former member”. We keep signed Handova professional or organisation agreement records for six years after deletion, as explained in the <a href="#privacy">privacy notice</a>. This cannot be undone.</p><div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
+    <div class="card stack"><h2 style="font-size:1.6rem">Your data</h2><p class="muted">Your profile is public only when you publish it and it is approved. Applications, messages and agreements are visible only to you and the organisation involved. Read the <a href="#privacy">privacy notice</a>.</p><p class="muted">Download a copy of the information Handova holds about you, as a file you can open or keep. For any other privacy request, write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p><div><button class="btn secondary" type="button" data-action="export-data">${icon("download", 16)} Download my data</button></div></div>
+    <div class="card stack" style="border-color:#e6b9a6"><h2 style="font-size:1.6rem">Delete your account</h2>${deleteWording()}${state.profile ? `<p><a href="#profile/${e(state.user.id)}" style="font-weight:700">Save your impact CV as PDF first</a> <span class="small muted">Open it and choose Save as PDF.</span></p>` : ""}<div><button class="btn danger" type="button" data-action="delete-account">Delete my account</button></div></div>
   </div></div>`;
   return { title: "Account and privacy", html };
 }
@@ -515,14 +646,19 @@ export async function account() {
 // ---------- submissions ----------
 export async function submitAccount(kind, form) {
   if (kind === "signup") return withForm(form, async (fd) => {
+    const checkEmail = () => `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it to confirm your email, then sign in to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
+    // Bot trap (B7): look exactly like success, create nothing.
+    if (val(fd, "hv_check")) { await new Promise((r) => setTimeout(r, 600)); form.outerHTML = checkEmail(); return; }
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
-    const role = val(fd, "role");
+    const role = val(fd, "role"), team = !!val(fd, "team");
     if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
     if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
-    if (role === "organisation" && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
+    if (role === "organisation" && !team && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
     // Proof of what was accepted at sign-up: the Terms and privacy notice versions, when, and the 18+ confirmation.
     const accepted = { terms_version: config.termsVersion, privacy_version: config.privacyVersion, terms_accepted_at: new Date().toISOString(), adult_confirmed: fd.has("adult") };
-    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...accepted } } });
+    const meta = team ? { role, full_name: val(fd, "contact_name"), team: true, lang: getLang(), ...accepted }
+      : role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...accepted };
+    const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: meta } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
     // An address that already has an account gets no new email (Supabase answers with no identities). Say so, kindly.
@@ -531,7 +667,7 @@ export async function submitAccount(kind, form) {
       form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("user", 28, "#0f6f63")}</span><h2 style="font-size:2rem">You already have an account</h2><p><span>There is already a Handova account for ${e(val(fd, "email"))}, so we didn’t send a new confirmation email.</span> <span>Sign in with your password to continue. If your organisation was removed, you can set it up again after signing in.</span></p><div class="row" style="--gap:10px">${btn("Sign in", `#signin?role=${encodeURIComponent(role)}`, "")}${btn("Forgot your password?", "#reset", "secondary")}</div></div>`;
       return;
     }
-    form.outerHTML = `<div class="stack card" role="status"><span class="icon-tile lg">${icon("inbox", 28, "#0f6f63")}</span><h2 style="font-size:2rem">Check your email</h2><p>We sent a confirmation link to <strong>${e(val(fd, "email"))}</strong>. Open it to confirm your email, then sign in to finish setting up. It can take a few minutes; check your spam folder too.</p>${btn("Back to sign in", "#signin", "secondary")}</div>`;
+    form.outerHTML = checkEmail();
   });
   if (kind === "resend-confirm") return withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Add your email address.")); }
@@ -563,7 +699,10 @@ export async function submitAccount(kind, form) {
     go("#account");
   });
   if (kind === "reset") return withForm(form, async (fd) => {
+    if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Add your email address.")); }
     await result(db.auth.resetPasswordForEmail(val(fd, "email"), { redirectTo: config.siteUrl }));
+    // If an older-style link expires in this browser, the expired page offers a new reset link first.
+    try { localStorage.setItem("hv-reset-asked", String(Date.now())); } catch {}
     form.outerHTML = `<div class="stack card" role="status"><h2 style="font-size:2rem">Check your email</h2><p>If an account exists for that address, you will receive a link to choose a new password.</p></div>`;
   });
   if (kind === "email-settings") return withForm(form, async (fd) => {
@@ -575,10 +714,13 @@ export async function submitAccount(kind, form) {
   });
   if (kind === "new-password" || kind === "change-password") return withForm(form, async (fd) => {
     if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
+    if (String(fd.get("password")).length < 12) throw fieldError(form.querySelector('[name="password"]'), "Use at least 12 characters.");
     await result(db.auth.updateUser({ password: String(fd.get("password")) }));
+    document.getElementById("dialog")?.removeAttribute("data-locked");
     closeDialog();
     toast("Password updated.");
     form.reset();
+    if (form.dataset.page) go(homeFor());
   });
   if (kind === "org-create") return withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields and confirmations.")); }
@@ -600,6 +742,18 @@ export async function submitAccount(kind, form) {
     await result(db.rpc("resign_org_agreement", { p_org: form.dataset.id, p_version: ORG_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_role: val(fd, "sign_role"), p_text: orgAgreementText() }));
     toast("Thank you. The new agreement is signed.");
     go("#org");
+  });
+  if (kind === "pro-resign") return withForm(form, async (fd) => {
+    const q = (n) => form.querySelector(`[name="${n}"]`);
+    const problems = ["age_confirmed", "unpaid_confirmed", "declare_conduct", "agree_rules"].filter((k) => !fd.has(k)).map((k) => [q(k), "Please tick this box to continue."]);
+    if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
+    if (problems.length) throw fieldErrors(problems);
+    const hours = Math.max(4, Number(state.profile?.hours_available) || 4);
+    await result(db.rpc("sign_agreement", { p_kind: "professional", p_version: PRO_AGREEMENT_VERSION, p_name: val(fd, "sign_name"), p_text: proAgreementText(), p_hours: hours }));
+    await loadSession();
+    toast("Thank you. The new agreement is signed.");
+    const next = form.dataset.next || "";
+    go(/^#agreement\/[\w-]+$/.test(next) ? next : "#workspace");
   });
   if (kind === "org-edit") return withForm(form, async (fd) => {
     const website = withScheme(val(fd, "website"));
@@ -624,14 +778,15 @@ export async function submitAccount(kind, form) {
     else if (!/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(linkedin)) problems.push([q("linkedin"), "Use your LinkedIn profile address, starting with https://www.linkedin.com/"]);
     const entries = (kind) => { try { return readEntries(form, kind); } catch (err) { problems.push([err.field || form.querySelector(`[data-entry-editor="${kind}"]`), err.message]); return null; } };
     const xp = entries("experience"), ed = entries("education");
-    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: xp || [], education_items: ed || [], photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: (() => { try { return languages(val(fd, "languages")); } catch (err) { if (val(fd, "languages")) problems.push([q("languages"), err.message]); return []; } })(), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
+    const row = { linkedin, user_id: state.user.id, name: val(fd, "name"), headline: val(fd, "headline"), bio: val(fd, "bio"), experience_items: xp || [], education_items: ed || [], photo_url: val(fd, "photo_url"), skills: list(val(fd, "skills"), 200), languages: (() => { try { return languages(val(fd, "languages")); } catch (err) { if (val(fd, "languages")) problems.push([q("languages"), err.message]); return []; } })(), location: val(fd, "location"), country: val(fd, "country"), arrangement: "Remote", hours_available: Number(val(fd, "hours_available") || 0), website: safeURL(website), age_confirmed: signedCurrent() || needsResign() ? true : fd.has("age_confirmed"), unpaid_confirmed: signedCurrent() || needsResign() ? true : fd.has("unpaid_confirmed"), published: fd.has("published") };
     if (!row.skills.length) problems.push([q("skills"), "Add at least one skill."]);
     if (!row.languages.length) problems.push([q("languages"), "Choose at least one language you can work in."]);
     if (xp && !xp.length) problems.push([form.querySelector('[data-entry-editor="experience"] button') || form.querySelector('[data-entry-editor="experience"]'), "Add at least one role under Experience."]);
     if (ed && !ed.length) problems.push([form.querySelector('[data-entry-editor="education"] button') || form.querySelector('[data-entry-editor="education"]'), "Add at least one qualification under Education."]);
     if (row.hours_available < 4) problems.push([q("hours_available"), "Choose at least 4 hours a month."]);
     if (!val(fd, "career_stage")) problems.push([q("career_stage"), "Choose your career stage."]);
-    if (!signedCurrent()) {
+    if (needsResign() && fd.has("published") && !state.profile?.published) problems.push([q("published"), "Sign the new Handova agreement first: open “Read and sign the new version” above. Then publish your profile."]);
+    if (!signedCurrent() && !needsResign()) {
       if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) problems.push([["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct"].map(q).find((el) => el && !el.checked), "Read the agreement and tick all four boxes to sign it."]);
       if (val(fd, "sign_name").length < 2) problems.push([q("sign_name"), "Type your full name to sign the agreement."]);
     }
@@ -646,7 +801,7 @@ export async function submitAccount(kind, form) {
     if (form.dataset.step === "2" && found.some(([el]) => el.closest('[data-part="1"]'))) profileStep(form, 1);
     if (found.length) throw fieldErrors(found);
     if (problems.length) throw Error(problems[0][1]);
-    if (!signedCurrent()) {
+    if (!signedCurrent() && !needsResign()) {
       const signName = val(fd, "sign_name");
       await result(db.rpc("sign_agreement", { p_kind: "professional", p_version: PRO_AGREEMENT_VERSION, p_name: signName, p_text: proAgreementText(), p_hours: row.hours_available }));
       state.proAgreement = { version: PRO_AGREEMENT_VERSION, signed_at: new Date().toISOString(), full_name: signName, hours_committed: row.hours_available };
@@ -667,11 +822,25 @@ export async function submitAccount(kind, form) {
   });
 }
 
+// What deletion removes and what is kept, in the privacy notice's words (T19).
+const deleteWording = () => `<p class="muted">This permanently removes your account, profile, photos, applications, saved needs, notifications and identity checks held by Handova and Didit, and your other messages. If a provider deletion fails, we stop and ask you to contact us.</p><p class="muted"><strong>Kept for six years, then deleted:</strong> your messages in conversations linked to a contribution or a reported concern, shown as “Former member”; organisations’ private record of completed work, with your name replaced by “Former member”; and your signed Handova and contribution agreements. See the <a href="#privacy">privacy notice</a>. This cannot be undone.</p>`;
+// Download my data (L18): everything export_my_data returns, saved as a JSON file.
+export async function exportMyData(el) {
+  const data = await result(db.rpc("export_my_data"));
+  const blob = new Blob([JSON.stringify(data ?? {}, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = "handova-my-data.json"; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast("Your data is downloading as handova-my-data.json.");
+  el?.blur?.();
+}
+
 export async function deleteAccount() {
   // Open work can't be left stranded: the server says if something must be finished first (see account_deletion_blocker).
   const blocker = await result(db.rpc("account_deletion_blocker")).catch(() => null);
   if (blocker) return openDialog("Finish your open work first", `<p data-no-i18n>${e(blocker)}</p><div class="row"><button class="btn" type="button" data-action="close">OK</button></div>`);
-  openDialog("Delete your account?", `<p>This permanently removes your account, profile, applications, messages and Handova identity-check result. It cannot be undone. Signed Handova professional or organisation agreement records are kept for six years after deletion, as explained in the privacy notice.</p><form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+  openDialog("Delete your account?", `${deleteWording()}${state.profile ? `<p><a href="#profile/${e(state.user.id)}" style="font-weight:700">Save your impact CV as PDF first</a></p>` : ""}<form class="form" data-form="confirm-delete">${field("confirm", "Type DELETE to confirm", { required: true, attrs: 'autocomplete="off" autofocus' })}${formEnd("Delete my account", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
 export async function confirmDelete(form) {
   await withForm(form, async (fd) => {

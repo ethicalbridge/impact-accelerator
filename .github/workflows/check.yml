@@ -14,18 +14,48 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      # Check the bundle exactly as committed (this is what GitHub Pages serves), before anything rebuilds it.
+      # Check the bundle exactly as committed (GitHub Pages serves it while Pages publishes the branch root), before anything rebuilds it.
       - name: Committed bundle is a full production build
         run: |
           test -s app.js
-          ! grep -q "ia-mock-db" app.js
-          grep -q "jcfezemkbseaqbwuojhs" app.js
-          grep -q "auth/v1" app.js
-          size=$(wc -c < app.js); echo "app.js is $size bytes"
-          test "$size" -gt 450000 || { echo "app.js is too small: the Supabase client is probably missing"; exit 1; }
-          v=$(grep -o 'app.js?v=handova[0-9]*' index.html | head -1); test -n "$v" || { echo "index.html has no app.js version"; exit 1; }
+          test -d chunks
+          if grep -rq "ia-mock-db" app.js chunks; then echo "The committed bundle contains the test backend"; exit 1; fi
+          grep -rq "jcfezemkbseaqbwuojhs" app.js chunks
+          grep -rq "auth/v1" app.js chunks
+          size=$(cat app.js chunks/*.js | wc -c); echo "app.js and chunks: $size bytes"
+          test "$size" -gt 450000 || { echo "The bundle is too small: the Supabase client is probably missing"; exit 1; }
+          grep -Eq 'app\.js\?v=[0-9a-f]{10}"' index.html || { echo "index.html has no hashed app.js version"; exit 1; }
       - name: Translation files are valid JSON
         run: for f in i18n/*.json; do node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1; done
+      - name: Every interface string has ES/PT/FR translations
+        run: node scripts/i18n-check.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
-      - run: pnpm build
+      # The committed app.js, chunks/, consent-boot.js and index.html (its ?v= hashes and CSP hash) must be exactly what the
+      # build makes from this commit. The committed bundle is built from the supabase-js source at the commit pinned in
+      # scripts/supabase-src-commit.txt (see scripts/build.mjs), so this step builds from that same source.
+      - name: Committed build is up to date
+        run: |
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/supabase/supabase-js "$RUNNER_TEMP/supabase-js"
+          git -C "$RUNNER_TEMP/supabase-js" checkout --quiet "$(cat scripts/supabase-src-commit.txt)"
+          SUPABASE_SRC="$RUNNER_TEMP/supabase-js/packages" node scripts/build.mjs
+          changed=$(git status --porcelain -- index.html app.js consent-boot.js chunks)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            git diff --stat -- index.html app.js consent-boot.js
+            echo "::error::The committed build is out of date. Run SUPABASE_SRC=<supabase-js at $(cat scripts/supabase-src-commit.txt)>/packages node scripts/build.mjs and commit app.js, chunks/, consent-boot.js and index.html."
+            exit 1
+          fi
+      - name: Production build from the npm package
+        run: pnpm build
+      - name: Install Chromium for the browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests (test copy with the fake backend)
+        run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

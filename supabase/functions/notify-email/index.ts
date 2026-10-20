@@ -11,6 +11,8 @@ import nodemailer from "npm:nodemailer@6.9.16";
 const SITE = Deno.env.get("SITE_URL") ?? "https://handova.org/";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+// Alerts Handova admins receive by email even when they turned emails off (re-audit A19).
+const ADMIN_ALWAYS = new Set(["report", "id_check"]);
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -30,24 +32,36 @@ Deno.serve(async (req) => {
   });
 
   const { data: n } = await db.from("notifications")
-    .select("id,user_id,kind,title,body,link,created_at,emailed_at").eq("id", id).maybeSingle();
-  // Only fresh, unsent notifications: a caller cannot choose the recipient or the text, or resend old ones.
-  if (!n || n.emailed_at) return json({ skipped: "Not found or already sent" });
-  if (Date.now() - Date.parse(n.created_at) > 15 * 60 * 1000) return json({ skipped: "Too old" });
+    .select("id,user_id,kind,title,body,link,created_at,emailed_at,email_skipped").eq("id", id).maybeSingle();
+  // Only recent, unsent notifications: a caller cannot choose the recipient or the text, or resend old ones.
+  // Failed sends are retried by the retry_unsent_emails job for up to 24 hours.
+  if (!n || n.emailed_at || n.email_skipped) return json({ skipped: "Not found, already sent or not to be sent" });
+  // An email that will never be sent is marked, so the retry job leaves it alone.
+  const skip = async (reason: string) => {
+    await db.from("notifications").update({ email_skipped: reason }).eq("id", id).is("emailed_at", null);
+    return json({ skipped: reason });
+  };
+  if (Date.now() - Date.parse(n.created_at) > 24 * 3600 * 1000) return skip("too_old");
 
   const { data: pref } = await db.from("user_settings").select("email_notifications").eq("user_id", n.user_id).maybeSingle();
-  if (pref && pref.email_notifications === false) return json({ skipped: "Opted out" });
+  if (pref && pref.email_notifications === false) {
+    // Handova admins always get report and identity-check alerts by email, even with emails turned off.
+    const { data: adm } = ADMIN_ALWAYS.has(n.kind)
+      ? await db.from("admins").select("user_id").eq("user_id", n.user_id).maybeSingle()
+      : { data: null };
+    if (!adm) return skip("opted_out");
+  }
 
   if (n.kind === "message") { // at most one message email per person every 30 minutes
     const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const { count } = await db.from("notifications").select("id", { count: "exact", head: true })
       .eq("user_id", n.user_id).eq("kind", "message").gte("emailed_at", since);
-    if (count) return json({ skipped: "Throttled" });
+    if (count) return skip("throttled");
   }
 
   const { data: u } = await db.auth.admin.getUserById(n.user_id);
   const to = u?.user?.email;
-  if (!to || !u.user.email_confirmed_at) return json({ skipped: "No confirmed email" });
+  if (!to || !u.user.email_confirmed_at) return skip("no_confirmed_email");
 
   const { data: claimed } = await db.from("notifications").update({ emailed_at: new Date().toISOString() })
     .eq("id", id).is("emailed_at", null).select("id");
@@ -58,7 +72,7 @@ Deno.serve(async (req) => {
   const cta = n.link === "#org/need" ? "Post your first need" : "Open Handova";
   const subject = `${n.title} · Handova`;
   // Free text written by people (reasons, notes) stays inside Handova.
-  const PRIVATE_BODY = new Set(["ended", "contribution_removed", "correction_requested"]);
+  const PRIVATE_BODY = new Set(["ended", "contribution_removed", "correction_requested", "conflict_declared", "report_outcome"]);
   if (PRIVATE_BODY.has(n.kind)) n.body = "Open Handova to read the details.";
   const text = `${n.title}${n.body ? `\n${n.body}` : ""}\n\n${cta}: ${link}\n\nYou receive this because you have a Handova account. Turn emails off in Account and privacy: ${settings}`;
   const html = `<!doctype html><html><body style="margin:0;background:#f6f3ec;font-family:Arial,Helvetica,sans-serif;color:#10302c">

@@ -1,17 +1,38 @@
-import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e } from "./core.js";
-import { header, footer, bindLanguagePickers, bindEntryEditors } from "./ui.js";
+import { db, state, $, loadSession, closeDialog, saveDialogDraft, clearDialogDraft, toast, errorMessage, go, result, homeFor, e, reportError } from "./core.js";
+import { header, footer, bindLanguagePickers, bindEntryEditors, toggleMenu, jumpTo } from "./ui.js";
 import { config } from "./config.js";
-import { loadLang, initialLang, startTranslating, setLang, t } from "./i18n.js";
+import { loadLang, initialLang, startTranslating, setLang, t, stripLangParam, urlLang, getLang } from "./i18n.js";
 import { initConsent, trackPage } from "./consent.js";
 import { enhance, bindHeader } from "./motion.js";
 import * as pub from "./pages/public.js";
-import * as acc from "./pages/account.js";
-import * as ws from "./pages/workspace.js";
-import * as eng from "./pages/engagement.js";
-import * as rsp from "./pages/responses.js";
-import * as adl from "./pages/adminlists.js";
-import * as adm from "./pages/admin.js";
 import * as legal from "./pages/legal.js";
+
+// Account, workspace, agreement and admin code is downloaded only when a page or action needs it (esbuild puts each
+// in its own chunk). acc.fn(...) and friends work as before, but always return a promise.
+// If a new version was published while this tab was open, the old chunks are gone: reload once to get the new ones.
+function chunkFailed(err) {
+  let last = 0;
+  try { last = Number(sessionStorage.getItem("hv-chunk-reload") || 0); sessionStorage.setItem("hv-chunk-reload", String(Date.now())); } catch {}
+  if (Date.now() - last > 60000) location.reload();
+  throw err;
+}
+function lazy(load) {
+  let p = null;
+  const mod = () => (p ||= load().catch((err) => { p = null; return chunkFailed(err); }));
+  return new Proxy({}, { get: (_, k) => (k === "then" ? undefined : (...args) => mod().then((m) => m[k](...args))) });
+}
+// The photo upload field lives in account.js and is used by account and workspace pages.
+const withPhotos = (m) => import("./pages/account.js").then((a) => { a.bindPhotoFields(); return m; });
+const acc = lazy(() => import("./pages/account.js").then(withPhotos));
+const ws = lazy(() => import("./pages/workspace.js").then(withPhotos));
+const eng = lazy(() => import("./pages/engagement.js"));
+const rsp = lazy(() => import("./pages/responses.js"));
+const adl = lazy(() => import("./pages/adminlists.js"));
+const adm = lazy(() => import("./pages/admin.js"));
+// Admin actions and forms live in admin.js (ACTIONS, FORMS) and run through its lazy chunk.
+const ADMIN_ACTIONS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-case-from-answer", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
+const ADMIN_FORMS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
+const adminAction = (k) => (ADMIN_ACTIONS.has(k) ? (el) => adm.runAction(k, el) : null);
 
 const LEGACY = { guide: "how", safeguarding: "safety", organisation: "org", hours: "workspace", portfolio: "workspace", dashboard: "workspace", pool: "workspace", projects: "needs", "organisation-view": "org" };
 const ACTIVE = { about: "#about", needs: "#needs", need: "#needs", talent: "#talent", profile: "#talent", how: "#how", organisations: "#how", professionals: "#how" };
@@ -38,10 +59,10 @@ async function page(r) {
     case "how": return pub.how();
     case "join": return acc.join(r.params);
     case "signin": return acc.signin(r.params);
-    case "reset": return acc.reset();
+    case "reset": return acc.reset(r.params);
     case "onboarding": return acc.onboarding();
     case "account": return acc.account();
-    case "workspace": return ws.workspace(r.a);
+    case "workspace": return ws.workspace(r.a, r.params);
     case "org": return ws.org(r.a, r.b);
     case "agreement": return r.a ? eng.agreement(r.a) : { redirect: homeFor() };
     case "conversation": return r.a ? eng.conversation(r.a) : { redirect: homeFor() };
@@ -75,7 +96,10 @@ function idNudge(route) {
   acc.idNudgeDialog();
 }
 
-async function render() {
+// The page being drawn right now, so a click can wait for the page it changed to be redrawn (see busy below).
+let rendering = Promise.resolve();
+const render = () => (rendering = renderPage());
+async function renderPage() {
   const v = ++version;
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
@@ -104,6 +128,7 @@ async function render() {
   } catch (err) {
     if (v !== version) return;
     console.error(err);
+    reportError(err);
     main.innerHTML = `<div class="wrap page-head" style="padding-bottom:120px"><span class="eyebrow">Something went wrong</span><h1>We couldn’t load this page</h1><p class="lead">${e(errorMessage(err))}</p><div class="row"><button class="btn" type="button" data-action="reload">Try again</button><a class="btn secondary" href="#home">Go home</a></div></div>`;
     document.title = "Something went wrong · Handova";
   } finally {
@@ -121,10 +146,10 @@ const REASON = (hint) => `<label class="field" for="f-reason">Reason<textarea id
 const actions = {
   reload: () => render(),
   "set-lang": (el) => setLang(el.dataset.id),
-  "scroll-to": (el) => document.getElementById(el.dataset.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }),
+  "scroll-to": (el) => { el.closest("details.toc-m")?.removeAttribute("open"); jumpTo(el.dataset.id); },
   close: () => closeDialog(),
   "clear-draft": (el) => { const f = el.closest("form"); if (!f) return; clearDialogDraft(f); f.reset(); el.closest(".draft-note")?.remove(); $("#dialog").removeAttribute("data-dirty"); },
-  menu: (el) => { const n = $("#main-nav"); const open = n.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); el.setAttribute("aria-label", open ? "Close menu" : "Open menu"); },
+  menu: (el) => toggleMenu(el),
   signout: async () => { await db.auth.signOut(); await loadSession(); toast("Signed out."); go("#home"); },
   "clear-filters": () => $("#filters")?.reset(),
   "more-filters": (el) => { const f = el.closest("form"); const on = f.classList.toggle("show-more"); el.setAttribute("aria-expanded", String(on)); el.textContent = t(on ? "Fewer filters" : "More filters"); },
@@ -156,9 +181,9 @@ const actions = {
   introduce: (el) => ws.introduceDialog(el.dataset.id, el.dataset.name),
   report: (el) => ws.reportDialog(el.dataset.type, el.dataset.id),
   withdraw: (el) => ws.decisionDialog("Withdraw your application?", "The organisation will see that you withdrew, and the conversation will close. You can’t apply to this need again.", "withdraw", el.dataset.id, "", "Withdraw"),
-  "invite-accept": (el) => ws.decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", el.dataset.id, "", "Accept"),
+  "invite-accept": (el) => ws.acceptDialog("invite", el.dataset.id),
   "invite-decline": (el) => ws.decisionDialog("Decline this invitation?", "The organisation will see your decision, and the conversation will close.", "invite-decline", el.dataset.id, "", "Decline"),
-  "app-accept": (el) => ws.decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", el.dataset.id, "", "Accept"),
+  "app-accept": (el) => ws.acceptDialog("app", el.dataset.id),
   "app-decline": (el) => ws.decisionDialog("Decline this application?", "The professional will be told they were not selected, and the conversation will close.", "app-decline", el.dataset.id, "", "Decline"),
   "hours-approve": (el) => rpc("review_hours", { p_id: el.dataset.id, p_approve: true, p_note: "" }, "Hours approved."),
   "hours-changes": (el) => ws.decisionDialog("Ask for changes", "Explain what needs to change. The professional can send a corrected entry.", "hours-changes", el.dataset.id, `<label class="field" for="f-note">What needs to change<textarea id="f-note" name="note" required minlength="5" maxlength="2000"></textarea></label>`, "Send"),
@@ -218,28 +243,27 @@ const actions = {
     openDialog("Decline these changes?", `<form class="form" data-form="org-changes-decline" data-id="${e(el.dataset.id)}"><p>The organisation keeps its current public details and is told.</p><div class="field"><label for="f-note">Note to the organisation (optional)</label><textarea id="f-note" name="note" maxlength="600"></textarea></div><div class="row"><button class="btn" type="submit">Decline changes</button><button class="btn secondary" type="button" data-action="close">Cancel</button></div></form>`);
   },
   "admin-need": (el) => adm.adminDecision("need", el.dataset.id, el.dataset.decision),
-  "admin-report-resolve": (el) => ws.decisionDialog("Resolve this report?", "Write what was done, for the record: who you spoke to, what was decided, and whether anyone else was told. Only Handova sees this note.", "admin-report-resolve", el.dataset.id, `<label class="field" for="f-outcome">Outcome<textarea id="f-outcome" name="note" required minlength="10" maxlength="2000"></textarea></label>`, "Resolve report"),
   "admin-report": (el) => rpc("admin_update_report", { p_id: el.dataset.id, p_status: el.dataset.status, p_note: "" }, "Report updated."),
   // Admin safety tools (policies v1.0): every action asks for a reason, kept in the activity log.
   "admin-suspend": (el) => ws.decisionDialog("Suspend this person?", "Their profile goes offline and they can’t message, apply, accept invitations, log hours or sign until you lift it. They are told their account is suspended while Handova looks into a concern.", "admin-suspend", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Suspend", true),
   "admin-remove": (el) => ws.decisionDialog("Remove this person from Handova?", "For a serious breach. Their profile goes offline, their impact CV entries are hidden, and the same verified identity is flagged if it tries to come back. They can ask for a review within 30 days.", "admin-remove", el.dataset.id, REASON("Kept in the activity log. Not shown to them."), "Remove", true),
-  "admin-lift": (el) => ws.decisionDialog("Lift the suspension?", "They can use Handova again and publish their profile.", "admin-lift", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="1000"></textarea></label>`, "Lift suspension"),
   "admin-freeze": (el) => ws.decisionDialog("Pause this conversation?", "Nobody can send new messages. Everything written so far is kept.", "admin-freeze", el.dataset.id, REASON("Kept in the activity log."), "Pause conversation", true),
   "admin-unfreeze": (el) => ws.decisionDialog("Reopen this conversation?", "Both sides can write again.", "admin-unfreeze", el.dataset.id, `<label class="field" for="f-reason">Note (optional)<textarea id="f-reason" name="reason" maxlength="500"></textarea></label>`, "Reopen"),
   "admin-takedown": (el) => ws.decisionDialog("Take down this need?", "It stops taking applications straight away, and anyone waiting is told. The organisation sees your reason.", "admin-takedown", el.dataset.id, REASON("The organisation sees this."), "Take down", true),
   "admin-hide-cv": (el) => ws.decisionDialog("Hide this impact CV entry?", "The entry and its endorsement come off the public impact CV, and the professional can’t publish it again until you restore it. They are told.", "admin-hide-cv", el.dataset.id, REASON("Kept in the activity log."), "Hide entry", true),
   "admin-restore-cv": (el) => ws.decisionDialog("Restore this impact CV entry?", "The professional can choose to show it on their impact CV again.", "admin-restore-cv", el.dataset.id, REASON("Kept in the activity log."), "Restore"),
   "admin-id-video": (el) => ws.decisionDialog("Confirm identity after a video call", "Only confirm if you saw a valid passport or ID card on camera and the face matched the person on the call.", "admin-id-video", el.dataset.id, `<label class="field" for="f-docname">Name exactly as on the ID<input id="f-docname" name="docname" required minlength="2" maxlength="160"></label>`, "Confirm identity"),
-  "admin-case": (el) => adm.caseDialog(el.dataset.id),
   "delete-account": () => acc.deleteAccount(),
+  "export-data": (el) => acc.exportMyData(el),
+  team: (el) => ws.teamAction(el),
   "cookie-settings": () => initConsent(true),
 };
 
 const forms = {
   signup: (f) => acc.submitAccount("signup", f), signin: (f) => acc.submitAccount("signin", f), reset: (f) => acc.submitAccount("reset", f),
   "new-password": (f) => acc.submitAccount("new-password", f), "change-password": (f) => acc.submitAccount("change-password", f), "email-settings": (f) => acc.submitAccount("email-settings", f),
-  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "org-resign": (f) => acc.submitAccount("org-resign", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
-  "confirm-delete": (f) => acc.confirmDelete(f),
+  "org-create": (f) => acc.submitAccount("org-create", f), "resend-confirm": (f) => acc.submitAccount("resend-confirm", f), "org-edit": (f) => acc.submitAccount("org-edit", f), "org-resign": (f) => acc.submitAccount("org-resign", f), "pro-resign": (f) => acc.submitAccount("pro-resign", f), "mfa-verify": (f) => acc.submitAccount("mfa-verify", f), "mfa-enroll-verify": (f) => acc.submitAccount("mfa-enroll-verify", f), profile: (f) => acc.submitAccount("profile", f),
+  "confirm-delete": (f) => acc.confirmDelete(f), team: (f) => ws.submitTeam(f), "public-report": (f) => legal.submitPublicReport(f),
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
@@ -255,11 +279,9 @@ const confirmRpc = {
   "hours-amend": ["amend_hours", (id, fd) => ({ p_id: id, p_date: String(fd.get("work_date") || ""), p_hours: Number(fd.get("hours")), p_description: String(fd.get("description") || ""), p_evidence: String(fd.get("evidence") || "").trim() }), "Corrected and sent for review."],
   "mark-delivered": ["mark_delivered", (id) => ({ p_id: id }), "Thank you. The organisation has been asked to finish and endorse."],
   "end-engagement": ["end_engagement", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Contribution ended."],
-  "admin-report-resolve": ["admin_update_report", (id, fd) => ({ p_id: id, p_status: "resolved", p_note: String(fd.get("note") || "") }), "Report resolved."],
   "close-conversation": ["close_conversation", (id) => ({ p_id: id }), "Conversation ended."],
   "admin-suspend": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: false }), "Suspended."],
   "admin-remove": ["admin_suspend_user", (id, fd) => ({ p_user: id, p_reason: String(fd.get("reason") || ""), p_remove: true }), "Removed from Handova."],
-  "admin-lift": ["admin_lift_suspension", (id, fd) => ({ p_user: id, p_note: String(fd.get("reason") || "") }), "Suspension lifted."],
   "admin-freeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: true, p_reason: String(fd.get("reason") || "") }), "Conversation paused."],
   "admin-unfreeze": ["admin_set_conversation_frozen", (id, fd) => ({ p_id: id, p_frozen: false, p_reason: String(fd.get("reason") || "") }), "Conversation reopened."],
   "admin-takedown": ["admin_take_down_need", (id, fd) => ({ p_id: id, p_reason: String(fd.get("reason") || "") }), "Need taken down."],
@@ -273,31 +295,37 @@ const confirmRpc = {
 const OPEN_MENUS = ".account-menu[open], .lang-menu[open], .nav-drop[open]";
 document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const nav = document.querySelector("#main-nav.open"); if (nav) { nav.classList.remove("open"); const b = document.querySelector("[data-action=\"menu\"]"); if (b) { b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-label", "Open menu"); b.focus(); } return; } const d = document.querySelector(OPEN_MENUS); if (d) { d.removeAttribute("open"); d.querySelector("summary")?.focus(); } });
 document.addEventListener("focusout", (ev) => { const d = ev.target.closest?.(OPEN_MENUS); if (d && ev.relatedTarget && !d.contains(ev.relatedTarget)) d.removeAttribute("open"); });
+const busy = new WeakSet();
 document.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) {
     document.querySelectorAll(".account-menu[open], .lang-menu[open], .nav-drop[open]").forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
     return;
   }
-  const fn = actions[el.dataset.action];
+  const fn = actions[el.dataset.action] || adminAction(el.dataset.action);
   if (!fn || el.tagName === "SELECT") return;
   if (el.tagName === "BUTTON" || el.tagName === "A" && el.dataset.action !== "read-one") ev.preventDefault();
   if (el.dataset.action === "read-one") { fn(el); return; }
   if (el.type === "checkbox") { fn(el); return; }
+  // A double click must never save and then undo: the second click of a double click (detail 2+) is ignored, and so is
+  // any click while the first action, and the redraw it causes, is still running.
+  if (ev.detail > 1 || busy.has(el)) return;
+  busy.add(el);
   el.setAttribute("aria-disabled", "true");
-  try { await fn(el); } catch (err) { toast(errorMessage(err)); } finally { el.removeAttribute("aria-disabled"); }
+  try { await fn(el); await rendering; } catch (err) { toast(errorMessage(err)); } finally { busy.delete(el); el.removeAttribute("aria-disabled"); }
 });
 // Forms with several submit buttons (e.g. "Send for review" / "Save as draft") say which one was used.
 // Need safety questions: show the explanation box only when the answer needs one.
 document.addEventListener("change", (ev) => { const r = ev.target.closest(".sg-q input[type=radio]"); if (!r) return; const note = r.closest(".sg-q").querySelector(".sg-note"); if (note) note.hidden = r.value !== note.dataset.when; });
 document.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-set-status]"); if (b?.form?.elements.status) b.form.elements.status.value = b.dataset.setStatus; });
-document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) actions[ev.target.dataset.action]?.(ev.target); });
+document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) (actions[ev.target.dataset.action] || adminAction(ev.target.dataset.action))?.(ev.target); });
 document.addEventListener("submit", async (ev) => {
   const f = ev.target;
   const kind = f.dataset.form;
   if (!kind) return;
   ev.preventDefault();
   if (forms[kind]) return forms[kind](f);
+  if (ADMIN_FORMS.has(kind)) return adm.runForm(kind, f);
   if (confirmRpc[kind]) {
     const [fn, args, msg] = confirmRpc[kind];
     const { withForm } = await import("./core.js");
@@ -320,17 +348,24 @@ $("#dialog").addEventListener("input", keepDraft);
 $("#dialog").addEventListener("change", keepDraft);
 window.addEventListener("hashchange", () => { if ($("#dialog").open) $("#dialog").close(); render(); });
 db.auth.onAuthStateChange(async (event) => {
-  if (event === "PASSWORD_RECOVERY") setTimeout(acc.newPasswordDialog, 50);
+  if (event === "PASSWORD_RECOVERY") setTimeout(() => acc.newPasswordDialog(), 50);
   if (event === "SIGNED_IN" && state.ready && !state.user) { await loadSession(); render(); }
 });
 
 $(".skip").addEventListener("click", (ev) => { ev.preventDefault(); $("#main").focus(); $("#main").scrollIntoView(); });
-await loadLang(initialLang(), (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=[\w.-]+/) || [""])[0]);
+// Inside another site's frame (clickjacking), the page shows only a link to open Handova on its own (see index.html).
+if (document.documentElement.classList.contains("hv-framed")) await new Promise(() => {}); // stop here, quietly
+// A link can choose the language: ?lang=es|pt|fr|en, before or after the #. It is remembered like the language menu.
+const lang = initialLang();
+stripLangParam();
+await loadLang(lang);
 startTranslating();
 document.documentElement.classList.remove("i18n-wait");
 // Changing language reloads the page: warn first if a form has unsaved typing.
 document.addEventListener("input", (ev) => { if (ev.target.closest?.("form") && !ev.target.closest(".lang-menu")) window.__hvDirty = true; });
 window.addEventListener("hashchange", () => { window.__hvDirty = false; });
+// The same for an address with ?lang= typed or followed while Handova is already open.
+window.addEventListener("hashchange", () => { const l = urlLang(); if (!l) return; stripLangParam(); if (l !== getLang()) setLang(l); });
 window.addEventListener("beforeprint", () => document.querySelectorAll("#main details").forEach((d) => { d.dataset.wasOpen = d.open ? "1" : ""; d.open = true; }));
 window.addEventListener("afterprint", () => document.querySelectorAll("details[data-was-open]").forEach((d) => { d.open = d.dataset.wasOpen === "1"; delete d.dataset.wasOpen; }));
 $("#site-footer").innerHTML = footer(config);
@@ -338,5 +373,4 @@ try { await loadSession(); } catch { toast("Your session could not be restored. 
 bindHeader();
 bindLanguagePickers();
 bindEntryEditors();
-acc.bindPhotoFields();
 render();

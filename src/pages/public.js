@@ -4,16 +4,18 @@ import { icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cove
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
-import { workingResponsibly } from "./legal.js";
+import { workingResponsibly, POLICIES } from "./legal.js";
 
 const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
+// null means the list could not be loaded (W4): the page then says so instead of showing examples as if nothing existed.
 async function openNeeds(limit) {
   let q = db.from("needs").select(NEED_SELECT).eq("status", "open").order("created_at", { ascending: false });
   if (limit) q = q.limit(limit);
-  const rows = await result(q).catch(() => []);
-  return rows.filter((n) => !n.deadline || n.deadline >= today());
+  const rows = await result(q).catch(() => null);
+  return rows ? rows.filter((n) => !n.deadline || n.deadline >= today()) : null;
 }
+const loadError = (text) => `<div class="banner warn load-error" role="alert">${icon("alert", 22)}<p>${text}</p><button class="btn secondary sm" type="button" data-action="reload">Try again</button></div>`;
 
 // ---------- Home ----------
 // Shared by the early page shell and the interactive home route.
@@ -25,6 +27,7 @@ export function homeHero() {
         <a class="eb-badge" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span class="eb-dot" aria-hidden="true"></span><span>An initiative of</span> <strong>Ethical Bridge</strong>${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>
         ${eyebrow("Free, remote skills-based volunteering")}
         <h1>Skills handed over. <span>Capability that stays.</span></h1>
+        <div class="hero-quick"><a class="btn light sm" href="#join?role=organisation">Post a need</a><a class="btn ghost-light sm" href="#join?role=professional">Offer your skills</a>${watchLink()}</div>
       </div>
       <div class="stack hv-copy" style="--gap:24px">
         <p class="lead">Skilled professionals volunteer a few focused hours a month, remotely. Locally led organisations get real work done and keep the skills: the team keeps the capability, and the professional keeps a reviewed record on their impact CV.</p>
@@ -32,6 +35,7 @@ export function homeHero() {
           <a class="door light" href="#join?role=organisation"><span class="door-icon">${icon("home", 24, "#0f6f63")}</span><span class="door-title">I’m an organisation</span><p>Publish a need and find skilled help, free. For non-profit organisations in the Ethical Bridge directory.</p><span class="door-cta">Post a need ${icon("arrow", 18)}</span></a>
           <a class="door ghost" href="#join?role=professional"><span class="door-icon">${icon("user", 24, "#fffdf8")}</span><span class="door-title">I’m a professional</span><p>Volunteer your skills, find your way into the ethical sector and build a reviewed impact CV.</p><span class="door-cta">Offer your skills ${icon("arrow", 18)}</span></a>
         </div>
+        <p class="hero-watch">${watchLink()}</p>
         <dl class="hv-facts">
           <div><dt><b>3,300+</b></dt><dd><a class="hv-fact-link" href="https://ethicalbridge.org/" target="_blank" rel="noopener">locally led organisations in the Ethical Bridge directory can post a need<span class="visually-hidden"> (opens in a new tab)</span></a></dd></div>
           <div><dt><b><small class="fact-pre">up to</small> 16</b></dt><dd>hours for each need</dd></div>
@@ -45,35 +49,40 @@ export function homeHero() {
   </section>`;
 }
 
+// "Watch the 1:39 demo": scrolls to the video on the home page (and opens the home page from anywhere else).
+const watchLink = () => `<a class="watch-link" href="#home" data-action="scroll-to" data-id="hv-demo">${icon("youtube", 18)}<span>Watch the 1:39 demo</span></a>`;
+
 // The 1:39 demo. Click to play (no autoplay), nothing downloads until then; subtitles are separate tracks
-// (Spanish and English) so visitors switch them on, off or between languages from the player's CC menu.
+// (English, Spanish, Portuguese and French) so visitors switch them on, off or between languages from the player's CC menu.
+// The strongest line of the voice-over sits next to it as text (M6), for people who don't press play.
 function demoVideo() {
-  return `<figure class="hv-video-frame">
+  return `<div class="video-row"><blockquote class="video-quote"><p>Too much volunteering starts from what the helper wants to give. <span>Handova starts from what the organisation needs.</span></p><footer>From the 1:39 demo</footer></blockquote>
+    <figure class="hv-video-frame">
       <video controls preload="none" playsinline width="1280" height="720" poster="assets/handova-demo-poster-720.jpg" aria-label="Handova demo video, 1 minute 39 seconds, in English" data-demo-video>
         <source src="assets/handova-demo-720.mp4" type="video/mp4">
         <track kind="subtitles" src="assets/handova-demo.en.vtt" srclang="en" label="English">
         <track kind="subtitles" src="assets/handova-demo.es.vtt" srclang="es" label="Español">
+        <track kind="subtitles" src="assets/handova-demo.pt.vtt" srclang="pt" label="Português">
+        <track kind="subtitles" src="assets/handova-demo.fr.vtt" srclang="fr" label="Français">
         <a href="assets/handova-demo-720.mp4">Download the demo video (MP4, 3 MB)</a>
       </video>
       <figcaption class="hv-subs" role="group" aria-label="Subtitles">
         <span class="hv-subs-label">${icon("doc", 16)}<span>Subtitles</span></span>
         <button type="button" data-subs="es" lang="es" aria-pressed="false">Español</button>
         <button type="button" data-subs="en" lang="en" aria-pressed="false">English</button>
+        <button type="button" data-subs="pt" lang="pt" aria-pressed="false">Português</button>
+        <button type="button" data-subs="fr" lang="fr" aria-pressed="false">Français</button>
         <button type="button" data-subs="off" aria-pressed="false">Off</button>
       </figcaption>
-    </figure>`;
+    </figure></div>`;
 }
 
 // Safety principles and the questions. Shown on About › FAQ & safety.
 function faqAndSafety(middle = "") {
-  const faqs = [["Is Handova a volunteering platform?", "Yes. Handova is for skills-based volunteering, sometimes called pro bono work: professionals give their skills, remotely and for free, only to locally led non-profit organisations listed in the Ethical Bridge directory. Each contribution is a short, well-defined piece of work, not an ongoing role."], ["Do professionals verify their identity?", "Yes. Before their first contribution, professionals confirm their identity with our provider, Didit, using a photo of an ID document and a quick selfie. Others only see an “ID verified” badge, never the document."], ["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Who pays for Handova?", "Ethical Bridge, the organisation behind Handova, covers the costs, and we are applying for grant funding to grow it."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Non-profit organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Non-profit organisations in the Ethical Bridge directory that are locally led, meaning run by people based where they work, and registered, or fiscally hosted by a registered organisation that manages their funds. Businesses and other for-profit organisations can't join. And professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month of availability, and each professional chooses how many. We hope that time turns into delivered work. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We email you two weeks before each step, so if you are away or busy, just tell us and we will keep your profile open. A closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience in the ethical and non-profit sector, and a reviewed record on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. For students and career changers, it is a practical way into the sector."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every contribution ends with a handover."], ["What if nobody applies to our need?", "During the founding phase our team looks at every new need. If nobody has applied within two weeks, we introduce suitable professionals personally. You can also invite approved professionals from the Talent page at any time."], ["What if the professional doesn’t deliver?", "Start with a message through Handova; most delays are solved with a quick check-in. If it still isn’t working, either side can end the contribution at any time. Hours you haven’t approved don’t count, nothing goes on their impact CV without your review, and your need can go back up for someone else. If a professional repeatedly doesn’t deliver, tell us and we can pause their profile."], ["What if something goes wrong?", "Either side can end a contribution, giving a short reason, and anyone can report a concern on the platform or at safeguarding@handova.org. Our safeguarding lead reviews every report; concerns about Handova’s founder go to our independent contact. Messages stay open while a contribution is live, so there is always a written record."]];
+  const faqs = [["Is Handova a volunteering platform?", "Yes. Handova is for skills-based volunteering, sometimes called pro bono work: professionals give their skills, remotely and for free, only to locally led non-profit organisations listed in the Ethical Bridge directory. Each contribution is a short, well-defined piece of work, not an ongoing role."], ["Do professionals verify their identity?", "Yes. Before their first contribution, professionals confirm their identity with our provider, Didit, using a photo of an ID document and a quick selfie. Others only see an “ID verified” badge, never the document."], ["Is it really free?", "Yes. Handova is free for organisations and for professionals."], ["Who pays for Handova?", "Ethical Bridge, the organisation behind Handova, covers the costs, and we are applying for grant funding to grow it."], ["How is Handova linked to Ethical Bridge?", "Handova is an initiative of Ethical Bridge. Non-profit organisations in the Ethical Bridge directory can use it to get extra support from skilled professionals, free."], ["Is the work paid?", "No. Contributions are voluntary. Any expenses need separate written terms between the two of you."], ["Who can join?", "Non-profit organisations in the Ethical Bridge directory that are locally led, meaning run by people based where they work, and registered, or fiscally hosted by a registered organisation that manages their funds. Businesses and other for-profit organisations can't join. And professionals aged 18 or over, anywhere in the world."], ["How long is a contribution?", "Every need takes at most 16 hours, agreed up front and logged as you go."], ["How much time do professionals commit?", "At least 4 hours a month of availability, and each professional chooses how many. We hope that time turns into delivered work. To keep the community active and save organisations’ time, a profile is marked inactive after three months without activity, such as applying to a need, and closed after six. We email you two weeks before each step, so if you are away or busy, just tell us and we will keep your profile open. A closed profile can be published again at any time, after we review it."], ["What does the professional get?", "Real experience in the ethical and non-profit sector, and a reviewed record on their impact CV: what they did, for whom, and the organisation’s endorsement in its own words. For students and career changers, it is a practical way into the sector."], ["Why the name Handova?", "It comes from “hand over”: the moment a piece of work passes to the team that keeps it. Every contribution ends with a handover."], ["What if nobody applies to our need?", "During the founding phase we look at every new need. If nobody has applied within two weeks, we introduce suitable professionals personally. You can also invite approved professionals from the Talent page at any time."], ["What if the professional doesn’t deliver?", "Start with a message through Handova; most delays are solved with a quick check-in. If it still isn’t working, either side can end the contribution at any time. Hours you haven’t approved don’t count, nothing goes on their impact CV without your review, and your need can go back up for someone else. If a professional repeatedly doesn’t deliver, tell us and we can pause their profile."], ["What if the organisation stops replying?", "Send a message through Handova first, and tell us if there is still no answer. If the organisation stays silent for 2 weeks, Handova can close the contribution. The hours it has already approved are kept and can appear on your impact CV, marked “Closed by Handova”."], ["What if something goes wrong?", "Either side can end a contribution, giving a short reason, and anyone can report a concern on the platform or at safeguarding@handova.org. Our safeguarding lead reviews every report; concerns about Handova’s founder go to our independent contact. Messages stay open while a contribution is live, so there is always a written record."]];
   return `  <div class="wrap">
-    <section class="card grid-2" style="background:var(--mint);border-color:#bcd6cd;padding:clamp(28px,5vw,56px);gap:48px">
-      <div class="stack" style="--gap:18px"><span class="icon-tile lg paper">${icon("shield", 30, "#0f6f63")}</span><h2 style="font-size:clamp(1.9rem,3vw,2.7rem)">Good intentions need good boundaries.</h2><a href="#safety" data-action="scroll-to" data-id="working-responsibly" style="font-weight:700">Read how we work responsibly</a></div>
-      <div class="stack">${[["lock", "Trust comes before access", "Nothing confidential is shared until both sides have signed. Never passwords, card details or access codes."], ["people", "No contact with the people organisations serve", "Professionals work remotely, with anonymised information, and never contact children or adults at risk."], ["flag", "Anyone can raise a concern", "Report a profile, need or conversation at any time, or write to safeguarding@handova.org. <a href=\"#report\">How to report</a>"]].map(([ic, t, d]) => `<div class="card row hv-lift" style="align-items:flex-start;flex-wrap:nowrap;padding:20px 22px">${icon(ic, 24, "#0f6f63")}<div><strong>${t}</strong><p class="muted">${d}</p></div></div>`).join("")}</div>
-    </section>
     ${middle}
-    <section class="block grid-2 faq-grid">
+    <section class="block grid-2 faq-grid" id="faq-questions">
       <div class="stack" data-reveal>${eyebrow("Questions")}<h2>Good to know before you start.</h2></div>
       <div data-faq>${faqs.map(([q, a], i) => `<details class="faq" ${i === 0 ? "open" : ""}><summary>${q}<span class="faq-icon" aria-hidden="true"></span></summary><p>${a}</p></details>`).join("")}</div>
     </section>
@@ -85,6 +94,10 @@ export function home() {
   const rest = `
   <div class="wrap">
     <div class="trust-strip hv-lift">${trust.map(([ic, t, d]) => `<div><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><p class="small muted">${d}</p></div></div>`).join("")}</div>
+    <section class="stack hv-video" id="hv-demo" style="--gap:28px;scroll-margin-top:96px">
+      <div class="stack" data-reveal>${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div>
+      ${demoVideo()}
+    </section>
     <section class="block stack" style="--gap:40px;padding-bottom:0">
       <div class="hv-head" data-reveal><div class="stack">${eyebrow("Why Handova")}<h2>Willing hands on one side. Real needs on the other.</h2></div><p class="lead">Around the world, skilled people want to help. But a volunteer role or an internship asks for more time than they have, and they rarely know which organisation needs them. Some give money; many would rather give what they know, a few hours a month. Meanwhile, locally led organisations carry big missions with small teams. Handova, an initiative of Ethical Bridge, builds the bridge between them.</p></div>
       <div class="hb" data-reveal>
@@ -93,23 +106,31 @@ export function home() {
         <div class="hb-side org"><span class="hv-tag">Locally led organisations</span><strong class="hb-title">Big missions, small teams</strong><ul class="hb-list"><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Expertise they cannot afford to hire</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Help shaped around their work, not the helper’s</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Someone who hands the work over, not someone who disappears</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>No fees, no long onboarding</span></li></ul></div>
       </div>
       <div class="hv-exchange" data-reveal>
-        <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p></div>
+        <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p>${exampleCvCard()}</div>
         <div class="hv-ex-mid" aria-hidden="true">${mark(84, true)}<span>Everyone wins</span></div>
         <div class="hv-ex-side"><span class="hv-tag">What stays with the organisation</span><strong>Capability</strong><p>A tool, a process or a trained team they keep using, long after the hours are done.</p></div>
       </div>
     </section>
-    <section class="stack hv-video" id="hv-demo" style="--gap:28px;padding-bottom:clamp(56px,8vw,110px)">
-      <div class="stack" data-reveal>${eyebrow("See it in under two minutes")}<h2>From a need to a handover.</h2></div>
-      ${demoVideo()}
-    </section>
   </div>
   <section class="hv-cta"><span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span>
     <div class="wrap hv-cta-grid">
-      <div class="stack" style="--gap:18px">${eyebrow("Join the founding group")}<h2>Hand over something that lasts.</h2><p class="lead">We are starting with a founding group of organisations and professionals. Founding members get personal onboarding from our team and a direct say in what we build next.</p><div class="row">${btn("Offer your skills", "#join?role=professional", "light lg")}${btn("Post a need", "#join?role=organisation", "ghost-light lg")}</div></div>
+      <div class="stack" style="--gap:18px">${eyebrow("Join the founding group")}<h2>Hand over something that lasts.</h2><p class="lead">We are starting with a founding group of organisations and professionals. Founding members get personal onboarding from the founder and a direct say in what we build next.</p><div class="row">${btn("Offer your skills", "#join?role=professional", "light lg")}${btn("Post a need", "#join?role=organisation", "ghost-light lg")}</div></div>
       <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
     </div>
   </section>`;
   return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals give a few focused hours. Free for everyone.", html: homeHero() + rest, rest };
+}
+
+// What one entry on an impact CV looks like. Invented and labelled "Example", like the other samples.
+function exampleCvCard() {
+  const n = exampleNeeds[0], org = n.organisation || {};
+  return `<figure class="ex-cv" aria-label="Example of an impact CV entry">
+    <div class="ex-cv-top"><span class="ex-cv-cap">Impact CV entry</span>${exampleBadge()}</div>
+    <strong class="ex-cv-title">${e(n.title)}</strong>
+    <span class="ex-cv-org"><span data-no-i18n>${e(org.name || "")}</span>${org.country ? ` · <span>${e(org.country)}</span>` : ""}</span>
+    <span class="ex-cv-pills">${pill("Reviewed")}<span class="ex-cv-hours"><b>${n.hours}</b> <span>hours approved</span></span></span>
+    <blockquote><p>“Our field team now collects data the same way in every village.”</p><footer><span>Programme coordinator</span>, <span data-no-i18n>${e(org.name || "")}</span></footer></blockquote>
+  </figure>`;
 }
 
 // The hero "handover": the mark draws itself, the dot passes between the curves, and the story floats around it.
@@ -188,8 +209,10 @@ export async function about(sub = "mission") {
     // Reporting first (safeguarding reviewers: the way to report must be easy to find), then the rules and the
     // policies behind them, then the questions, and a pointer to Contact at the end.
     const concernBar = `<section class="how-concern concern-bar"><span class="icon-tile lg">${icon("flag", 28, "#0f6f63")}</span><div class="stack" style="--gap:4px"><h2 class="serif" style="font-size:1.45rem;font-weight:500;margin:0">Worried about someone’s safety or conduct?</h2><p class="muted">Report it on any profile, need or conversation, or write to <a href="mailto:${e(config.safeguardingEmail)}">${e(config.safeguardingEmail)}</a>. You don’t need proof, and you can stay anonymous. If someone is in immediate danger, contact local emergency services first.</p></div>${btn("Report a concern", "#report", "dark")}</section>`;
-    const policiesBox = `<section class="how-concern" style="margin-top:28px"><span class="icon-tile lg">${icon("doc", 28, "#0f6f63")}</span><div class="stack" style="--gap:6px"><h2 class="serif" style="font-size:1.6rem;font-weight:500;margin:0">The full rules: our policies</h2><p class="muted">They form part of the agreements everyone signs. Read them on the site or download a PDF.</p><p class="small policy-links"><a href="#policies/safeguarding">Safeguarding Policy</a> · <a href="#policies/code-of-conduct">Code of Conduct</a> · <a href="#policies/whistleblowing">Whistleblowing Policy</a> · <a href="#privacy">Privacy notice</a> · <a href="#terms">Terms of use</a> · <a href="#cookies">Cookies</a></p></div>${btn("All our policies", "#policies", "secondary")}</section>`;
-    const html = `<div><div class="wrap"><div class="page-head">${eyebrow("Questions &amp; safety")}<h1>FAQ &amp; safety</h1><p class="lead">How Handova works day to day, how we keep contributions safe, and how to raise a concern.</p></div>${concernBar}</div>${faqAndSafety(`<section class="stack" id="working-responsibly" style="--gap:28px;padding-top:clamp(48px,7vw,96px);scroll-margin-top:96px"><div class="stack" style="--gap:10px">${eyebrow("Working responsibly")}<h2>The rules that keep every contribution safe.</h2><p class="lead" style="max-width:760px">Every professional and every organisation agrees to these before any work starts.</p></div>${workingResponsibly({ withConcern: false, nested: true, policyLinks: false })}${policiesBox}</section>`)}</div><div class="wrap" style="padding-bottom:64px"><p class="faq-contact">Didn’t find your answer? <a href="#contact">Contact us</a>: we usually reply within two working days. For a safety concern, use <a href="#report">Report a concern</a> instead.</p></div>`;
+    // All six policies (D18); the privacy notice, terms and cookies stay in the footer.
+    const policiesBox = `<section class="how-concern" id="faq-policies" style="margin-top:28px;scroll-margin-top:96px"><span class="icon-tile lg">${icon("doc", 28, "#0f6f63")}</span><div class="stack" style="--gap:6px"><h2 class="serif" style="font-size:1.6rem;font-weight:500;margin:0">The full rules: our policies</h2><p class="muted">They form part of the agreements everyone signs. Read them on the site or download a PDF.</p><ul class="small policy-list">${POLICIES.map(([slug, title]) => `<li><a href="#policies/${slug}">${title}</a></li>`).join("")}</ul></div>${btn("All our policies", "#policies", "secondary")}</section>`;
+    const jumps = `<nav class="jump-links" aria-label="On this page">${[["Questions", "faq-questions"], ["Rules", "working-responsibly"], ["Policies", "faq-policies"]].map(([l, id]) => `<a href="#about/faq" data-action="scroll-to" data-id="${id}">${l}</a>`).join('<span aria-hidden="true">·</span>')}</nav>`;
+    const html = `<div><div class="wrap"><div class="page-head">${eyebrow("Questions &amp; safety")}<h1>FAQ &amp; safety</h1><p class="lead">How Handova works day to day, how we keep contributions safe, and how to raise a concern.</p></div>${concernBar}${jumps}</div>${faqAndSafety(`<section class="stack" id="working-responsibly" style="--gap:28px;padding-top:clamp(48px,7vw,96px);scroll-margin-top:96px"><div class="stack" style="--gap:10px">${eyebrow("Working responsibly")}<h2>The rules that keep every contribution safe.</h2><p class="lead" style="max-width:760px">Every professional and every organisation agrees to these before any work starts.</p></div>${workingResponsibly({ withConcern: false, nested: true, policyLinks: false })}${policiesBox}</section>`)}</div><div class="wrap" style="padding-bottom:64px"><p class="faq-contact">Didn’t find your answer? <a href="#contact">Contact us</a>: we usually reply within two working days. For a safety concern, use <a href="#report">Report a concern</a> instead.</p></div>`;
     return { title: "FAQ & safety", description: "Common questions about Handova, how we keep contributions safe, and our legal terms.", html };
   }
   // Our mission: for now the same content as the home page.
@@ -248,7 +271,7 @@ function pathSection(kind) {
     ? [`What a good need looks like`, `<p>One clear output, up to 16 hours, the skills and working languages involved. For example: “A data collection template that works offline, and a 90-minute training session for our six field officers.”</p><a href="#need/example-data-tools">See an example need</a>`]
     : [`What a good application looks like`, `<p>Specific and short: how you would approach the output, what you have done that is similar, and when you can do it. For example: “I have built two offline survey templates in KoboToolbox; I can deliver in two weeks, three hours a week.”</p><a href="#profile/julieta-castineira-de-dios">See a sample impact CV</a>`];
   return `<section class="path-section" id="path-${kind}">
-    <div class="row between" style="align-items:flex-end;margin-bottom:22px"><div class="stack" style="--gap:12px"><span class="eyebrow path-eyebrow">${org ? "For organisations" : "For professionals"}</span><h2>${org ? "Skilled help for the work you define." : "Meaningful work that fits around your life."}</h2><p class="lead" style="max-width:720px">${org ? "Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like." : "Give a few focused hours to an organisation that defined exactly what it needs. You gain real experience in the ethical and non-profit sector, and a reviewed record on your impact CV to show future employers. For students and career changers, it is a practical way in."}</p></div><div class="row">${btn(`${org ? "Post a need" : "Offer your skills"} ${icon("arrow", 18)}`, org ? "#join?role=organisation" : "#join?role=professional")}${btn(org ? "Browse talent" : "Browse needs", org ? "#talent" : "#needs", "secondary")}</div>${org ? `<a class="small" style="font-weight:700" href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Not in the Ethical Bridge directory yet? Join it first ${icon("arrow", 15)}</a>` : ""}</div>
+    <div class="row between" style="align-items:flex-end;margin-bottom:22px"><div class="stack" style="--gap:12px"><span class="eyebrow path-eyebrow">${org ? "For organisations" : "For professionals"}</span><h2>${org ? "Skilled help for the work you define." : "Meaningful work that fits around your life."}</h2><p class="lead" style="max-width:720px">${org ? "Handova connects locally led organisations with professionals who contribute a few focused hours, free. You set the need, the output and what success looks like." : "Give a few focused hours to an organisation that defined exactly what it needs. You gain real experience in the ethical and non-profit sector, and a reviewed record on your impact CV to show future employers. For students and career changers, it is a practical way in."}</p></div><div class="row">${btn(`${org ? "Post a need" : "Offer your skills"} ${icon("arrow", 18)}`, org ? "#join?role=organisation" : "#join?role=professional")}${btn(org ? "Browse talent" : "Browse needs", org ? "#talent" : "#needs", "secondary")}</div>${org ? `<a class="small" style="font-weight:700" href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Not in the Ethical Bridge directory yet? Join it first ${icon("arrow", 15)}<span class="visually-hidden">(opens in a new tab)</span></a>` : ""}</div>
     <div class="grid-2" style="gap:24px">
       <div class="card stack" style="--gap:22px;background:var(--deep);color:var(--paper);border-color:var(--deep);padding:clamp(26px,4vw,44px)"><h3 class="serif" style="font:500 2rem/1.15 var(--serif)">How it works for you</h3><ol class="stack" style="list-style:none;margin:0;padding:0;--gap:20px">${steps.map(([t, d], i) => `<li class="row" style="align-items:flex-start;flex-wrap:nowrap"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:20px;background:#fffdf8;color:#123e3a;font-weight:700;flex-shrink:0">${i + 1}</span><div><strong>${t}</strong><p style="color:var(--on-deep)">${d}</p></div></li>`).join("")}</ol></div>
       <div class="stack" style="--gap:24px">
@@ -271,41 +294,55 @@ function talentLanguages(profiles = []) {
   return [...MAIN, ...[...seen.values()].sort((a, b) => a.localeCompare(b))];
 }
 async function approvedTalent(cols) {
-  return result(db.from("profiles").select(cols).eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => []);
+  return result(db.from("profiles").select(cols).eq("published", true).eq("review_status", "approved").order("approved_at", { ascending: false })).catch(() => null);
 }
 
 function filtersForm(kind, langs) {
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
+  // On phones only the search shows, with a "Filters" button that opens the three dropdowns (D11).
   return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
-    <label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label>
+    <div class="f-search"><label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label><button class="btn secondary f-toggle" type="button" aria-expanded="false" aria-controls="f-more">${icon("settings", 18)}<span>Filters</span><span class="f-count" hidden></span></button></div>
+    <div class="f-more" id="f-more">
     <label class="more">Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
     <label class="more">Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
     <label class="more">Hours<select name="hours"><option value="">Any hours</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
-    <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><span class="row" style="--gap:16px"><button class="link-btn mf-toggle" type="button" data-action="more-filters" aria-expanded="false">More filters</button><button class="link-btn" type="reset">Clear filters</button></span></div>
+    </div>
+    <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><span class="row" style="--gap:16px"><button class="link-btn" type="reset">Clear filters</button></span></div>
   </form>`;
 }
 
 export async function needs() {
   const [real, pros] = await Promise.all([openNeeds(), approvedTalent("languages")]);
-  const rows = real.length ? real : exampleNeeds;
+  const failed = real === null;
+  // Examples only when the list really is empty, never when it failed to load (W4).
+  const rows = failed ? [] : real.length ? real : exampleNeeds;
+  // A signed-in professional already has a profile: point them to it instead of to sign-up (T21).
+  const proCard = state.profile
+    ? `<div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Organisations can invite you to a need that matches your skills. Keep your profile up to date so they find you.</p><div class="row">${btn(`Edit your profile ${icon("arrow", 18)}`, "#workspace/profile")}</div></div>`
+    : `<div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p><div class="row">${btn(`Offer your skills ${icon("arrow", 18)}`, "#join?role=professional")}</div></div>`;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Open needs")}<h1>Where your expertise can help.</h1><p class="lead">Every need is written by an approved, locally led organisation: the output they need, the skills involved and a realistic number of hours.</p></div>
-    ${filtersForm("needs", talentLanguages([exampleProfile, ...pros]))}
-    ${real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
+    ${filtersForm("needs", talentLanguages([exampleProfile, ...(pros || [])]))}
+    ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
     ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
       <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already handed over.</h2><p class="lead" style="max-width:680px">Work our founder handed over to organisations in the Ethical Bridge network before Handova opened. The organisations have not reviewed it on Handova yet. The capability stays with each team; the record stays on the impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
       <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
     </section>` : ""}
-    <div class="grid-2" style="gap:20px"><div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Publish your profile and organisations can invite you to a need that matches your skills.</p><div class="row">${btn(`Offer your skills ${icon("arrow", 18)}`, "#join?role=professional")}</div></div><div class="card stack band-dark" style="--gap:14px;background:var(--deep);border-color:var(--deep);color:var(--paper)"><span class="serif" style="font-size:1.8rem">Have a need of your own?</span><p style="color:var(--on-deep)">Non-profit organisations in the Ethical Bridge directory can publish a need for free and get skilled help.</p><div class="row">${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div></div></div>
+    <div class="grid-2" style="gap:20px">${proCard}<div class="card stack band-dark" style="--gap:14px;background:var(--deep);border-color:var(--deep);color:var(--paper)"><span class="serif" style="font-size:1.8rem">Have a need of your own?</span><p style="color:var(--on-deep)">Non-profit organisations in the Ethical Bridge directory can publish a need for free and get skilled help.</p><div class="row">${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div></div></div>
   </div>`;
-  return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need") };
+  return { title: "Open needs", description: "Browse needs published by approved, locally led organisations.", html, after: () => bindFilters(rows, needCard, "need", failed) };
 }
 
 const STANDARD = new Set(SKILL_GROUPS.flatMap(([, l]) => l.map((x) => x.toLowerCase())));
-function bindFilters(rows, card, noun) {
+function bindFilters(rows, card, noun, failed = false) {
   const f = $("#filters");
+  const toggle = f.querySelector(".f-toggle"), badge = f.querySelector(".f-count");
+  toggle?.addEventListener("click", () => { const on = f.classList.toggle("show-more"); toggle.setAttribute("aria-expanded", String(on)); if (on) f.querySelector(".f-more select")?.focus(); });
   const draw = () => {
+    const active = ["area", "language", "hours"].filter((k) => f.elements[k]?.value).length;
+    if (badge) { badge.hidden = !active; badge.textContent = String(active); }
+    if (failed) { $("#count").textContent = ""; $("#results").innerHTML = ""; return; }
     const data = Object.fromEntries(new FormData(f));
     // A professional area matches the skills people pick, which are grouped by the same areas.
     if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
@@ -321,7 +358,9 @@ function bindFilters(rows, card, noun) {
 
 // ---------- Need detail ----------
 export async function need(id) {
-  const n = id.startsWith("done-") ? solvedNeeds.find((x) => x.id === id) : id.startsWith("example-") ? exampleNeeds.find((x) => x.id === id) : await result(db.from("needs").select(NEED_SELECT).eq("id", id).maybeSingle()).catch(() => null);
+  let failed = false;
+  const n = id.startsWith("done-") ? solvedNeeds.find((x) => x.id === id) : id.startsWith("example-") ? exampleNeeds.find((x) => x.id === id) : await result(db.from("needs").select(NEED_SELECT).eq("id", id).maybeSingle()).catch((err) => { failed = !/invalid input syntax|22P02/i.test(String(err?.message || err?.code || "")); return null; });
+  if (failed) return { title: "Need", html: `<div class="wrap page-head" style="padding-bottom:120px">${back("All needs", "#needs")}${eyebrow("Open need")}<h1>We can’t load this need right now</h1><p class="lead">Please try again in a minute.</p><div class="row"><button class="btn" type="button" data-action="reload">Try again</button>${btn("Browse needs", "#needs", "secondary")}</div></div>` };
   if (!n) return notFound("This need isn’t available", "It may have been closed, or it may still be a draft.");
   const org = n.organisation || {};
   const isMember = state.memberships.some((m) => m.organisation_id === n.organisation_id);
@@ -387,6 +426,7 @@ export async function need(id) {
           ${!n.example && !n.handed && !isMember && state.user ? `<button class="btn secondary" type="button" data-action="save-need" data-id="${e(n.id)}">${icon("bookmark", 18)}${saved ? "Saved · remove" : "Save for later"}</button>` : ""}
           <p class="small muted">Unpaid, voluntary contribution. You will sign a contribution agreement with the organisation before any work begins.</p>
         </div>
+        ${open && !n.example && !n.handed ? shareBox(n) : ""}
         <div class="banner">${icon("lock", 22, "#0f6f63")}<p class="small">Never share passwords, card details or access codes. Confidential information is shared only after the agreement is signed.</p></div>
         ${n.example || n.handed ? "" : `<button class="link-btn" type="button" data-action="report" data-type="need" data-id="${e(n.id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report a concern about this need</button>`}
       </aside>
@@ -394,23 +434,34 @@ export async function need(id) {
   return { title: n.title, description: n.output, html };
 }
 
+// Sharing an open need (M16): organisations forwarding their own need is how it reaches people in the soft launch.
+function shareBox(n) {
+  const url = `${location.origin}${location.pathname}#need/${n.id}`;
+  const text = tf("Skilled volunteers wanted: “{title}” on Handova", { title: n.title });
+  const wa = "https://wa.me/?text=" + encodeURIComponent(`${text} ${url}`);
+  const li = "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(url);
+  return `<div class="share-box no-print"><span class="label-cap">Share this need</span><div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link">${icon("link", 16)}Copy link</button><a class="btn secondary sm" href="${e(wa)}" target="_blank" rel="noopener noreferrer">${icon("chat", 16)}WhatsApp<span class="visually-hidden">(opens in a new tab)</span></a><a class="btn secondary sm" href="${e(li)}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 16)}LinkedIn<span class="visually-hidden">(opens in a new tab)</span></a></div></div>`;
+}
+
 // ---------- Talent ----------
 export async function talent(params = new URLSearchParams()) {
   // Arriving from the organisation workspace ("Find talent", "Invite a professional"): offer the way back.
   const fromOrg = params.get("from") === "org" && state.memberships?.length;
-  const real = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
+  const loaded = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
+  const failed = loaded === null, real = loaded || [];
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
   const founderRow = fLive ? { ...fLive, founder: true, slug: exampleProfile.user_id, contributions: exampleContributions.length || undefined } : exampleProfile;
   const others = real.filter((p) => p.user_id !== config.founderUserId);
-  const rows = [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
+  const rows = failed ? [] : [founderRow, ...others.filter((p) => !p.inactive_since), ...others.filter((p) => p.inactive_since)];
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${fromOrg ? `<div style="margin-bottom:18px">${back("Back to your workspace", "#org")}</div>` : ""}${eyebrow("Talent")}<h1>Find the person behind the skills.</h1><p class="lead">Every profile is approved before it appears. See what people have done, the languages they work in and the time they can realistically give.</p></div>
     ${filtersForm("talent", talentLanguages(rows))}
+    ${failed ? loadError("We can’t load professionals right now. Please try again in a minute.") : ""}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
     <div class="card row between band-dark" style="border-color:var(--deep)"><div class="stack" style="--gap:6px"><span class="serif" style="font-size:1.8rem">Are you an organisation?</span><p class="muted">Post a need and invite the people whose work fits. It is free.</p></div>${btn(`Post a need ${icon("arrow", 18)}`, "#join?role=organisation", "light")}</div>
   </div>`;
-  return { title: "Talent", description: "Approved professionals contributing their skills to locally led organisations.", html, after: () => bindFilters(rows, talentCard, "professional") };
+  return { title: "Talent", description: "Approved professionals contributing their skills to locally led organisations.", html, after: () => bindFilters(rows, talentCard, "professional", failed) };
 }
 
 // ---------- Profile / impact CV ----------
@@ -491,13 +542,16 @@ export async function profile(id) {
     ${(() => { const pending = contributions.filter((c) => c.pending).length;
       // Each number opens the Contributions tab, so the CV stays on top however many contributions are added.
       const tile = (n, label) => `<button type="button" class="stat-btn" data-profile-tab="contributions" aria-controls="panel-contributions" title="See contributions"><strong data-counter="${n}">${n}</strong><span>${label}</span></button>`;
-      return `<section class="stats-dark stats-btns stats-5" aria-label="Impact so far and availability">${contributions.length ? `${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "awaiting the organisation’s review") : tile(countries, "countries")}` : `<div class="stat-new"><strong>New on Handova</strong><span>Profile reviewed by Handova${p.id_status === "approved" ? " · ID verified" : ""}</span><span class="stat-note">Contributions will appear here once an organisation reviews them.</span></div>`}${(() => {
+      // Availability is for organisations deciding whom to invite (T18): signed-in organisation members, and the owner.
+      const showAvail = owner || (!!state.user && state.memberships.length > 0);
+      return `<section class="stats-dark stats-btns${showAvail ? " stats-5" : ""}" aria-label="${showAvail ? "Impact so far and availability" : "Impact so far"}">${contributions.length ? `${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "awaiting the organisation’s review") : tile(countries, "countries")}` : `<div class="stat-new"><strong>New on Handova</strong><span>Profile reviewed by Handova${p.id_status === "approved" ? " · ID verified" : ""}</span><span class="stat-note">Contributions will appear here once an organisation reviews them.</span></div>`}${(() => {
         // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
         const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const used = contributions.filter((c) => { const d = new Date(c.completed || c.completed_at || c.started || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
         const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(locale(), { day: "numeric", month: "long" });
-        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left < per ? `${per} more hours unlock on ${next}` : `Back to ${per} hours on ${next}`) : "Not available right now"}</span>${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}`;
-      })()}</div></section>`; })()}
+        if (!showAvail) return "";
+        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left > 0 ? "Available now" : tf("Available again from {date}", { date: next })) : "Not available right now"}</span>${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}</div>`;
+      })()}</section>`; })()}
     ${contributions.length ? `<p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them." : "Only work reviewed by the organisation counts."}</p>` : ""}
     <div class="split left">
       <aside class="stack" style="--gap:18px">
@@ -587,6 +641,7 @@ export async function applyDialog(needId) {
     <p class="muted">Explain how you would approach the output and when you could do it. Only the organisation will see this.</p>
     ${langs ? `<p class="small" style="font-weight:600">${e(tf("Write in a language the organisation works in: {langs}.", { langs }))}</p>` : ""}
     ${field("message", "Your plan and availability", { type: "textarea", required: true, attrs: 'minlength="30" maxlength="4000" autofocus', hint: "At least 30 characters. Don’t include confidential information." })}
+    ${needsIdCheck(p) ? `<p class="notice small" role="note">${icon("lock", 18)}<span>Your identity isn’t verified yet. Right after you apply, we’ll ask you to verify it (about three minutes), so the organisation can accept you without waiting.</span></p>` : ""}
     <fieldset class="field full sg-q" data-sg="conflict"><legend>Do you have a personal, family, financial or work link to this organisation, its staff or funders?</legend><div class="sg-opts"><label class="check"><input type="radio" name="conflict" value="no" required><span>No</span></label><label class="check"><input type="radio" name="conflict" value="yes"><span>Yes, I’ll describe it</span></label></div><div class="field sg-note" data-when="yes" hidden><label for="f-conflict">The link, briefly</label><textarea id="f-conflict" name="conflict_note" rows="2" maxlength="600"></textarea><span class="hint">The organisation and Handova see this. A link doesn’t rule you out; we agree how it is managed.</span></div></fieldset>
     ${formEnd("Send application", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
 }
@@ -599,6 +654,19 @@ export async function submitApply(form) {
     await result(db.from("applications").insert({ need_id: form.dataset.id, user_id: state.user.id, message: val(fd, "message"), conflict_note }));
     document.getElementById("dialog").close();
     toast("Application sent. Organisations usually reply within a week, and we’ll email you when they decide.");
+    // T10: someone not yet verified is asked for the ID check as part of applying, not after the organisation accepts.
+    if (needsIdCheck(state.profile)) {
+      // The weekly reminder would replace this step, so it waits.
+      try { localStorage.setItem("hv-id-nudge-" + state.user.id, String(Date.now())); } catch {}
+      window.addEventListener("hashchange", () => setTimeout(applyIdStep, 60), { once: true });
+    }
     go("#workspace");
   });
+}
+
+// Not verified, and nothing waiting for review: the check can start now.
+const needsIdCheck = (p) => !!p && !!state.idRequired && ["", "started", "declined"].includes(p.id_status || "");
+// The same two routes as Account › identity: Didit (consent first, in account.js) or a short video call.
+function applyIdStep() {
+  openDialog("Application sent. Now verify your identity", `<div class="stack" style="--gap:14px"><p class="lead" style="font-size:1.15rem">Organisations can only start working with verified professionals. Doing it now means they can accept you without waiting.</p><p class="small muted">It takes about three minutes: a photo of your passport or ID card and a short selfie, handled by our provider Didit. Handova only receives the result and the name on your document, never the images.</p><div class="row"><button type="button" class="btn" data-action="verify-id">${icon("lock", 18)}Verify my identity now</button><button type="button" class="btn secondary" data-action="close">Later</button></div><p class="small muted">Prefer not to use Didit? <button type="button" class="link-btn" data-action="id-video">Ask for a short video call instead</button>, where you show your ID to Handova on camera.</p></div>`);
 }
