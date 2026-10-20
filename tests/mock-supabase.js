@@ -360,6 +360,16 @@ const rpcs = {
     const row = { id: uid(), user_id: me(), kind: p_kind, version: p_version, full_name: p_name.trim(), hours_committed: p_hours, agreement_text: p_text, signed_at: now() };
     D.agreement_signatures.push(row); return row.id;
   },
+  // agreements v3 (20261020…_agreements_v3): organisations sign a new organisation agreement version from the workspace.
+  org_agreement_current: (a) => { if (!isMember(a.p_org) && !isAdmin()) return null; return (D.agreement_signatures || []).some((s) => s.organisation_id === a.p_org && s.kind === "organisation" && s.version === "organisation-2026-10-20-v3"); },
+  resign_org_agreement({ p_org, p_version, p_name, p_role, p_text }) {
+    if (!me()) throw Error("Please sign in first.");
+    if (!isMember(p_org)) throw Error("Only a member of the organisation can sign for it.");
+    if (String(p_name || "").trim().length < 2) throw Error("Type your full name to sign.");
+    if (String(p_role || "").trim().length < 2) throw Error("Add your role in the organisation.");
+    const row = { id: uid(), user_id: me(), kind: "organisation", version: p_version, full_name: p_name.trim(), signer_role: p_role.trim(), agreement_text: p_text, signed_at: now(), organisation_id: p_org };
+    D.agreement_signatures.push(row); return row.id;
+  },
   is_admin: () => isAdmin(),
   // The organisation agreement just signed is linked to the new organisation (20261019000800).
   create_organisation: (a) => {
@@ -820,7 +830,7 @@ function engage(needId, user) {
   const filled = D.engagements.filter((e) => e.need_id === needId && e.status !== "ended").length;
   if (filled >= n.places) fail("All places on this need are already filled.");
   const id = uid();
-  D.engagements.push({ id, need_id: needId, organisation_id: n.organisation_id, user_id: user, terms_version: "contribution-2026-10-v2", scope: { need_title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline ?? null, organisation: o.name, organisation_country: o.country, talent: p?.name ?? null, talent_country: p?.country ?? null }, talent_signed_name: "", talent_signed_at: null, org_signed_name: "", org_signed_by: null, org_signed_at: null, status: "awaiting_signatures", deliverables: "", endorsement: "", endorsed_by_role: "", public: false, published_at: null, first_call_at: null, first_call_by: null, first_call_written: false, end_reason: null, ended_at: null, ended_by: null, talent_delivered_at: null, confirmed_skills: [], show_endorser_name: true, created_at: now() });
+  D.engagements.push({ id, need_id: needId, organisation_id: n.organisation_id, user_id: user, terms_version: "contribution-2026-10-v3", scope: { need_title: n.title, description: n.description, output: n.output, skills: n.skills, languages: n.languages, hours: n.hours, arrangement: n.arrangement, location: n.location, country: n.country, deadline: n.deadline ?? null, organisation: o.name, organisation_country: o.country, talent: p?.name ?? null, talent_country: p?.country ?? null }, talent_signed_name: "", talent_signed_at: null, org_signed_name: "", org_signed_by: null, org_signed_at: null, status: "awaiting_signatures", deliverables: "", endorsement: "", endorsed_by_role: "", public: false, published_at: null, first_call_at: null, first_call_by: null, first_call_written: false, end_reason: null, ended_at: null, ended_by: null, talent_delivered_at: null, confirmed_skills: [], show_endorser_name: true, created_at: now() });
   if (filled + 1 >= n.places) closeNeed(n);
   notify(user, "agreement", "Sign your contribution agreement", n.title, "#agreement/" + id);
   notifyOrg(n.organisation_id, "agreement", "Sign your contribution agreement", n.title, "#agreement/" + id);
