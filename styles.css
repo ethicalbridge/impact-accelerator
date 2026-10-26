@@ -1693,3 +1693,4 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .org-facts dt { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .org-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
 .org-review-logo { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; background: #fff; box-shadow: 0 0 0 1px var(--line); flex-shrink: 0; }
+.admin-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -8px; } .admin-shortcuts .btn { gap: 6px; }
