@@ -1,0 +1,18 @@
+name: DNS check
+on:
+  push:
+    branches: [dns-check]
+permissions:
+  contents: read
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Look up handova.org
+        run: |
+          for n in handova.org www.handova.org; do
+            for t in A AAAA CNAME; do echo "::notice title=$n $t::$(dig +short $n $t | tr '\n' ' ')"; done
+          done
+          echo "::notice title=www cert::$(echo | openssl s_client -connect www.handova.org:443 -servername www.handova.org 2>/dev/null | openssl x509 -noout -subject -issuer -ext subjectAltName 2>&1 | tr '\n' ' ')"
+          echo "::notice title=apex cert::$(echo | openssl s_client -connect handova.org:443 -servername handova.org 2>/dev/null | openssl x509 -noout -subject -issuer -ext subjectAltName 2>&1 | tr '\n' ' ')"
+          echo "::notice title=http www::$(curl -sI -m 15 http://www.handova.org/ | grep -iE '^(HTTP|location|server)' | tr '\r\n' '  ')"
