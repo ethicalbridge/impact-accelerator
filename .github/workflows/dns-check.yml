@@ -7,12 +7,15 @@ permissions:
 jobs:
   dns:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - name: Look up handova.org
+      - name: Wait until both addresses have a valid certificate
         run: |
-          for n in handova.org www.handova.org; do
-            for t in A AAAA CNAME; do echo "::notice title=$n $t::$(dig +short $n $t | tr '\n' ' ')"; done
+          for i in $(seq 1 80); do
+            a=$(curl -s -o /dev/null -w "%{http_code}" -m 15 https://handova.org/ || true)
+            w=$(curl -s -o /dev/null -w "%{http_code}" -m 15 https://www.handova.org/ || true)
+            echo "try $i: apex=$a www=$w"
+            if [ "$a" = "200" ] && { [ "$w" = "301" ] || [ "$w" = "200" ]; }; then echo "::notice title=ready::apex=$a www=$w after $i tries"; exit 0; fi
+            sleep 30
           done
-          echo "::notice title=www cert::$(echo | openssl s_client -connect www.handova.org:443 -servername www.handova.org 2>/dev/null | openssl x509 -noout -subject -issuer -ext subjectAltName 2>&1 | tr '\n' ' ')"
-          echo "::notice title=apex cert::$(echo | openssl s_client -connect handova.org:443 -servername handova.org 2>/dev/null | openssl x509 -noout -subject -issuer -ext subjectAltName 2>&1 | tr '\n' ' ')"
-          echo "::notice title=http www::$(curl -sI -m 15 http://www.handova.org/ | grep -iE '^(HTTP|location|server)' | tr '\r\n' '  ')"
+          echo "::notice title=not ready::apex=$a www=$w"
