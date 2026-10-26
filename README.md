@@ -17,6 +17,8 @@ Skilled professionals contributing, unpaid, to the needs locally led organisatio
 6. The organisation finishes and endorses the work: what was handed over, 1–3 confirmed skills and a written endorsement (no rating). The professional reads it first and decides whether it appears on their public **impact CV**; they can ask for one correction. Both sides get a short optional questionnaire.
 7. Six months later, the organisation is asked whether the work is still in use.
 
+When Handova approves a need for the first time, every professional with an active profile gets a notification and email about it (naming any skills they share with the need). Admins can open any organisation at `#admin-org/<id>` to see everything about it and suggest profile changes, which the organisation accepts or declines from its workspace.
+
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").
 
 If an organisation stops responding, an admin can close the contribution from Admin → Contributions ("Close for them"): hours the organisation already approved stay on the professional's record, marked "Closed by Handova". An account can't be deleted while its owner has a contribution still open, or is the only person managing an organisation with one. Text typed in a dialog is kept as a draft in that browser tab until it is sent.

@@ -24,12 +24,12 @@ function seed() {
     organisation_members: [{ organisation_id: ORG, user_id: ORGU, role: "owner", full_name: "Wanjiru Kamau", created_at: now() }],
     needs: [{ id: NEED, organisation_id: ORG, title: "Create an accessible outcome report", description: "Help our team turn survey findings into an accessible report with a reusable template.", output: "A report template\nA short handover session", skills: ["Research", "Design"], languages: ["English", "Swahili"], hours: 8, arrangement: "Remote", location: "East Africa", country: "Kenya", deadline: null, places: 1, no_vulnerable_contact: true, status: "open", approved_at: now(), created_at: now(), updated_at: now() }],
     applications: [], invitations: [], conversations: [], messages: [], engagements: [], hours: [], reports: [], saved_needs: [], notifications: [], user_settings: [], agreement_signatures: [], app_settings: [{ key: "require_id_verification", value: "true" }], id_verifications: [],
-    user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], organisation_changes: [], account_deletion_authorizations: [],
+    user_private: [], survey_responses: [], contribution_signatures: [], completion_private: [], admin_actions: [], organisation_changes: [], organisation_suggestions: [], account_deletion_authorizations: [],
     terms_acceptances: [], client_errors: [],
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
+const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "organisation_suggestions", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -133,6 +133,7 @@ function visible(table, r) {
     case "completion_private": case "admin_actions": case "survey_responses": return admin;
     case "app_settings": return true;
     case "organisation_changes": return isMember(r.organisation_id) || admin;
+    case "organisation_suggestions": return isMember(r.organisation_id) || admin;
     // 20261020100000_policy_safety_tools.sql
     case "need_safety_notes": return admin || isMember(needOrg(r.need_id));
     case "id_consents": case "id_video_requests": case "user_suspensions": return own(r.user_id) || admin;
@@ -476,8 +477,17 @@ const rpcs = {
       if (!orgApproved(n.organisation_id)) fail("Approve the organisation first. The need stays pending until then.");
       if (needsInUse(n.organisation_id, n.id, false) >= 3) fail("An organisation can have up to 3 needs open or in progress at a time. Finish or close one first.");
       if (n.deadline && n.deadline < today()) fail("Choose a deadline in the future.");
+      const first = !n.approved_at;
       Object.assign(n, { status: "open", approved_at: n.approved_at || now(), review_note: null, updated_at: now() });
       notifyOrg(n.organisation_id, "need_decision", "Your need is live", orNull(a.p_note) || n.title, "#org/needs/" + n.id);
+      // First time live: every active professional outside the organisation hears about it (skills they share are named).
+      if (first) {
+        const org = D.organisations.find((o) => o.id === n.organisation_id)?.name || "";
+        for (const p of D.profiles.filter((x) => !x.closed_at && !isSuspended(x.user_id) && !isMember(n.organisation_id, x.user_id))) {
+          const mine = (p.skills || []).map((x) => x.toLowerCase()), common = (n.skills || []).filter((x) => mine.includes(x.toLowerCase()));
+          notify(p.user_id, "need_new", "New need: " + n.title, [org, n.hours + " hours", common.length ? "Matches your skills: " + common.join(", ") : ""].filter(Boolean).join(" · "), "#need/" + n.id);
+        }
+      }
     } else if (a.p_decision === "changes_requested") {
       const note = trimmed(a.p_note);
       if (!note) fail("Write a note so the organisation knows what to change.");
@@ -780,6 +790,42 @@ const rpcs = {
     row.changes = {};
     notifyOrg(o.id, "org_decision", a.p_approve ? "Your organisation changes are live" : "Your organisation changes were not approved", String(a.p_note || "").trim() || (a.p_approve ? "Thank you. Your updated details are now public." : "Your current details stay as they were. Reply to us if you have questions."), "#org");
     adminAction(a.p_approve ? "org_changes_approved" : "org_changes_declined", "organisation", o.id, { changes: pc, note: a.p_note, name: o.name });
+  },
+  // 20261026000100: Handova suggests profile changes; the organisation accepts or declines.
+  admin_suggest_org_changes: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const o = D.organisations.find((x) => x.id === a.p_org); if (!o) fail("Organisation not found.");
+    const diff = {};
+    for (const k of ["name", "country", "city", "website", "summary", "org_type", "ethical_bridge_url", "staff_size"]) {
+      if (!(k in (a.p_changes || {}))) continue;
+      const v = String(a.p_changes[k] ?? "").trim() || null;
+      if (v !== (String(o[k] ?? "").trim() || null)) diff[k] = v;
+    }
+    if (!Object.keys(diff).length) fail("Nothing to change: the suggestion is the same as the current profile.");
+    if ("name" in diff && String(diff.name || "").length < 2) fail("The organisation needs a name.");
+    if ("summary" in diff && String(diff.summary || "").length < 20) fail("The summary needs at least 20 characters.");
+    if ("country" in diff && !diff.country) fail("The organisation needs a country.");
+    if (diff.website && !/^https:\/\//.test(diff.website)) fail("Use a website address starting with https://");
+    const note = String(a.p_note || "").trim() || null;
+    D.organisation_suggestions = D.organisation_suggestions.filter((x) => x.organisation_id !== o.id);
+    D.organisation_suggestions.push({ organisation_id: o.id, changes: diff, note, proposed_by: me(), created_at: now() });
+    notifyOrg(o.id, "org_suggestion", "Handova suggests changes to your organisation profile", note || "Review them and accept or decline. Nothing changes until you accept.", "#org/details");
+    adminAction("org_changes_suggested", "organisation", o.id, { changes: diff, note: a.p_note, name: o.name });
+  },
+  admin_withdraw_org_suggestion: (a) => {
+    if (!isAdmin()) fail("Only Handova admins can do this.");
+    const row = D.organisation_suggestions.find((x) => x.organisation_id === a.p_org);
+    if (row) Object.assign(row, { changes: {}, note: null });
+    adminAction("org_suggestion_withdrawn", "organisation", a.p_org, {});
+  },
+  respond_org_suggestion: (a) => {
+    if (!isMember(a.p_org)) fail("Only members of this organisation can answer.");
+    const o = D.organisations.find((x) => x.id === a.p_org), row = D.organisation_suggestions.find((x) => x.organisation_id === a.p_org);
+    if (!o || !row || !Object.keys(row.changes || {}).length) fail("There are no suggested changes waiting.");
+    if (a.p_accept) for (const [k, v] of Object.entries(row.changes)) o[k] = ["name", "country", "summary", "org_type"].includes(k) ? v ?? o[k] : k === "staff_size" ? v : v ?? "";
+    row.changes = {};
+    const note = String(a.p_note || "").trim();
+    notifyAdmins("org_suggestion_answer", a.p_accept ? "An organisation accepted your suggested changes" : "An organisation declined your suggested changes", o.name + (note ? ": " + note : ""), "#admin-org/" + o.id);
   },
   // 20261020120600: "Download my data".
   export_my_data: () => {

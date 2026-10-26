@@ -216,13 +216,16 @@ export async function org(sub, id) {
   // Changes to an approved organisation's public details wait for Handova (B5).
   const held = o.status === "approved" ? await result(db.from("organisation_changes").select("changes").eq("organisation_id", o.id).maybeSingle()).catch(() => null) : null;
   const heldNote = held?.changes && Object.keys(held.changes).length ? `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>Your latest changes are waiting for Handova’s review.</strong> Your current details stay public until then. We usually reply within two working days.</p></div>` : "";
+  // Changes Handova suggested to the organisation's profile: shown with the current text, accepted or declined here.
+  const sug = await result(db.from("organisation_suggestions").select("changes,note,created_at").eq("organisation_id", o.id).maybeSingle()).catch(() => null);
+  const sugNote = sug?.changes && Object.keys(sug.changes).length ? suggestionBanner(o, sug) : "";
   const blocked = o.status === "suspended" || o.status === "rejected";
   // A new organisation agreement version must be signed before new needs go for review.
   const resign = !blocked && await result(db.rpc("org_agreement_current", { p_org: o.id })).then((v) => v === false).catch(() => false);
   if (sub === "agreement") await loadAgreementCopy();
   if (sub === "agreement") return shell(`<div class="stack" style="--gap:20px">${back("Back to To do", "#org")}${head("Organisation agreement")}${resign ? orgResignForm(o) : `<p class="muted">Your organisation has signed the current Handova organisation agreement. <a href="#agreements/organisation">Read it</a>.</p>`}</div>`);
   const resignNote = resign ? `<div class="banner warn">${icon("doc", 22, "#7a4f0e")}<p><strong>We updated the Handova organisation agreement.</strong> Please read and sign the new version before you send new needs for review. <a href="#org/agreement">Read and sign</a></p></div>` : "";
-  const banner = suspendedBanner() + orgBanner(o) + resignNote + heldNote + paused;
+  const banner = suspendedBanner() + orgBanner(o) + sugNote + resignNote + heldNote + paused;
   const postBtn = blocked ? "" : btn(`${icon("plus", 16)} Post a need`, "#org/need", "sm");
 
   if (sub === "details") return shell(`<div class="stack" style="--gap:20px">${head("Organisation profile")}<p class="lead">How professionals see your organisation, on your public page and on every need you post.${approved ? ` <a href="#organisations/${e(o.id)}" style="font-weight:700">View your public page</a>` : ""}</p>${banner}${orgForm(o)}${await teamCard(o, m)}</div>`);
@@ -999,5 +1002,34 @@ export async function submitHours(form) {
     if (!(h >= 4)) throw Error("Choose at least 4 hours a month.");
     await result(db.from("profiles").update({ hours_available: h }).eq("user_id", state.user.id));
     await loadSession(); closeDialog(); toast("Saved. Your monthly hours are updated."); go(location.hash);
+  });
+}
+
+// Handova suggested changes to the organisation profile: each one next to the current text, with Accept or Decline.
+const SUG_FIELDS = { name: "Name", country: "Country", city: "City", org_type: "Type", staff_size: "Team size", website: "Website", ethical_bridge_url: "Ethical Bridge page", summary: "About the organisation" };
+const SUG_STAFF = Object.fromEntries(STAFF_SIZES);
+const sugValue = (k, v) => (v == null || v === "" ? "—" : k === "staff_size" ? SUG_STAFF[v] || v : String(v));
+function suggestionBanner(o, sug) {
+  return `<section class="banner warn org-suggestion" style="display:block">
+    <p><strong>Handova suggests some changes to your organisation profile.</strong> <span>Nothing changes until you accept. If you accept, the changes go live straight away.</span></p>
+    ${sug.note ? `<p class="small" style="margin-top:6px"><strong>Handova’s note:</strong> <span data-no-i18n>${e(sug.note)}</span></p>` : ""}
+    <div class="stack" style="--gap:6px;margin-top:10px">${Object.entries(sug.changes).map(([k, v]) => `<div class="small"><strong>${SUG_FIELDS[k] || e(k)}:</strong> <span data-no-i18n style="text-decoration:line-through;color:var(--muted)">${e(sugValue(k, o[k]))}</span> → <span data-no-i18n style="font-weight:600">${e(sugValue(k, v))}</span></div>`).join("")}</div>
+    <div class="row" style="--gap:8px;margin-top:12px"><button class="btn sm" type="button" data-action="org-suggestion" data-id="${e(o.id)}" data-accept="1">Accept changes</button><button class="btn secondary sm" type="button" data-action="org-suggestion" data-id="${e(o.id)}" data-accept="">Decline…</button></div>
+  </section>`;
+}
+export async function answerSuggestion(id, accept) {
+  if (accept) {
+    await result(db.rpc("respond_org_suggestion", { p_org: id, p_accept: true, p_note: "" }));
+    toast("Accepted. Your organisation profile is updated.");
+    return go(location.hash);
+  }
+  openDialog("Decline these changes?", `<form class="form" data-form="org-suggestion-decline" data-id="${e(id)}"><p>Your profile stays as it is. Handova is told.</p>${field("note", "Note to Handova (optional)", { type: "textarea", attrs: 'maxlength="1000"' })}${formEnd("Decline changes", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitDeclineSuggestion(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("respond_org_suggestion", { p_org: form.dataset.id, p_accept: false, p_note: val(fd, "note") }));
+    closeDialog();
+    toast("Declined. Handova has been told.");
+    go(location.hash);
   });
 }

@@ -10,7 +10,7 @@ import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, 
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
 // Handova is for non-profits only (founder decision, 20 Oct 2026).
-const ORG_TYPES = ["Community organisation", "Local NGO", "Non-profit cooperative", "Collective or informal group (fiscally hosted by a non-profit)", "Other non-profit"];
+export const ORG_TYPES = ["Community organisation", "Local NGO", "Non-profit cooperative", "Collective or informal group (fiscally hosted by a non-profit)", "Other non-profit"];
 const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-height:calc(100vh - 77px)">
   <div class="band-dark stack" style="--gap:28px;padding:clamp(32px,5vw,72px);justify-content:center">
     <h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${title}</h1><p class="lead">${lead}</p>
