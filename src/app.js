@@ -28,6 +28,7 @@ const ws = lazy(() => import("./pages/workspace.js").then(withPhotos));
 const eng = lazy(() => import("./pages/engagement.js"));
 const rsp = lazy(() => import("./pages/responses.js"));
 const adl = lazy(() => import("./pages/adminlists.js"));
+const ado = lazy(() => import("./pages/adminorg.js"));
 const adm = lazy(() => import("./pages/admin.js"));
 // Admin actions and forms live in admin.js (ACTIONS, FORMS) and run through its lazy chunk.
 const ADMIN_ACTIONS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-case-from-answer", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
@@ -72,6 +73,7 @@ async function page(r) {
     case "admin": return adm.admin();
     case "admin-responses": return rsp.responses(r.params);
     case "admin-list": return adl.adminList(r.a, r.params);
+    case "admin-org": return r.a ? ado.adminOrg(r.a) : { redirect: "#admin-list/organisations" };
     case "verify-done": return acc.verifyDone();
     case "email-confirmed": return acc.emailConfirmed(r.params);
     case "privacy": return legal.privacy();
@@ -237,6 +239,9 @@ const actions = {
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
   "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
   "admin-contrib-delete": (el) => adl.deleteContribDialog(el.dataset.id, el.dataset.title),
+  "admin-org-suggest": (el) => ado.suggestDialog(el.dataset.id),
+  "admin-org-withdraw": (el) => ado.withdrawSuggestion(el.dataset.id),
+  "org-suggestion": (el) => ws.answerSuggestion(el.dataset.id, !!el.dataset.accept),
   "admin-contrib-close": (el) => adl.closeContribDialog(el.dataset.id, el.dataset.title),
   // Approve straight away; declining asks for an optional note to the organisation.
   "org-changes": async (el) => {
@@ -269,7 +274,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-org-suggest": (f) => ado.submitSuggest(f), "org-suggestion-decline": (f) => ws.submitDeclineSuggestion(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
