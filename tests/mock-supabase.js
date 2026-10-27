@@ -829,6 +829,14 @@ const rpcs = {
       .filter(({ p }) => !p || (!p.published && p.review_status === "draft" && !p.closed_at))
       .map(({ u, p }) => { const sent = D.notifications.filter((x) => x.user_id === u.id && kinds(x)); return { user_id: u.id, email: u.email, role: u.user_metadata?.role || "", name: p?.name || u.user_metadata?.full_name || "", stage: p ? "not_sent" : "no_profile", signed_up_at: u.created_at || now(), email_confirmed: u.email_confirmed_at !== null, last_reminded_at: sent.map((x) => x.created_at).sort().pop() || null, reminders: sent.length }; });
   },
+  // 20261028000100: contributions under way on the professional's profile, unless they hide them.
+  public_in_progress: (a) => D.engagements.filter((x) => x.user_id === a.p_user && x.status === "active" && x.show_in_progress !== false && !x.hidden_by_handova && profilePublic(x.user_id) && !isSuspended(x.user_id) && orgApproved(x.organisation_id))
+    .map((x) => { const o = D.organisations.find((y) => y.id === x.organisation_id) || {}; return { id: x.id, need_id: x.need_id, need_title: x.scope?.need_title || "", organisation_id: o.id, organisation: o.name, organisation_country: o.country, logo_url: o.logo_url || "", started: [x.talent_signed_at, x.org_signed_at].sort().pop() }; }),
+  set_in_progress_visibility: (a) => {
+    const x = D.engagements.find((y) => y.id === a.p_id && y.user_id === me());
+    if (!x) fail("Only the professional on this contribution can change this.");
+    x.show_in_progress = a.p_show !== false;
+  },
   // 20261027000300: every account and its stage.
   admin_people: () => {
     requireAdmin();

@@ -246,6 +246,7 @@ const actions = {
   "admin-need-deadline": async (el) => { if (el.dataset.approve) { await result(db.rpc("admin_review_need_deadline", { p_need: el.dataset.id, p_approve: true, p_note: "" })); toast("Approved. The need is open until the new date."); return render(); } return adm.deadlineDeclineDialog(el.dataset.id); },
   "admin-signup-remind": async (el) => { await result(db.rpc("admin_send_signup_reminder", { p_user: el.dataset.id })); toast("Reminder sent by notification and email."); return render(); },
   "publish-now": (el) => acc.publishNow(el),
+  "in-progress-vis": async (el) => { await result(db.rpc("set_in_progress_visibility", { p_id: el.dataset.id, p_show: !!el.dataset.show })); toast(el.dataset.show ? "It shows on your profile as in progress." : "Hidden from your profile."); return render(); },
   "admin-contrib-close": (el) => adl.closeContribDialog(el.dataset.id, el.dataset.title),
   // Approve straight away; declining asks for an optional note to the organisation.
   "org-changes": async (el) => {
