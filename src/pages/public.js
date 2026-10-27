@@ -531,6 +531,12 @@ export async function profile(id) {
   const owner = state.user?.id === p.user_id;
   const isPublic = ex || (p.published && p.review_status === "approved");
   // public_contributions_v2 also says when Handova closed a contribution; the older function is the fallback.
+  // Contributions both sides have signed and that are under way (28 Oct 2026): public unless the professional hides them.
+  // The owner also sees the hidden ones, with a switch. No hours and no endorsement: those come when the work is reviewed.
+  const ongoing = ex ? [] : owner
+    ? (await result(db.from("engagements").select("id,need_id,scope,show_in_progress,hidden_by_handova,talent_signed_at,org_signed_at,organisation:organisations(id,name,country,logo_url)").eq("user_id", id).eq("status", "active")).catch(() => []))
+      .filter((x) => !x.hidden_by_handova).map((x) => ({ id: x.id, need_id: x.need_id, need_title: x.scope?.need_title || "", organisation_id: x.organisation?.id, organisation: x.organisation?.name || x.scope?.organisation || "", organisation_country: x.organisation?.country, logo_url: x.organisation?.logo_url, started: [x.talent_signed_at, x.org_signed_at].sort().pop(), shown: x.show_in_progress !== false }))
+    : (await result(db.rpc("public_in_progress", { p_user: id })).catch(() => [])).map((x) => ({ ...x, shown: true }));
   const live = ex ? [] : await result(db.rpc("public_contributions_v2", { p_user: id })).catch(() => result(db.rpc("public_contributions", { p_user: id }))).catch(() => []);
   // Contributions the professional took off their CV: live ones are private, earlier ones are listed in cv_hidden.
   const hiddenIds = new Set(p.cv_hidden || []);
@@ -585,6 +591,10 @@ export async function profile(id) {
         ${!ex && !owner && state.user ? `<button class="link-btn" type="button" data-action="report" data-type="profile" data-id="${e(p.user_id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report this profile</button>` : ""}
       </aside>
       <section class="stack" style="--gap:16px" id="profile-main">
+        ${ongoing.length ? `<div class="card stack in-progress" style="--gap:6px"><div class="row between" style="align-items:baseline"><h2 style="font-size:1.6rem">In progress</h2><span class="small muted">Not reviewed yet: it moves to Contributions once the organisation endorses the work.</span></div>
+          ${ongoing.map((x) => `<div class="list-row" style="flex-wrap:wrap;gap:10px"><div class="row" style="--gap:12px;flex-wrap:nowrap;min-width:0">${x.logo_url && safeURL(x.logo_url) ? `<img class="al-logo" src="${e(safeURL(x.logo_url))}" alt="" width="44" height="44" referrerpolicy="no-referrer">` : `<span class="al-logo al-logo-empty">${icon("home", 20)}</span>`}<div class="stack" style="--gap:2px;min-width:0"><a href="#need/${e(x.need_id)}" style="font-weight:700" data-no-i18n>${e(x.need_title)}</a><span class="small muted"><a href="#organisations/${e(x.organisation_id)}" data-no-i18n>${e(x.organisation)}</a>${x.organisation_country ? ` · ${e(t(x.organisation_country))}` : ""}${x.started ? ` · <span>since</span> ${date(x.started, { month: "short", year: "numeric" })}` : ""}</span></div></div>
+            <div class="row" style="--gap:8px;flex-wrap:wrap;justify-content:flex-end">${x.shown ? pill("In progress", "ochre") : ""}${owner ? (x.shown ? `<button class="btn secondary sm no-print" type="button" data-action="in-progress-vis" data-id="${e(x.id)}" data-show="">Hide from my profile</button>` : `${pill("Hidden from your profile", "grey")}<button class="btn secondary sm no-print" type="button" data-action="in-progress-vis" data-id="${e(x.id)}" data-show="1">Show on my profile</button>`) : ""}</div></div>`).join("")}
+          ${owner ? `<p class="small muted">Shown to everyone who can see your profile, without hours or an endorsement. You can hide any of them.</p>` : ""}</div>` : ""}
         <div class="ptabs" role="tablist" aria-label="Profile sections">
           <button type="button" role="tab" id="tab-cv" aria-controls="panel-cv" aria-selected="true" data-profile-tab="cv">CV</button>
           <button type="button" role="tab" id="tab-contributions" aria-controls="panel-contributions" aria-selected="false" tabindex="-1" data-profile-tab="contributions">Contributions <span class="ptab-count">${contributions.length}</span></button>
