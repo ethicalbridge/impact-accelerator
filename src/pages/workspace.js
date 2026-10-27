@@ -115,7 +115,8 @@ function reviewBanner(p) {
   // Suspended: no way back to publishing from here (A15); the suspension banner explains.
   if (state.suspension) return "";
   if (!p.published && needsResign()) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Sign the new Handova agreement, then you can send your profile for review.</p>${btn("Read and sign", "#workspace/agreement", "sm")}</div>`;
-  if (!p.published) return `<div class="banner">${icon("eye", 22, "#0f6f63")}<p style="flex:1">Your profile is <strong>private</strong>. Organisations can’t see it or invite you yet. Send it for review when it’s ready.</p><button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send my profile for review</button></div>`;
+  // Private profiles never reach Handova, so this says so plainly and sends it in one click (27 Oct 2026).
+  if (!p.published) return `<div class="banner warn">${icon("eye", 22, "#7a4f0e")}<p style="flex:1"><strong>Your profile is private, so Handova hasn’t received it for review.</strong> <span>Organisations can’t see it or invite you, and you can’t apply to needs yet. Send it when it’s ready: we usually reply within two working days.</span></p><div class="row" style="--gap:8px"><button class="btn sm" type="button" data-action="publish-now">Send for review now</button>${btn("Check my profile first", "#workspace/profile", "secondary sm")}</div></div>`;
   if (p.review_status === "pending") return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p>Your profile is <strong>awaiting approval</strong>. We usually review within two working days and will notify you.</p></div>`;
   if (p.review_status === "changes_requested") return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1">We asked for some changes to your profile. Check your notifications, update your profile and publish it again.</p>${btn("Edit profile", "#workspace/profile", "sm")}</div>`;
   if (p.review_status === "rejected") return `<div class="banner alert">${icon("alert", 22)}<p>Your profile was not approved. Write to us if you think this is a mistake.</p></div>`;
@@ -414,6 +415,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
 
   return `<div class="stack" style="--gap:22px">${back("All needs", "#org/needs")}
     <div class="stack" style="--gap:14px"><div class="row" style="--gap:10px">${eyebrow(e(o.name))}${pillHtml}</div><h1 class="ws-title" data-no-i18n>${e(n.title)}</h1><p class="muted">${meta}</p></div>
+    ${n.status === "open" ? deadlineBox(n) : ""}
     ${[...boxes.filter((b) => !/next-box (wait|ok)\b/.test(b)), ...boxes.filter((b) => /next-box (wait|ok)\b/.test(b))].join("")}
     ${cards}
     ${about}${changeFold}${historyFold}
@@ -570,7 +572,7 @@ function needForm(n, o, approved, langs, full = false) {
     ${dropdown("hours", "Estimated hours", [2, 4, 6, 8, 10, 12, 14, 16].map((h) => [String(h), `${h} hours`]), String(n.hours || 8), { required: true, hint: "As a guide: a review or advice takes 2–6 hours, a plan or template 6–10, a framework, manual or tool 10–16." })}
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
     <input type="hidden" name="country" value="${e(o.country || n.country || "")}">
-    ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${today()}"` })}
+    ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${fromToday(14)}"`, hint: "At least two weeks from today, so professionals have time to apply." })}
     ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
     <input type="hidden" name="status" value="${e(n.status || "pending")}">
     ${safetyQuestions(n.safeguarding || {})}
@@ -1030,6 +1032,33 @@ export async function submitDeclineSuggestion(form) {
     await result(db.rpc("respond_org_suggestion", { p_org: form.dataset.id, p_accept: false, p_note: val(fd, "note") }));
     closeDialog();
     toast("Declined. Handova has been told.");
+    go(location.hash);
+  });
+}
+
+// Apply-by date on a live need: at least two weeks ahead. A later date is asked for here and Handova approves it.
+const fromToday = (k) => addDays(today(), k);
+function deadlineBox(n) {
+  const ask = `<button class="btn sm" type="button" data-action="need-deadline" data-id="${e(n.id)}" data-current="${e(n.deadline || "")}">Ask for a later date</button>`;
+  if (n.requested_deadline) return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p><strong>New apply-by date waiting for Handova:</strong> <span>${date(n.requested_deadline)}</span>. <span>We usually reply within two working days.</span></p></div>`;
+  if (!n.deadline) return "";
+  const left = Math.round((Date.parse(n.deadline) - Date.parse(today())) / 864e5);
+  if (left < 0) return `<div class="banner alert">${icon("alert", 22)}<p style="flex:1"><strong><span>Applications closed on</span> ${date(n.deadline)}.</strong> <span>Professionals can no longer find or apply to this need. Ask for a later date (at least two weeks from today) and Handova will reopen it once approved.</span></p>${ask}</div>`;
+  if (left <= 7) return `<div class="banner warn">${icon("clock", 22, "#7a4f0e")}<p style="flex:1"><strong><span>Applications close on</span> ${date(n.deadline)}.</strong> <span>Need more time to find someone? Ask for a later date.</span></p>${ask}</div>`;
+  return "";
+}
+export function deadlineDialog(id, current) {
+  openDialog("Ask for a later apply-by date", `<form class="form" data-form="need-deadline" data-id="${e(id)}">
+    <p><span>Choose a date at least two weeks from today, so professionals have time to find the need and apply.</span> <span>Handova approves the new date; until then the current one stays.</span></p>
+    ${current ? `<p class="small muted"><span>Current date:</span> ${date(current)}</p>` : ""}
+    ${field("deadline", "New apply-by date", { type: "date", required: true, attrs: `min="${fromToday(14)}" max="${fromToday(180)}"` })}
+    ${formEnd("Send to Handova", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitDeadline(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("request_need_deadline", { p_need: form.dataset.id, p_deadline: val(fd, "deadline") }));
+    closeDialog();
+    toast("Sent. Handova will review your new date.");
     go(location.hash);
   });
 }

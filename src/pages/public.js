@@ -1,6 +1,6 @@
 import { locale, t, tf } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS, fieldError } from "../core.js";
-import { icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
+import { NEED_STATE, icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
 import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
@@ -9,12 +9,19 @@ import { workingResponsibly, POLICIES } from "./legal.js";
 const NEED_SELECT = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
 // null means the list could not be loaded (W4): the page then says so instead of showing examples as if nothing existed.
-async function openNeeds(limit) {
-  let q = db.from("needs").select(NEED_SELECT).eq("status", "open").order("created_at", { ascending: false });
-  if (limit) q = q.limit(limit);
-  const rows = await result(q).catch(() => null);
-  return rows ? rows.filter((n) => !n.deadline || n.deadline >= today()) : null;
+// Every published need with its state (27 Oct 2026): open ones first, then the ones already underway.
+// public_need_progress gives the state (and how many applied) without saying who.
+async function publishedNeeds() {
+  const [rows, prog] = await Promise.all([
+    result(db.from("needs").select(NEED_SELECT).in("status", ["open", "closed"]).order("created_at", { ascending: false })).catch(() => null),
+    result(db.rpc("public_need_progress")).catch(() => []),
+  ]);
+  if (!rows) return null;
+  const by = Object.fromEntries((prog || []).map((x) => [x.need_id, x]));
+  return rows.map((n) => ({ ...n, progress: by[n.id]?.state || (n.status === "open" ? (n.deadline && n.deadline < today() ? "deadline_passed" : "open") : "closed"), applicants: by[n.id]?.applicants || 0 }));
 }
+const isOpen = (n) => n.progress === "open" || n.progress === "applications";
+const UNDERWAY = ["chosen", "in_progress", "handed_over", "deadline_passed"];
 const loadError = (text) => `<div class="banner warn load-error" role="alert">${icon("alert", 22)}<p>${text}</p><button class="btn secondary sm" type="button" data-action="reload">Try again</button></div>`;
 
 // ---------- Home ----------
@@ -312,10 +319,13 @@ function filtersForm(kind, langs) {
 }
 
 export async function needs() {
-  const [real, pros] = await Promise.all([openNeeds(), approvedTalent("languages")]);
-  const failed = real === null;
-  // Examples only when the list really is empty, never when it failed to load (W4).
-  const rows = failed ? [] : real.length ? real : exampleNeeds;
+  const [all, pros] = await Promise.all([publishedNeeds(), approvedTalent("languages")]);
+  const failed = all === null;
+  const real = (all || []).filter(isOpen);
+  const underway = (all || []).filter((n) => UNDERWAY.includes(n.progress));
+  // Examples only when there are no real needs at all, never when the list failed to load (W4).
+  const noneYet = !real.length && !underway.length;
+  const rows = failed ? [] : real.length ? real : noneYet ? exampleNeeds : [];
   // A signed-in professional already has a profile: point them to it instead of to sign-up (T21).
   const proCard = state.profile
     ? `<div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Organisations can invite you to a need that matches your skills. Keep your profile up to date so they find you.</p><div class="row">${btn(`Edit your profile ${icon("arrow", 18)}`, "#workspace/profile")}</div></div>`
@@ -323,8 +333,12 @@ export async function needs() {
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:40px">
     <div class="page-head">${eyebrow("Open needs")}<h1>Where your expertise can help.</h1><p class="lead">Every need is written by an approved, locally led organisation: the output they need, the skills involved and a realistic number of hours.</p></div>
     ${filtersForm("needs", talentLanguages([exampleProfile, ...(pros || [])]))}
-    ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.")}
+    ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : noneYet ? exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.") : `<div class="notice" role="note">${icon("clock", 20, "#0f6f63")}<span>No needs are open for applications right now. New ones appear here as soon as Handova approves them, and professionals with a profile are told by email.</span></div>`}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
+    ${underway.length ? `<section class="stack" style="--gap:18px;padding-top:12px">
+      <div class="stack" style="--gap:8px">${eyebrow("Already underway")}<h2>Needs in progress.</h2><p class="lead" style="max-width:680px">Needs that have found a professional, are being worked on or were handed over, and needs whose apply-by date has passed.</p></div>
+      <div class="grid">${underway.map(needCard).join("")}</div>
+    </section>` : ""}
     ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
       <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already handed over.</h2><p class="lead" style="max-width:680px">Work our founder handed over to organisations in the Ethical Bridge network before Handova opened. The organisations have not reviewed it on Handova yet. The capability stays with each team; the record stays on the impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
       <div class="grid">${solvedNeeds.map(needCard).join("")}</div>
@@ -342,7 +356,7 @@ function bindFilters(rows, card, noun, failed = false) {
   const draw = () => {
     const active = ["area", "language", "hours"].filter((k) => f.elements[k]?.value).length;
     if (badge) { badge.hidden = !active; badge.textContent = String(active); }
-    if (failed) { $("#count").textContent = ""; $("#results").innerHTML = ""; return; }
+    if (failed || !rows.length) { $("#count").textContent = ""; $("#results").innerHTML = ""; return; }
     const data = Object.fromEntries(new FormData(f));
     // A professional area matches the skills people pick, which are grouped by the same areas.
     if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
@@ -366,6 +380,7 @@ export async function need(id) {
   const org = n.organisation || {};
   const isMember = state.memberships.some((m) => m.organisation_id === n.organisation_id);
   const open = n.status === "open" && (!n.deadline || n.deadline >= today());
+  const prog = n.example || n.handed || open ? null : (await result(db.rpc("public_need_progress")).catch(() => [])).find((x) => x.need_id === n.id);
   let app = null, saved = false;
   if (state.user && !n.example && !n.handed && !isMember) {
     [app, saved] = await Promise.all([
@@ -381,7 +396,11 @@ export async function need(id) {
   else if (state.isAdmin && n.status === "pending") cta = `${btn("Review it in Admin", "#admin", "lg")}`;
   else if (app) cta = `<p>Your application: ${status(app.status)}</p>${btn("Go to your workspace", "#workspace", "secondary")}`;
   else if (open) cta = `<button class="btn lg" type="button" data-action="apply" data-id="${e(n.id)}">Apply to this need</button>`;
-  else cta = `<p class="muted">This need is no longer accepting applications.</p>`;
+  else cta = `<p class="muted">${{
+    chosen: "A professional has been chosen for this need. Applications are closed.",
+    in_progress: "A professional is working on this need. Applications are closed.",
+    handed_over: "This need has been delivered and handed over to the organisation.",
+  }[prog?.state] || (n.status === "open" && n.deadline ? `<span>Applications closed on</span> ${date(n.deadline)}.` : "This need is no longer accepting applications.")}</p>${btn("See open needs", "#needs", "secondary")}`;
   const html = `<div class="wrap stack" style="--gap:28px;padding-bottom:60px">
     ${back("All needs", "#needs")}
     ${n.status === "draft" || n.status === "pending" ? `<div class="notice" role="note">${pill(n.status === "draft" ? "Draft" : "Waiting for review", n.status === "draft" ? "grey" : "ochre")}<span>Not public yet: only your organisation and Handova can see this need.</span></div>` : ""}
@@ -416,7 +435,7 @@ export async function need(id) {
       </div>
       <aside class="stack sticky" style="--gap:18px">
         <div class="side-card">
-          <div class="row between">${n.handed ? handedPill() : open ? pill("Open for applications") : n.status === "draft" ? pill("Draft", "grey") : n.status === "pending" ? pill("Waiting for review", "ochre") : pill("Closed", "grey")}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
+          <div class="row between">${n.handed ? handedPill() : open ? pill("Open for applications") : n.status === "draft" ? pill("Draft", "grey") : n.status === "pending" ? pill("Waiting for review", "ochre") : pill(...(NEED_STATE[prog?.state || (n.status === "open" ? "deadline_passed" : "closed")] || ["Closed", "grey"]))}<span class="small muted">${plural(n.places || 1, "place")}</span></div>
           <div class="stack" style="--gap:12px">
             <span class="row">${icon("clock", 22, "#0f6f63")}<span><strong>${n.hours} ${n.hours === 1 ? "hour" : "hours"}</strong> ${n.handed ? "delivered" : "estimated"}</span></span>
             <span class="row">${icon("globe", 22, "#0f6f63")}Remote${n.location ? " · " + e(n.location) : ""}</span>

@@ -8,6 +8,7 @@ const STAFF = { none: "Volunteers only", "1-5": "1–5 paid staff", "6-20": "6�
 export const LISTS = {
   organisations: "Registered organisations",
   professionals: "Registered professionals",
+  signups: "Unfinished sign-ups",
   needs: "Needs",
   contributions: "Contributions",
   followups: "Six-month follow-ups",
@@ -61,6 +62,17 @@ export async function adminList(kind, params) {
     body = rows.map((p) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#profile/${p.user_id}" style="font-weight:700" data-no-i18n>${e(p.name)}</a>${pub(p) ? pill("Public") : status(p.published ? p.review_status : "draft")}${p.id_status === "approved" ? pill("ID verified") : ""}</div>
       <span class="small muted" data-no-i18n>${e(p.headline || "")}</span><span class="small muted">${[e(p.country || ""), `${p.hours_available || 0} h a month`, `joined ${date(p.created_at)}`, p.closed_at ? `closed ${date(p.closed_at)}` : ""].filter(Boolean).join(" · ")}</span></div>
       <div class="al-actions">${p.review_status === "pending" ? `<button class="btn sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="approved">Approve</button><button class="btn secondary sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="changes_requested">Ask for changes</button>` : ""}${btn("View profile", `#profile/${p.user_id}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-suspend" data-id="${p.user_id}">Suspend…</button>${p.user_id === state.user.id ? "" : `<button class="btn secondary sm danger-outline" type="button" data-action="admin-delete-account" data-id="${p.user_id}" data-name="${e(p.name)}">Delete account…</button>`}</div></div>`).join("");
+  }
+
+  if (kind === "signups") {
+    // People who created an account but never finished: no profile yet, or a profile never sent for review (27 Oct 2026).
+    const list = await result(db.rpc("admin_unfinished_signups")).catch(() => []);
+    filters = [["", "All", list.length], ["no_profile", "No profile yet", list.filter((x) => x.stage === "no_profile").length], ["not_sent", "Profile not sent for review", list.filter((x) => x.stage === "not_sent").length], ["unconfirmed", "Email not confirmed", list.filter((x) => !x.email_confirmed).length]];
+    rows = list.filter((x) => (!show || (show === "unconfirmed" ? !x.email_confirmed : x.stage === show)) && match(x.name, x.email));
+    body = `<p class="small muted">Reminders go out automatically by notification and email: one day after sign-up and again a week later. You can also send one now.</p>` + rows.map((x) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px">${x.stage === "not_sent" ? `<a href="#profile/${x.user_id}" style="font-weight:700" data-no-i18n>${e(x.name || x.email)}</a>` : `<strong data-no-i18n>${e(x.name || x.email)}</strong>`}${pill(x.stage === "no_profile" ? "No profile yet" : "Profile not sent for review", "ochre")}${x.email_confirmed ? "" : pill("Email not confirmed", "grey")}</div>
+      <span class="small muted"><a href="mailto:${e(x.email)}" data-no-i18n>${e(x.email)}</a> · ${x.role === "organisation" ? "signed up as an organisation" : "signed up as a professional"} · ${date(x.signed_up_at)}</span>
+      <span class="small muted">${x.reminders ? `${x.reminders === 1 ? "1 reminder sent" : `${x.reminders} reminders sent`}, last ${date(x.last_reminded_at)}` : "No reminder sent yet"}</span></div>
+      <div class="al-actions">${x.email_confirmed ? `<button class="btn secondary sm" type="button" data-action="admin-signup-remind" data-id="${x.user_id}">Send a reminder now</button>` : ""}</div></div>`).join("");
   }
 
   if (kind === "needs") {

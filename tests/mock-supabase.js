@@ -7,6 +7,7 @@ const now = () => new Date().toISOString();
 const DAY = 864e5;
 // current_date, in the browser's own time zone (the date the UI offers by default).
 const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const inDays = (n) => { const d = new Date(Date.now() + n * 864e5); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 // True when the timestamp is more than `days` days in the past.
 const ago = (t, days) => !!t && Date.parse(t) < Date.now() - days * DAY;
 const ADMIN = "00000000-0000-4000-8000-00000000000a", ORGU = "00000000-0000-4000-8000-00000000000b", TAL = "00000000-0000-4000-8000-00000000000c", ORG = "00000000-0000-4000-8000-0000000000aa", NEED = "00000000-0000-4000-8000-0000000000bb";
@@ -192,6 +193,7 @@ class Query {
   neq(k, v) { this.f.push((r) => String(r[k]) !== String(v)); return this; }
   in(k, arr) { this.f.push((r) => arr.map(String).includes(String(r[k]))); return this; }
   is(k, v) { this.f.push((r) => (v === null ? r[k] == null : r[k] === v)); return this; }
+  not(k, op, v) { if (op === "is" && v === null) this.f.push((r) => r[k] != null); return this; }
   gt(k, v) { this.f.push((r) => compare(r[k], v) > 0); return this; }
   gte(k, v) { this.f.push((r) => compare(r[k], v) >= 0); return this; }
   lt(k, v) { this.f.push((r) => compare(r[k], v) < 0); return this; }
@@ -264,6 +266,7 @@ function insertRow(t, v) {
     if (v.status === "pending" && !isAdmin()) safetyCheck(v.safeguarding);
     if (v.status === "pending" && !isAdmin() && orgBlocked(v.organisation_id)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
     if (v.status === "pending" && !isAdmin() && endorsementOverdue(v.organisation_id)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
+    if (v.status === "pending" && !isAdmin() && v.deadline && v.deadline < inDays(14)) fail("Choose an apply-by date at least two weeks from today, so professionals have time to apply.");
     if (v.status === "pending" && needsInUse(v.organisation_id, null, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
     if (v.status === "pending") { row.review_note = null; notifyAdmins("need_submitted", "A need is waiting for review", v.title, "#admin"); }
     row.updated_at = now();
@@ -341,7 +344,7 @@ function updateRow(t, r, v) {
       if (!orgApproved(org)) fail("The organisation must be approved before its needs can open.");
       if (needsInUse(org, r.id, false) >= 3) fail("An organisation can have up to 3 needs open or in progress at a time. Finish or close one first.");
       const deadline = "deadline" in v ? v.deadline : r.deadline;
-      if (deadline && deadline < today()) fail("Choose a deadline in the future.");
+      if (deadline && deadline < inDays(7)) fail("Fewer than 7 days are left to apply. Ask the organisation for a later apply-by date first: professionals need at least two weeks.");
       v = { ...v, approved_at: r.approved_at || now(), review_note: null };
     }
     if (v.status === "pending" && r.status !== "pending") {
@@ -349,6 +352,8 @@ function updateRow(t, r, v) {
       if (!adm && orgBlocked(org)) fail("Your organisation can’t send needs for review at the moment. Write to hello@handova.org if you have questions.");
       if (!adm && endorsementOverdue(org)) fail("A finished contribution has been waiting for your endorsement for more than 14 days. Finish and endorse it first, then you can send new needs for review.");
       if (needsInUse(org, r.id, true) >= 3) fail("You already have 3 needs open, waiting for review or in progress. When one is finished or closed, you can send another.");
+      const dl = "deadline" in v ? v.deadline : r.deadline;
+      if (!adm && dl && dl < inDays(14)) fail("Choose an apply-by date at least two weeks from today, so professionals have time to apply.");
       v = { ...v, review_note: null };
     }
     if (!adm && ["open", "closed"].includes(r.status) && LIVE_FIELDS.some((k) => k in v && JSON.stringify(v[k]) !== JSON.stringify(r[k]))) fail("A live need can’t be edited. Stop applications and send a corrected copy for review.");
@@ -476,7 +481,7 @@ const rpcs = {
     if (a.p_decision === "approved") {
       if (!orgApproved(n.organisation_id)) fail("Approve the organisation first. The need stays pending until then.");
       if (needsInUse(n.organisation_id, n.id, false) >= 3) fail("An organisation can have up to 3 needs open or in progress at a time. Finish or close one first.");
-      if (n.deadline && n.deadline < today()) fail("Choose a deadline in the future.");
+      if (n.deadline && n.deadline < inDays(7)) fail("Fewer than 7 days are left to apply. Ask the organisation for a later apply-by date first: professionals need at least two weeks.");
       const first = !n.approved_at;
       Object.assign(n, { status: "open", approved_at: n.approved_at || now(), review_note: null, updated_at: now() });
       notifyOrg(n.organisation_id, "need_decision", "Your need is live", orNull(a.p_note) || n.title, "#org/needs/" + n.id);
@@ -790,6 +795,48 @@ const rpcs = {
     row.changes = {};
     notifyOrg(o.id, "org_decision", a.p_approve ? "Your organisation changes are live" : "Your organisation changes were not approved", String(a.p_note || "").trim() || (a.p_approve ? "Thank you. Your updated details are now public." : "Your current details stay as they were. Reply to us if you have questions."), "#org");
     adminAction(a.p_approve ? "org_changes_approved" : "org_changes_declined", "organisation", o.id, { changes: pc, note: a.p_note, name: o.name });
+  },
+  // 20261027000100: the state of every published need, later apply-by dates, unfinished sign-ups.
+  public_need_progress: () => D.needs.filter((n) => ["open", "closed"].includes(n.status) && n.approved_at && orgApproved(n.organisation_id)).map((n) => {
+    const eng = (st) => D.engagements.some((x) => x.need_id === n.id && x.status === st);
+    const state = n.status === "open" ? (n.deadline && n.deadline < today() ? "deadline_passed" : D.applications.some((a) => a.need_id === n.id && a.status === "pending") ? "applications" : "open")
+      : eng("completed") ? "handed_over" : eng("active") ? "in_progress" : eng("awaiting_signatures") ? "chosen" : "closed";
+    return { need_id: n.id, state, applicants: D.applications.filter((a) => a.need_id === n.id && ["pending", "accepted"].includes(a.status)).length };
+  }),
+  request_need_deadline: (a) => {
+    const n = D.needs.find((x) => x.id === a.p_need);
+    if (!n || !isMember(n.organisation_id)) fail("Only the organisation’s team can change this need.");
+    if (n.status !== "open") fail("Only an open need can get a new apply-by date.");
+    if (!a.p_deadline || a.p_deadline < inDays(14)) fail("Choose an apply-by date at least two weeks from today, so professionals have time to apply.");
+    if (a.p_deadline > inDays(180)) fail("Choose a date within the next six months.");
+    n.requested_deadline = a.p_deadline;
+    notifyAdmins("need_deadline", "A new apply-by date to approve", n.title + ": " + a.p_deadline, "#admin");
+  },
+  admin_review_need_deadline: (a) => {
+    requireAdmin();
+    const n = D.needs.find((x) => x.id === a.p_need);
+    if (!n || !n.requested_deadline) fail("There is no new apply-by date waiting for this need.");
+    if (a.p_approve && n.status !== "open") fail("This need is no longer open.");
+    const to = n.requested_deadline, from = n.deadline;
+    if (a.p_approve) Object.assign(n, { deadline: to, requested_deadline: null, updated_at: now() }); else n.requested_deadline = null;
+    notifyOrg(n.organisation_id, "need_decision", a.p_approve ? "Your new apply-by date is live" : "Your new apply-by date was not approved", String(a.p_note || "").trim() || n.title + (a.p_approve ? ": professionals can apply until " + to + "." : ""), "#org/needs/" + n.id);
+    adminAction(a.p_approve ? "need_deadline_approved" : "need_deadline_declined", "need", n.id, { title: n.title, from, to, note: a.p_note });
+  },
+  admin_unfinished_signups: () => {
+    requireAdmin();
+    const kinds = (x) => /^(finish_signup|profile_unsent|signup_reminder)/.test(x.kind);
+    return D.users.filter((u) => !D.organisation_members.some((m) => m.user_id === u.id) && !D.admins.some((x) => x.user_id === u.id)).map((u) => ({ u, p: D.profiles.find((x) => x.user_id === u.id) }))
+      .filter(({ p }) => !p || (!p.published && p.review_status === "draft" && !p.closed_at))
+      .map(({ u, p }) => { const sent = D.notifications.filter((x) => x.user_id === u.id && kinds(x)); return { user_id: u.id, email: u.email, role: u.user_metadata?.role || "", name: p?.name || u.user_metadata?.full_name || "", stage: p ? "not_sent" : "no_profile", signed_up_at: u.created_at || now(), email_confirmed: u.email_confirmed_at !== null, last_reminded_at: sent.map((x) => x.created_at).sort().pop() || null, reminders: sent.length }; });
+  },
+  admin_send_signup_reminder: (a) => {
+    requireAdmin();
+    const u = D.users.find((x) => x.id === a.p_user); if (!u) fail("Account not found.");
+    if (u.email_confirmed_at === null) fail("This person hasn’t confirmed their email yet, so a reminder can’t reach them.");
+    if (D.notifications.some((x) => x.user_id === u.id && x.kind === "signup_reminder" && Date.now() - Date.parse(x.created_at) < 864e5)) fail("A reminder already went out in the last 24 hours.");
+    const has = D.profiles.some((p) => p.user_id === u.id);
+    notify(u.id, "signup_reminder", has ? "Your profile is ready to send for review" : "Finish your Handova profile", has ? "It is private, so Handova can’t review it and organisations can’t find you yet." : "Your account is ready. Add your profile and send it for review.", has ? "#workspace/profile" : "#onboarding");
+    adminAction("signup_reminder_sent", "profile", u.id, {});
   },
   // 20261026000100: Handova suggests profile changes; the organisation accepts or declines.
   admin_suggest_org_changes: (a) => {

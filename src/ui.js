@@ -478,6 +478,8 @@ export function orgCover(org = {}, { banner = false } = {}) {
   const mark = logo ? `<span class="org-cover-tile"><img src="${e(logo)}" alt="" loading="lazy"></span>` : `<span class="org-cover-initials">${avatar(org.name || "Organisation", banner ? 120 : 96)}</span>`;
   return `<div class="org-cover${banner ? " banner" : ""}" aria-hidden="true">${mark}</div>`;
 }
+// What a published need's pill says (27 Oct 2026): every state, never who applied or who was chosen.
+export const NEED_STATE = { open: ["Open", ""], applications: ["Open · receiving applications", ""], deadline_passed: ["Applications closed", "grey"], chosen: ["Professional chosen", "ochre"], in_progress: ["In progress", "ochre"], handed_over: ["Handed over", ""], closed: ["Closed", "grey"] };
 export function needCard(n) {
   const org = n.organisation || {};
   const kind = coverKind(n.skills, n.title);
@@ -485,7 +487,7 @@ export function needCard(n) {
   return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
   ${n.handed ? handoverStrip(n) : n.example && !(org.logo || org.logo_url) ? cover(kind) : orgCover(org)}
   <div class="card-body">
-    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? "" : pill(n.status === "open" ? "Open" : "Closed", n.status === "open" ? "" : "grey")}</div>
+    <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? "" : pill(...(NEED_STATE[n.progress] || (n.status === "open" ? NEED_STATE.open : ["Closed", "grey"])))}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
     <h3 class="card-title">${e(n.title)}</h3>
     <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>

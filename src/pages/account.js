@@ -585,6 +585,15 @@ document.addEventListener("click", async (ev) => {
 });
 
 let photoBound = false;
+// One click from the workspace: send a private profile for review (the database moves it to "pending").
+export async function publishNow() {
+  if (needsResign()) { go("#workspace/agreement"); toast("Sign the new Handova agreement first, then send your profile for review."); return; }
+  await result(db.from("profiles").update({ published: true }).eq("user_id", state.user.id));
+  await loadSession();
+  toast("Sent. Handova will review your profile, usually within two working days.");
+  go(location.hash);
+}
+
 export function bindPhotoFields() {
   if (photoBound) return; photoBound = true;
   const set = (box, url, msg) => {
@@ -828,7 +837,7 @@ export async function submitAccount(kind, form) {
     if (oldPath) db.storage.from("avatars").remove([oldPath]).catch(() => {});
     await loadSession();
     const p = state.profile;
-    toast(p.published && p.review_status === "pending" ? "Saved. Your profile is now awaiting approval." : "Profile saved.");
+    toast(p.published && p.review_status === "pending" ? "Saved. Your profile is now awaiting approval." : p.published ? "Profile saved." : "Profile saved, but it’s private: Handova hasn’t received it for review yet.");
     go("#workspace");
   });
 }
