@@ -829,6 +829,25 @@ const rpcs = {
       .filter(({ p }) => !p || (!p.published && p.review_status === "draft" && !p.closed_at))
       .map(({ u, p }) => { const sent = D.notifications.filter((x) => x.user_id === u.id && kinds(x)); return { user_id: u.id, email: u.email, role: u.user_metadata?.role || "", name: p?.name || u.user_metadata?.full_name || "", stage: p ? "not_sent" : "no_profile", signed_up_at: u.created_at || now(), email_confirmed: u.email_confirmed_at !== null, last_reminded_at: sent.map((x) => x.created_at).sort().pop() || null, reminders: sent.length }; });
   },
+  // 20261027000300: every account and its stage.
+  admin_people: () => {
+    requireAdmin();
+    return D.users.map((u) => {
+      const p = D.profiles.find((x) => x.user_id === u.id), m = D.organisation_members.find((x) => x.user_id === u.id), o = m && D.organisations.find((x) => x.id === m.organisation_id);
+      const role = u.user_metadata?.role || "";
+      const stage = D.admins.some((x) => x.user_id === u.id) ? "admin" : isSuspended(u.id) ? "suspended" : u.email_confirmed_at === null ? "unconfirmed"
+        : o ? ({ pending: "org_pending", changes_requested: "org_changes", approved: "org_approved", suspended: "org_suspended" }[o.status] || "org_rejected")
+        : !p ? (role === "organisation" ? "org_not_started" : "no_profile") : p.closed_at ? "closed" : !p.published && p.review_status === "draft" ? "not_sent"
+        : p.review_status === "pending" ? "pending" : p.review_status === "changes_requested" ? "changes" : p.review_status === "rejected" ? "rejected" : p.published ? "public" : "unpublished";
+      const mine = (x) => x.user_id === u.id || (o && x.organisation_id === o.id);
+      return { user_id: u.id, email: u.email, role, name: p?.name || m?.full_name || u.user_metadata?.full_name || "", signed_up_at: u.created_at || now(), last_sign_in_at: null, email_confirmed: u.email_confirmed_at !== null, stage,
+        organisation_id: o?.id || null, organisation_name: o?.name || null, id_status: p?.id_status || "", agreement_signed: D.agreement_signatures.some((x) => x.user_id === u.id),
+        applications_waiting: D.applications.filter((x) => x.user_id === u.id && x.status === "pending").length,
+        contributions_active: D.engagements.filter((x) => mine(x) && ["awaiting_signatures", "active"].includes(x.status)).length,
+        contributions_done: D.engagements.filter((x) => mine(x) && x.status === "completed").length,
+        reminders: D.notifications.filter((x) => x.user_id === u.id && /^(finish_signup|profile_unsent|signup_reminder)/.test(x.kind)).length };
+    });
+  },
   admin_send_signup_reminder: (a) => {
     requireAdmin();
     const u = D.users.find((x) => x.id === a.p_user); if (!u) fail("Account not found.");
