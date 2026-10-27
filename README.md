@@ -17,6 +17,8 @@ Skilled professionals contributing, unpaid, to the needs locally led organisatio
 6. The organisation finishes and endorses the work: what was handed over, 1–3 confirmed skills and a written endorsement (no rating). The professional reads it first and decides whether it appears on their public **impact CV**; they can ask for one correction. Both sides get a short optional questionnaire.
 7. Six months later, the organisation is asked whether the work is still in use.
 
+The Needs page shows every published need in its state (open, receiving applications, professional chosen, in progress, handed over, applications closed). An apply-by date must be at least two weeks after the need is sent for review; a later date on a live need is requested by the organisation and approved by Handova, and organisations are reminded 3 days before it. People who sign up but never send a profile (or set up an organisation) get reminders after 1 and 7 days; admins see them in Admin → Unfinished sign-ups.
+
 When Handova approves a need for the first time, every professional with an active profile gets a notification and email about it (naming any skills they share with the need). Admins can open any organisation at `#admin-org/<id>` to see everything about it and suggest profile changes, which the organisation accepts or declines from its workspace.
 
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").

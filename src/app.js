@@ -242,6 +242,10 @@ const actions = {
   "admin-org-suggest": (el) => ado.suggestDialog(el.dataset.id),
   "admin-org-withdraw": (el) => ado.withdrawSuggestion(el.dataset.id),
   "org-suggestion": (el) => ws.answerSuggestion(el.dataset.id, !!el.dataset.accept),
+  "need-deadline": (el) => ws.deadlineDialog(el.dataset.id, el.dataset.current),
+  "admin-need-deadline": async (el) => { if (el.dataset.approve) { await result(db.rpc("admin_review_need_deadline", { p_need: el.dataset.id, p_approve: true, p_note: "" })); toast("Approved. The need is open until the new date."); return render(); } return adm.deadlineDeclineDialog(el.dataset.id); },
+  "admin-signup-remind": async (el) => { await result(db.rpc("admin_send_signup_reminder", { p_user: el.dataset.id })); toast("Reminder sent by notification and email."); return render(); },
+  "publish-now": (el) => acc.publishNow(el),
   "admin-contrib-close": (el) => adl.closeContribDialog(el.dataset.id, el.dataset.title),
   // Approve straight away; declining asks for an optional note to the organisation.
   "org-changes": async (el) => {
@@ -274,7 +278,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-org-suggest": (f) => ado.submitSuggest(f), "org-suggestion-decline": (f) => ws.submitDeclineSuggestion(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-org-suggest": (f) => ado.submitSuggest(f), "org-suggestion-decline": (f) => ws.submitDeclineSuggestion(f), "need-deadline": (f) => ws.submitDeadline(f), "admin-need-deadline-decline": (f) => adm.submitDeadlineDecline(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
