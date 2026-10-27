@@ -126,6 +126,8 @@ function reviewBanner(p) {
 function wsShell(title, main, active, badge = 0) {
   const items = [["home", "Overview", "#workspace", badge || ""], ["user", `<span class="nav-long">Edit profile</span><span class="nav-short">Profile</span>`, "#workspace/profile"], ["shield", `<span class="nav-long">My impact CV</span><span class="nav-short">Impact CV</span>`, `#profile/${state.user.id}`]];
   if (state.memberships.length) items.push(["grid", `<span class="nav-long">Organisation workspace</span><span class="nav-short">Organisation</span>`, "#org"]);
+  // Handova admins who also have a profile reach Admin from here too, not only from the account menu.
+  if (state.isAdmin) items.push(["flag", "Admin", "#admin"]);
   return { title, html: `<div class="workspace org-ws pro-ws" style="--tabs:${items.length}">${sideNav(items, active)}<div class="ws-main">${main}</div></div>` };
 }
 
