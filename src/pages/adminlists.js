@@ -1,14 +1,14 @@
 // Handova only: the records behind each number on the Admin page, with actions where they make sense.
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, val, PROFILE_COLS, errorMessage } from "../core.js";
-import { icon, eyebrow, back, empty, pill, status, field, formEnd, btn } from "../ui.js";
+import { icon, eyebrow, back, empty, pill, status, field, formEnd, btn, NEED_STATE } from "../ui.js";
 import { date } from "../utils.js";
 import { loadReports, sortReports, reportSummary, targetLink, refOf, REASONS } from "./admin.js";
 
 const STAFF = { none: "Volunteers only", "1-5": "1–5 paid staff", "6-20": "6–20 paid staff", "21-50": "21–50 paid staff", "50+": "More than 50 paid staff" };
 export const LISTS = {
+  people: "Everyone who signed up",
   organisations: "Registered organisations",
   professionals: "Registered professionals",
-  signups: "Unfinished sign-ups",
   needs: "Needs",
   contributions: "Contributions",
   followups: "Six-month follow-ups",
@@ -19,6 +19,7 @@ export const LISTS = {
 export async function adminList(kind, params) {
   if (!state.user) return { redirect: "#signin?next=%23admin" };
   if (!state.isAdmin) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1></div>` };
+  if (kind === "signups") return { redirect: "#admin-list/people?show=unfinished" };
   if (!LISTS[kind]) return { redirect: "#admin" };
   const show = params.get("show") || "";
   const qtext = (params.get("q") || "").trim().toLowerCase();
@@ -64,23 +65,26 @@ export async function adminList(kind, params) {
       <div class="al-actions">${p.review_status === "pending" ? `<button class="btn sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="approved">Approve</button><button class="btn secondary sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="changes_requested">Ask for changes</button>` : ""}${btn("View profile", `#profile/${p.user_id}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-suspend" data-id="${p.user_id}">Suspend…</button>${p.user_id === state.user.id ? "" : `<button class="btn secondary sm danger-outline" type="button" data-action="admin-delete-account" data-id="${p.user_id}" data-name="${e(p.name)}">Delete account…</button>`}</div></div>`).join("");
   }
 
-  if (kind === "signups") {
-    // People who created an account but never finished: no profile yet, or a profile never sent for review (27 Oct 2026).
-    const list = await result(db.rpc("admin_unfinished_signups")).catch(() => []);
-    filters = [["", "All", list.length], ["no_profile", "No profile yet", list.filter((x) => x.stage === "no_profile").length], ["not_sent", "Profile not sent for review", list.filter((x) => x.stage === "not_sent").length], ["unconfirmed", "Email not confirmed", list.filter((x) => !x.email_confirmed).length]];
-    rows = list.filter((x) => (!show || (show === "unconfirmed" ? !x.email_confirmed : x.stage === show)) && match(x.name, x.email));
-    body = `<p class="small muted">Reminders go out automatically by notification and email: one day after sign-up and again a week later. You can also send one now.</p>` + rows.map((x) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px">${x.stage === "not_sent" ? `<a href="#profile/${x.user_id}" style="font-weight:700" data-no-i18n>${e(x.name || x.email)}</a>` : `<strong data-no-i18n>${e(x.name || x.email)}</strong>`}${pill(x.stage === "no_profile" ? "No profile yet" : "Profile not sent for review", "ochre")}${x.email_confirmed ? "" : pill("Email not confirmed", "grey")}</div>
-      <span class="small muted"><a href="mailto:${e(x.email)}" data-no-i18n>${e(x.email)}</a> · ${x.role === "organisation" ? "signed up as an organisation" : "signed up as a professional"} · ${date(x.signed_up_at)}</span>
-      <span class="small muted">${x.reminders ? `${x.reminders === 1 ? "1 reminder sent" : `${x.reminders} reminders sent`}, last ${date(x.last_reminded_at)}` : "No reminder sent yet"}</span></div>
-      <div class="al-actions">${x.email_confirmed ? `<button class="btn secondary sm" type="button" data-action="admin-signup-remind" data-id="${x.user_id}">Send a reminder now</button>` : ""}</div></div>`).join("");
+  if (kind === "people") {
+    // Every account and where it is (27 Oct 2026): from sign-up to contributing, so nobody is lost half-way.
+    const all = await result(db.rpc("admin_people")).catch(() => []);
+    const G = PEOPLE_GROUPS;
+    filters = [["", "All", all.length], ...Object.entries(G).map(([k, [label, stages]]) => [k, label, all.filter((x) => stages(x)).length])];
+    rows = all.filter((x) => (!show || G[show]?.[1](x)) && match(x.name, x.email, x.organisation_name));
+    body = `<p class="small muted">Unfinished sign-ups get reminders automatically by notification and email, one day after sign-up and again a week later. You can also send one now.</p>` + rows.map(personRow).join("");
   }
 
   if (kind === "needs") {
-    const needs = await result(db.from("needs").select("id,title,status,hours,created_at,approved_at,organisation_id,organisation:organisations(name)").order("created_at", { ascending: false }));
-    const by = (s) => needs.filter((n) => n.status === s).length;
-    filters = [["", "All", needs.length], ["open", "Open", by("open")], ["pending", "Waiting for review", by("pending")], ["draft", "Drafts", by("draft")], ["closed", "Closed", by("closed")]];
-    rows = needs.filter((n) => (!show || n.status === show) && match(n.title, n.organisation?.name));
-    body = rows.map((n) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#need/${n.id}" style="font-weight:700" data-no-i18n>${e(n.title)}</a>${status(n.status)}</div><span class="small muted"><span data-no-i18n>${e(n.organisation?.name || "")}</span> · ${n.hours} hours · created ${date(n.created_at)}${n.approved_at ? ` · approved ${date(n.approved_at)}` : ""}</span></div><div class="al-actions">${btn("View need", `#need/${n.id}`, "secondary sm")}${n.status === "open" || n.status === "pending" ? `<button class="btn secondary sm" type="button" data-action="admin-takedown" data-id="${n.id}">Take down…</button>` : ""}</div></div>`).join("");
+    const [needs, prog] = await Promise.all([
+      result(db.from("needs").select("id,title,status,hours,deadline,requested_deadline,created_at,approved_at,organisation_id,organisation:organisations(name)").order("created_at", { ascending: false })),
+      result(db.rpc("public_need_progress")).catch(() => []),
+    ]);
+    // Where each need is (27 Oct 2026): review, open, applications, chosen, in progress, handed over, apply-by date passed.
+    for (const n of needs) { const p = prog.find((x) => x.need_id === n.id); n.stage = n.status === "draft" || n.status === "pending" ? n.status : p?.state || (n.status === "open" ? "open" : "closed"); n.applicants = p?.applicants || 0; }
+    const by = (s) => needs.filter((n) => n.stage === s).length;
+    filters = [["", "All", needs.length], ["pending", "Waiting for review", by("pending")], ["draft", "Drafts", by("draft")], ["open", "Open, no applications yet", by("open")], ["applications", "Receiving applications", by("applications")], ["deadline_passed", "Apply-by date passed", by("deadline_passed")], ["chosen", "Professional chosen", by("chosen")], ["in_progress", "In progress", by("in_progress")], ["handed_over", "Handed over", by("handed_over")], ["closed", "Closed", by("closed")]];
+    rows = needs.filter((n) => (!show || n.stage === show) && match(n.title, n.organisation?.name));
+    body = rows.map((n) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#need/${n.id}" style="font-weight:700" data-no-i18n>${e(n.title)}</a>${["draft", "pending"].includes(n.stage) ? status(n.status) : pill(...(NEED_STATE[n.stage] || ["Closed", "grey"]))}${n.requested_deadline ? pill("New date waiting for you", "clay") : ""}</div><span class="small muted"><span data-no-i18n>${e(n.organisation?.name || "")}</span> · ${n.hours} hours · created ${date(n.created_at)}${n.approved_at ? ` · approved ${date(n.approved_at)}` : ""}${n.deadline ? ` · apply by ${date(n.deadline)}` : ""}${n.applicants ? ` · ${n.applicants} ${n.applicants === 1 ? "application" : "applications"}` : ""}</span></div><div class="al-actions">${btn("View need", `#need/${n.id}`, "secondary sm")}${n.status === "open" || n.status === "pending" ? `<button class="btn secondary sm" type="button" data-action="admin-takedown" data-id="${n.id}">Take down…</button>` : ""}</div></div>`).join("");
   }
 
   if (kind === "reports") {
@@ -219,4 +223,66 @@ export async function submitDeleteContrib(form) {
     toast("Contribution deleted.");
     go(location.hash);
   });
+}
+
+// ---------- Everyone who signed up: the stage each account is at ----------
+export const PERSON_STAGE = {
+  unconfirmed: ["Email not confirmed", "grey", "Signed up but hasn’t clicked the confirmation link in the email."],
+  no_profile: ["No profile yet", "ochre", "Confirmed their email but hasn’t created a profile."],
+  not_sent: ["Profile not sent for review", "ochre", "Created a profile but kept it private, so it hasn’t reached you."],
+  pending: ["Waiting for your review", "clay", "Sent their profile for review. Approve it or ask for changes in Admin."],
+  changes: ["Changes requested", "ochre", "You asked for changes; waiting for them to update and send it again."],
+  public: ["Approved and public", "", "Can apply to needs and be invited."],
+  unpublished: ["Approved, hidden by them", "grey", "Approved, but they unpublished their profile."],
+  rejected: ["Not approved", "grey", ""],
+  closed: ["Profile closed", "grey", ""],
+  org_not_started: ["Organisation not set up", "ochre", "Signed up as an organisation but hasn’t added its details."],
+  org_pending: ["Organisation waiting for your review", "clay", "Approve it or ask for details in Admin."],
+  org_changes: ["Organisation: details requested", "ochre", "You asked for more details; waiting for them."],
+  org_approved: ["Organisation approved", "", "Can post needs."],
+  org_suspended: ["Organisation suspended", "grey", ""],
+  org_rejected: ["Organisation not approved", "grey", ""],
+  suspended: ["Suspended", "grey", ""],
+  admin: ["Handova admin", "", ""],
+};
+const UNFINISHED = ["unconfirmed", "no_profile", "not_sent", "org_not_started"];
+export const PEOPLE_GROUPS = {
+  unfinished: ["Unfinished", (x) => UNFINISHED.includes(x.stage)],
+  review: ["Waiting for your review", (x) => ["pending", "org_pending"].includes(x.stage)],
+  changes: ["Changes requested", (x) => ["changes", "org_changes"].includes(x.stage)],
+  professionals: ["Approved professionals", (x) => x.stage === "public"],
+  organisations: ["Approved organisations", (x) => x.stage === "org_approved"],
+  working: ["Working on a contribution", (x) => x.contributions_active > 0],
+  applied: ["Waiting on an application", (x) => x.applications_waiting > 0],
+  stopped: ["Suspended, closed or not approved", (x) => ["suspended", "closed", "rejected", "unpublished", "org_suspended", "org_rejected"].includes(x.stage)],
+};
+function personRow(x) {
+  const [label, tone, hint] = PERSON_STAGE[x.stage] || [x.stage, "grey", ""];
+  const isOrg = x.stage.startsWith("org_") && x.organisation_id;
+  const hasProfile = !["unconfirmed", "no_profile", "org_not_started", "admin"].includes(x.stage) && !isOrg;
+  const sp = (t) => `<span>${t}</span>`;
+  const facts = [
+    sp(x.role === "organisation" || isOrg ? "organisation account" : "professional account"),
+    `${sp("signed up")} ${date(x.signed_up_at)}`,
+    x.last_sign_in_at ? `${sp("last signed in")} ${date(x.last_sign_in_at)}` : "",
+  ].filter(Boolean).join(" · ");
+  const progress = [
+    hasProfile && x.id_status === "approved" ? sp("ID verified") : "",
+    hasProfile ? sp(x.agreement_signed ? "agreement signed" : "agreement not signed") : "",
+    x.applications_waiting ? `${x.applications_waiting} ${sp(x.applications_waiting === 1 ? "application waiting" : "applications waiting")}` : "",
+    x.contributions_active ? `${x.contributions_active} ${sp(x.contributions_active === 1 ? "contribution under way" : "contributions under way")}` : "",
+    x.contributions_done ? `${x.contributions_done} ${sp("completed")}` : "",
+    UNFINISHED.includes(x.stage) ? (x.reminders ? `${x.reminders} ${sp(x.reminders === 1 ? "reminder sent" : "reminders sent")}` : sp("no reminder yet")) : "",
+  ].filter(Boolean).join(" · ");
+  const nameHtml = isOrg ? `<a href="#admin-org/${x.organisation_id}" style="font-weight:700" data-no-i18n>${e(x.organisation_name || x.name)}</a> <span class="small muted" data-no-i18n>${e(x.name)}</span>`
+    : hasProfile ? `<a href="#profile/${x.user_id}" style="font-weight:700" data-no-i18n>${e(x.name || x.email)}</a>` : `<strong data-no-i18n>${e(x.name || x.email)}</strong>`;
+  const acts = [
+    UNFINISHED.includes(x.stage) && x.email_confirmed ? `<button class="btn secondary sm" type="button" data-action="admin-signup-remind" data-id="${x.user_id}">Send a reminder now</button>` : "",
+    ["pending", "org_pending"].includes(x.stage) ? btn("Review in Admin", "#admin", "sm") : "",
+    isOrg ? btn("All details", `#admin-org/${x.organisation_id}`, "secondary sm") : "",
+  ].join("");
+  return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px">${nameHtml}${pill(label, tone)}</div>
+    <span class="small muted"><a href="mailto:${e(x.email)}" data-no-i18n>${e(x.email)}</a> · ${facts}</span>
+    ${hint ? `<span class="small">${hint}</span>` : ""}${progress ? `<span class="small muted">${progress}</span>` : ""}</div>
+    <div class="al-actions">${acts}</div></div>`;
 }

@@ -28,6 +28,8 @@ export function languages(value) {
 
 // Professional areas and their skills: one standard list for profiles, needs and the filters.
 // Each skill belongs to exactly one area, so the Professional area filter matches by the skills people pick.
+// Building and engineering work is advisory only: a locally licensed professional signs off anything that will be built (27 Oct 2026).
+export const BUILT_SKILLS = () => SKILL_GROUPS.filter(([g]) => g.startsWith("Architecture") || g.startsWith("Engineering")).flatMap(([, l]) => l.map((x) => x.toLowerCase()));
 export const SKILL_GROUPS = [
   ["Strategy & planning", ["Strategy", "Strategic planning", "Theory of change", "Business planning", "Organisational development", "Change management", "Entrepreneurship", "Start-up leadership"]],
   ["Programme & project management", ["Programme management", "Project management", "Programme design", "Logframes and results frameworks", "Work planning", "Agile and lean methods"]],
@@ -50,6 +52,8 @@ export const SKILL_GROUPS = [
   ["Inclusion & accessibility", ["Accessibility", "Inclusion", "Disability inclusion", "Gender equality and inclusion", "Diversity, equity and inclusion", "Youth engagement"]],
   ["Partnerships & community", ["Partnerships", "Stakeholder engagement", "Community engagement", "Network building", "Localisation"]],
   ["Sector expertise", ["Health", "Mental health", "Education", "Climate and environment", "Conservation", "Agriculture and food security", "Water, sanitation and hygiene (WASH)", "Livelihoods and economic development", "Humanitarian response", "Peacebuilding", "Migration and refugees", "Animal welfare"]],
+  ["Architecture, planning & built environment", ["Architecture", "Architectural design", "Sustainable and climate-resilient design", "Low-cost construction and local materials", "Accessible and universal design", "Feasibility studies", "Space planning and site layout", "Technical drawings and plans (CAD)", "3D modelling and visualisation", "Building condition assessments", "Construction project management", "Cost estimates and bills of quantities", "Building permits and regulations", "Urban planning", "Participatory design", "Shelter and housing", "Landscape design", "Interior design", "Facilities and maintenance planning"]],
+  ["Engineering & infrastructure", ["Civil engineering", "Structural engineering", "Water and sanitation infrastructure", "Renewable energy and solar", "Energy efficiency"]],
   ["Translation & languages", ["Translation", "Interpretation", "Localisation of content", "Subtitling"]],
   ["Video, photo & audio", ["Video editing", "Videography", "Photography", "Film", "Animation", "Podcasts and audio"]],
 ];

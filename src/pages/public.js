@@ -2,7 +2,7 @@ import { locale, t, tf } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS, fieldError } from "../core.js";
 import { NEED_STATE, icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
-import { filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
+import { BUILT_SKILLS, filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
 import { config } from "../config.js";
 import { workingResponsibly, POLICIES } from "./legal.js";
 
@@ -447,6 +447,7 @@ export async function need(id) {
           <p class="small muted">Unpaid, voluntary contribution. You will sign a contribution agreement with the organisation before any work begins.</p>
         </div>
         ${open && !n.example && !n.handed ? shareBox(n) : ""}
+        ${(n.skills || []).some((k) => BUILT_SKILLS().includes(String(k).toLowerCase())) ? `<div class="banner warn">${icon("alert", 22, "#7a4f0e")}<p class="small"><strong>Advisory work only.</strong> <span>Designs, drawings and calculations shared here must be checked and signed off by a locally licensed professional before anything is built.</span></p></div>` : ""}
         <div class="banner">${icon("lock", 22, "#0f6f63")}<p class="small">Never share passwords, card details or access codes. Confidential information is shared only after the agreement is signed.</p></div>
         ${n.example || n.handed ? "" : `<button class="link-btn" type="button" data-action="report" data-type="need" data-id="${e(n.id)}" style="color:var(--muted);display:inline-flex;gap:8px;align-items:center">${icon("flag", 18)}Report a concern about this need</button>`}
       </aside>
