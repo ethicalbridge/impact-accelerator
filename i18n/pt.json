@@ -354,7 +354,6 @@
 "{name}’s work on {title} has been waiting for your endorsement for {n} days.":"O trabalho de {name} em {title} está há {n} dias à espera da sua recomendação.",
 "Finish and endorse it, and you can send new needs for review again.":"Conclua e recomende, e poderá voltar a enviar necessidades para revisão.",
 "Open the need":"Abrir a necessidade",
-"{name} says everything is delivered":"{name} diz que está tudo entregue",
 "All agreed hours are approved":"Todas as horas acordadas estão aprovadas",
 "New needs are paused until you do this":"As novas necessidades estão em pausa até fazer isto",
 "New needs are paused until you do this.":"As novas necessidades estão em pausa até fazer isto.",
@@ -4086,4 +4085,10 @@
 "Your Handova agreement":"Seu acordo com o Handova",
 "(examples)":"(exemplos)",
 "{name} can no longer accept this invitation.":"{name} não poderá mais aceitar este convite.",
-"Choose from the suggestions or type your own, then press Enter or Add.":"Escolha uma sugestão ou escreva a sua e pressione Enter ou Adicionar."}
+"Choose from the suggestions or type your own, then press Enter or Add.":"Escolha uma sugestão ou escreva a sua e pressione Enter ou Adicionar.",
+"You told {org} that everything is delivered":"Você avisou {org} que tudo foi entregue",
+"They are asked to check the work, approve your hours and write your endorsement. They are reminded after 7 and 14 days. Questions? Use Messages.":"Eles são convidados a revisar o trabalho, aprovar suas horas e escrever seu endosso. Recebem um lembrete após 7 e 14 dias. Dúvidas? Use Mensagens.",
+"Finished the work?":"Terminou o trabalho?",
+"When everything in the agreement has been handed over (for example the tool, document or training), tell the organisation. They check it, approve your hours and write your endorsement, and the contribution is marked complete.":"Quando tudo o que foi acordado tiver sido entregue (por exemplo, a ferramenta, o documento ou o treinamento), avise a organização. Ela revisa, aprova suas horas e escreve seu endosso, e a contribuição é marcada como concluída.",
+"{name} says everything is delivered":"{name} informa que tudo foi entregue",
+"Check the work, review the logged hours, then finish and write the endorsement.":"Revise o trabalho e as horas registradas; depois finalize e escreva o endosso."}

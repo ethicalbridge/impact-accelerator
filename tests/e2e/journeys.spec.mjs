@@ -99,10 +99,17 @@ test("apply, accept, both sign, log hours and approve them", async ({ page }) =>
   await hours.locator("[name=description]").fill("Drafted the report template and shared it for comments.");
   await hours.locator("[type=submit]").click();
   await expect(toast(page)).toContainText("Time submitted for review");
+  // Right under the time log, the professional says the work is delivered (no need to go back to the workspace).
+  await page.locator(".deliver-box [data-action=mark-delivered]").click();
+  await page.locator("form[data-form=mark-delivered] [type=submit]").click();
+  await expect(toast(page)).toContainText("asked to finish and endorse");
+  await expect(page.locator(".deliver-box")).toContainText("everything is delivered");
 
   // The organisation approves, with an impatient double click: it must count once.
   await signOut(page);
   await signIn(page, "org@example.test");
+  await page.goto("/" + agreement);
+  await expect(page.locator(".deliver-box")).toContainText("says everything is delivered");
   await page.goto(`/#org/needs/${NEED}`);
   await page.locator("[data-action=hours-approve]").dblclick();
   await expect(toast(page)).toContainText("Hours approved");
