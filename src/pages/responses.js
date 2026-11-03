@@ -207,7 +207,7 @@ export async function responses(params) {
   const nResp = base.filter((r) => got(r)).length;
   const q = (over) => { const p = new URLSearchParams({ tab, ...f, ...(individual ? { view: "individual" } : {}), ...over }); [...p.keys()].forEach((k) => { if (!p.get(k) || p.get(k) === "all") p.delete(k); }); return `#admin-responses?${p}`; };
 
-  const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:22px">
+  const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:22px">
     ${back("Admin", "#admin")}
     <div class="row between" style="align-items:flex-end"><div>${eyebrow("Questionnaires")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What people tell us</h1><p class="muted">Answers after each finished contribution. Only Handova sees this page. Wording version ${e(SURVEY_VERSION)}.</p></div>
       <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="rs-export" data-tab="${tab}">${icon("download", 16)} Download answers (CSV)</button><button class="btn secondary sm" type="button" data-action="rs-codebook">${icon("download", 16)} Codebook</button></div></div>

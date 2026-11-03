@@ -62,7 +62,7 @@ export async function agreement(id) {
     : (isOrg && x.talent_delivered_at
       ? `<div class="notice deliver-box" role="status">${icon("check", 20, "#0f6f63")}<p><strong>${tf("{name} says everything is delivered", { name: `<span data-no-i18n>${e(s.talent || t("The professional"))}</span>` })}</strong> <span class="small">(${date(x.talent_delivered_at)})</span><br><span class="small">${t("Check the work, review the logged hours, then finish and write the endorsement.")}</span></p></div>`
       : "");
-  const html = `<div class="wrap" style="padding-block:40px 80px"><div class="split">
+  const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="split">
     <article class="agreement-doc">
       <div class="row between">${eyebrow(`Contribution agreement · ${e(x.terms_version)}`)}${status(x.status)}</div>
       <h1 style="font-size:clamp(2rem,3.6vw,3rem);margin:12px 0 8px" data-no-i18n>${e(s.need_title)}</h1>
@@ -134,7 +134,7 @@ export async function conversation(id) {
   const live = !!eng;
   const isTalent = c.user_id === state.user.id;
   const other = isTalent ? c.need?.organisation?.name || "Organisation" : c.person?.name || (c.user_id ? "Professional" : t("Former member"));
-  const html = `<div class="wrap" style="max-width:860px;padding-block:40px 80px"><div class="stack" style="--gap:20px">
+  const html = `<div class="wrap" style="max-width:860px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
     ${isTalent ? back("Back to workspace", "#workspace") : back("Back to the need", `#org/needs/${e(c.need_id)}`)}
     <div class="row between"><div>${eyebrow("Conversation")}<h1 style="font-size:clamp(1.9rem,3.4vw,2.8rem)">${e(other)}</h1><p class="muted">About: <a href="#need/${e(c.need_id)}">${e(c.need?.title)}</a></p></div>${status(c.status)}</div>
     <details class="chat-privacy"><summary>${icon("lock", 18, "#0f6f63")}<span>Who can read this, and what not to share</span></summary><p class="small"><span>Who can read this: you, the people who manage ${e(c.need?.organisation?.name || "the organisation")}’s Handova account, and Handova’s safeguarding lead only if someone here reports a concern.</span> <span>${live && eng.status === "active" ? "Keep it about the work. Video-call links are fine to share here." : "Keep it about the work. Until you have both signed, keep phone numbers, personal emails and other apps out of Messages; a short video call through a link posted here is fine."} Never share passwords, card details or access codes, or personal information about the people the organisation supports.</span></p></details>

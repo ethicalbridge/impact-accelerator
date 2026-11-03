@@ -5,7 +5,7 @@ import { config } from "../config.js";
 import { date } from "../utils.js";
 // Agreement texts and their reading copies are loaded only on the agreements page (they are large).
 
-const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
+const page = (eb, title, lead, body) => `<div class="wrap" style="padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow(eb)}<h1>${title}</h1><p class="lead">${lead}</p>${getLang() === "en" ? "" : `<p class="small muted binding-note">We translated this page so you can read it in your language. If the translation and the English version differ, the English version applies.</p>`}</div>${legalBody(body)}</div>`;
 // A readable text column with a list of its sections (D19): on a laptop the list sits beside the text and scrolls
 // within the screen height; on a phone it folds into an "On this page" button. Choosing a section moves focus to it.
 // enOnly (the policies): the text and its headings stay in English, but "On this page" is translated (D26).
@@ -139,7 +139,7 @@ ${withConcern ? `<div class="wr-col card"><span class="icon-tile lg">${icon("fla
 }
 
 export function safety() {
-  const html = `<div class="wrap stack" style="--gap:40px;padding-bottom:80px"><div class="page-head">${eyebrow("Working responsibly")}<h1>Good intentions need good boundaries.</h1><p class="lead">Every professional and every organisation signs an agreement with these standards before they start. Six rules apply to every contribution, whoever you are.</p></div>
+  const html = `<div class="wrap stack" style="--gap:40px;padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Working responsibly")}<h1>Good intentions need good boundaries.</h1><p class="lead">Every professional and every organisation signs an agreement with these standards before they start. Six rules apply to every contribution, whoever you are.</p></div>
 ${workingResponsibly()}
     <div class="row">${btn("Report a concern", "#report")}${btn("How it works", "#how", "secondary")}</div></div>`;
   return { title: "Working responsibly", description: "The rules that keep every contribution safe.", html };
@@ -153,7 +153,7 @@ export async function agreements(which) {
   const lead = org ? `Read it before you join. An authorised person signs it for the organisation when creating the organisation account. Version ${ORG_AGREEMENT_VERSION}.` : `Read it before you join. You sign it when creating your profile. Version ${PRO_AGREEMENT_VERSION}.`;
   const other = org ? btn("Read the professional agreement", "#agreements/professional", "secondary") : btn("Read the organisation agreement", "#agreements/organisation", "secondary");
   // Summary, full text, reading copy and Download PDF come from agreement.js; the English text is the one people sign.
-  const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Agreements")}<h1>${title}</h1><p class="lead">${lead}</p></div>
+  const html = `<div class="wrap" style="padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Agreements")}<h1>${title}</h1><p class="lead">${lead}</p></div>
     <article class="reading agr-page">${platformAgreementView(org ? "organisation" : "professional", e, { title })}</article>
     <div class="row no-print" style="margin-top:32px">${other}${btn("How it works", "#how", "secondary")}</div></div>`;
   return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html };
@@ -174,7 +174,7 @@ const enNote = () => (getLang() === "en" ? "" : `<p class="small muted binding-n
 
 export function policies() {
   const cards = POLICIES.map(([slug, title, sum]) => `<div class="card stack policy-card" style="--gap:10px"><h2 class="h3"><a href="#policies/${slug}">${title}</a></h2><p class="muted">${sum}</p><div class="row" style="--gap:8px"><a class="btn sm" href="#policies/${slug}" aria-label="${e(`Read the ${title}`)}">Read</a><a class="btn secondary sm" href="${policyPdf(slug)}" download aria-label="${e(`Download PDF of the ${title}`)}">Download PDF</a></div></div>`).join("");
-  const html = `<div class="wrap" style="padding-bottom:80px"><div class="page-head">${eyebrow("Trust and safety")}<h1>Our policies</h1><p class="lead">The rules behind every contribution on Handova. They form part of the agreements professionals and organisations sign.</p>${enNote()}<p class="small muted">Version 1.0, approved on 20 October 2026 by Julieta Castiñeira de Dios, founder. Handova is run by Ethical Bridge LLC, registered in Wyoming, USA.</p></div>
+  const html = `<div class="wrap" style="padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Trust and safety")}<h1>Our policies</h1><p class="lead">The rules behind every contribution on Handova. They form part of the agreements professionals and organisations sign.</p>${enNote()}<p class="small muted">Version 1.0, approved on 20 October 2026 by Julieta Castiñeira de Dios, founder. Handova is run by Ethical Bridge LLC, registered in Wyoming, USA.</p></div>
     <div class="grid policy-grid">${cards}</div>
     <div class="card stack" style="--gap:10px;margin-top:32px"><h2 class="h3">Something worrying you?</h2><p class="muted">Report it on the platform, or write to ${mail(config.safeguardingEmail)}. If someone is in immediate danger, contact local emergency services first.</p><div class="row">${btn("Report a concern", "#report")}${btn("Working responsibly", "#safety", "secondary")}</div></div></div>`;
   return { title: "Our policies", description: "Handova’s safeguarding, conduct, anti-harassment, data protection, fraud and whistleblowing policies.", html };
@@ -191,13 +191,13 @@ export async function policy(slug) {
     text = await r.text();
   } catch { text = `<p>This policy could not be loaded. <a href="${policyPdf(slug)}" download>Download the PDF</a> instead.</p>`; }
   const head = `<div class="page-head">${eyebrow("Our policies")}<h1>${title}</h1><p class="lead">${sum}</p>${enNote()}<p class="small muted">Version 1.0 · Approved on 20 October 2026 · Owner: Julieta Castiñeira de Dios · Next review: October 2027</p><div class="row" style="--gap:8px"><a class="btn secondary sm" href="${policyPdf(slug)}" download>${icon("doc", 16)} Download PDF</a>${btn("All policies", "#policies", "secondary sm")}</div></div>`;
-  const html = `<div class="wrap policy-page" style="padding-bottom:80px">${head}${legalBody(text, true)}</div>`;
+  const html = `<div class="wrap policy-page" style="padding-bottom:var(--section-gap)">${head}${legalBody(text, true)}</div>`;
   return { title, description: sum, html };
 }
 
 export function contact() {
   const card = (ic, title, addr, text, extra = "") => `<div class="card stack contact-card" style="--gap:12px"><span class="icon-tile lg">${icon(ic, 26, "#0f6f63")}</span><h2 class="h3">${title}</h2><p class="contact-addr"><a href="mailto:${e(addr)}">${e(addr)}</a></p><p class="muted">${text}</p>${extra}</div>`;
-  const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:80px"><div class="page-head">${eyebrow("Contact")}<h1>Get in touch</h1><p class="lead">We read every message. We usually reply within two working days.</p></div>
+  const html = `<div class="wrap stack" style="--gap:32px;padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Contact")}<h1>Get in touch</h1><p class="lead">We read every message. We usually reply within two working days.</p></div>
     <div class="grid contact-grid">
       ${card("mail", "Questions about Handova", config.contactEmail, "Your account, needs and contributions, how Handova works, partnerships, and privacy requests.")}
       ${card("shield", "Concerns and safeguarding", config.safeguardingEmail, "Safety, harassment, abuse, fraud or anything that worries you. You don’t need proof, and you can stay anonymous. If someone is in immediate danger, contact local emergency services first.", `<div class="row" style="--gap:8px">${btn("Report a concern", "#report", "sm")}</div>`)}
@@ -242,6 +242,6 @@ export function report() {
     ? `<div class="row"><button class="btn dark lg" type="button" data-action="report" data-type="other" data-id="">Report a concern</button></div><p class="muted">You can also report directly from a profile, need or conversation.</p>`
     : `${publicReportForm()}<div class="stack report-alt" style="--gap:10px"><strong>Or, if you prefer</strong><div class="row">${btn(`Email ${e(config.safeguardingEmail)}`, `mailto:${e(config.safeguardingEmail)}`, "secondary")}${btn("Sign in to report on the platform", "#signin?next=%23report", "secondary")}</div></div>`;
   const more = `<div class="card stack" style="--gap:10px"><h2 class="h3">Good to know</h2><ul class="bullets"><li>You don’t need proof. Report any concern you honestly believe in.</li><li>You can stay anonymous: leave the email empty, or write from an email address that doesn’t identify you. We may then be unable to update you.</li><li>You get a reference straight away, on screen or in your notifications. We reply to emails within 2 working days, the same day if someone may be at risk.</li><li>If your concern is about Handova’s founder, it goes to our independent contact (to be confirmed soon) instead. Until then, write to ${mail(config.safeguardingEmail)} and say so; you can also raise it with the authorities.</li><li>We never penalise anyone for raising a concern.</li></ul><p class="small muted">How we handle reports: <a href="#policies/safeguarding">Safeguarding Policy</a> · <a href="#policies/whistleblowing">Whistleblowing Policy</a> · <a href="#policies/anti-harassment">Anti-Harassment Policy</a></p></div>`;
-  const html = `<div class="wrap stack" style="--gap:24px;padding-bottom:80px"><div class="page-head">${eyebrow("Safety")}<h1>Report a concern</h1><p class="lead">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p></div><div class="card stack">${inner}</div>${more}</div>`;
+  const html = `<div class="wrap stack" style="--gap:24px;padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Safety")}<h1>Report a concern</h1><p class="lead">Our safeguarding lead reviews every report. If someone is in immediate danger, contact local emergency services first.</p></div><div class="card stack">${inner}</div>${more}</div>`;
   return { title: "Report a concern", html };
 }
