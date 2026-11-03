@@ -18,12 +18,16 @@ const legalBody = (body, enOnly = false) => {
   return `<div class="legal-grid"><nav class="legal-toc" aria-label="On this page"><span class="eyebrow">On this page</span>${list}</nav><details class="toc-m"><summary>${icon("doc", 18)}<span>On this page</span><span class="toc-n">${heads.length}</span></summary><nav aria-label="On this page">${list}</nav></details><article class="reading"${en}>${html}</article></div>`;
 };
 // "Last updated" in the visitor's language, like the policy pages (W12).
-const updated = () => { const legalUpdated = date(config.legalUpdated, { day: "numeric", month: "long", year: "numeric" }); return `<p class="small muted">Last updated ${legalUpdated}</p>`; };
+const updated = (when = config.legalUpdated) => { const legalUpdated = date(when, { day: "numeric", month: "long", year: "numeric" }); return `<p class="small muted">Last updated ${legalUpdated}</p>`; };
 const mail = (addr) => `<a href="mailto:${e(addr)}">${e(addr)}</a>`;
 
 export function privacy() {
-  const body = `${updated()}
-  <h2>Who is responsible for your information</h2><p>Handova is an initiative of Ethical Bridge LLC, a limited liability company registered in Wyoming, United States. Ethical Bridge LLC decides how personal information collected through Handova is used. Write to ${mail(config.contactEmail)} with any privacy question or request. Our <a href="#policies/data-protection">Data Protection Policy</a> explains how we work in more detail. Where the EU or UK GDPR applies to us, we follow it, and Ethical Bridge LLC appoints an EU representative where Article 27 of the GDPR requires it.</p>
+  const body = `${updated(config.privacyUpdated)}
+  <h2>Who is responsible for your information</h2><p>Handova is an initiative of Ethical Bridge LLC, a limited liability company registered in Wyoming, United States. Ethical Bridge LLC decides how personal information collected through Handova is used. Write to ${mail(config.contactEmail)} with any privacy question or request. Our <a href="#policies/data-protection">Data Protection Policy</a> explains how we work in more detail. Where the EU or UK GDPR applies to us, we follow it.</p>
+  <h2>Our representatives in the EU and the UK</h2><p>Ethical Bridge LLC has no establishment in the European Union or the United Kingdom. Under Article 27 of the EU GDPR and the UK GDPR, it has appointed Euverify as its representative in both. If you are in the EU, the European Economic Area or the UK, you can contact our representative instead of, or as well as, us about how we use your information, including to exercise your rights. Data protection authorities can contact them too. Please mention Handova so your message reaches us.</p><ul>
+    <li><strong>EU representative:</strong> <span data-no-i18n>Euverify Limited, Unit 3D North Point House, North Point Business Park, New Mallow Road, Cork, T23 AT2P, Ireland</span> · ${mail("gdpr@euverify.com")}</li>
+    <li><strong>UK representative:</strong> <span data-no-i18n>Euverify Ltd, 3rd Floor, 86–90 Paul Street, London EC2A 4NE, United Kingdom</span> · ${mail("gdpr@euverify.com")}</li>
+  </ul><p>You can also send a privacy request through our representative’s <a href="${config.gdprRepresentativePortal}" target="_blank" rel="noopener">secure request portal</a>, which also lets you confirm the appointment. Appointing a representative does not change Ethical Bridge LLC’s own responsibility for your information.</p>
   <h2>What we collect</h2><ul>
     <li><strong>Account details:</strong> your email address and a securely hashed password.</li>
     <li><strong>Acceptance of our terms:</strong> which versions of the Terms of use and this notice you accepted, when, and your confirmation that you are 18 or over. We record this when you create your account and when you sign a new version of a Handova agreement.</li>
