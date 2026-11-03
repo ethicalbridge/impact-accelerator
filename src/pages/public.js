@@ -96,12 +96,11 @@ function faqAndSafety(middle = "") {
   </div>`;
 }
 
-// "Ethical work, open to everyone": three boxes on the home page, each figure with its source.
-const msSrc = (label, url) => `<span>Source:</span> <a href="${url}" target="_blank" rel="noopener">${label}<span class="visually-hidden"> (opens in a new tab)</span></a>`;
+// "Ethical work, open to everyone": three boxes on the home page.
 const MS_BOXES = [
-  ["clay", "Open to everyone", "Most people never get international or non-profit experience, and those who do are mostly the ones who can pay for it. Handova is free, done from home, from 4 hours a month, and fits around classes, paid work and caring.", "3.5%", "of UK graduates in 2021–22 spent time abroad during their degree", msSrc("Universities UK International, Gone international (2025)", "https://www.universitiesuk.ac.uk/universities-uk-international/insights-and-publications/uuki-publications/gone-international-new-generation-0")],
-  ["mint", "Low-carbon by design", "Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t.", "3.0 t", "CO2e for one return economy flight, London to Jakarta, per passenger", `<span>Our calculation with the</span> <a href="https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2026" target="_blank" rel="noopener">UK government’s 2026 conversion factors<span class="visually-hidden"> (opens in a new tab)</span></a>`],
-  ["sand", "A way in, at any stage", "Students, young people starting out and people changing careers do real work for a real organisation, and leave with a reviewed record on their impact CV: proof an employer can check.", "£6,600", "what a six-month unpaid internship in London costs, in rent, bills and transport", msSrc("Sutton Trust, Internships briefing (2018)", "https://www.suttontrust.com/wp-content/uploads/2018/01/Internships-2018-briefing.pdf")],
+  ["clay", "Open to everyone", "Most people never get international or non-profit experience, and those who do are mostly the ones who can pay for it. Handova is free, done from home, from 4 hours a month, and fits around classes, paid work and caring."],
+  ["mint", "Low-carbon by design", "Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t."],
+  ["sand", "A way in, at any stage", "Students, young people starting out and people changing careers do real work for a real organisation, and leave with a reviewed record on their impact CV: proof an employer can check."],
 ];
 export function home() {
   const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before going public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
@@ -122,7 +121,7 @@ export function home() {
       <div class="ms-open stack" style="--gap:22px" data-reveal>
         <div class="hv-head"><h2>Ethical work, open to <span class="ms-hl">everyone.</span></h2><p class="lead">Experience in the ethical sector shouldn’t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p></div>
         <div class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></div>
-        <div class="ms-boxes">${MS_BOXES.map(([cls, h, p, n, t, src]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p><div class="ms-fig"><b>${n}</b><span>${t}</span><small class="ms-src">${src}</small></div></article>`).join("")}</div>
+        <div class="ms-boxes">${MS_BOXES.map(([cls, h, p]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p></article>`).join("")}</div>
       </div>
       <div class="hv-exchange" data-reveal>
         <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p>${exampleCvCard()}</div>
