@@ -96,8 +96,9 @@ function faqAndSafety(middle = "") {
   </div>`;
 }
 
-// "Ethical work, open to everyone": three boxes on the home page.
+// "Ethical work, open to everyone": four boxes on the home page.
 const MS_BOXES = [
+  ["ochre", "Why it matters", "Experience in the ethical sector shouldn’t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts."],
   ["clay", "Open to everyone", "Most people never get international or non-profit experience, and those who do are mostly the ones who can pay for it. Handova is free, done from home, from 4 hours a month, and fits around classes, paid work and caring."],
   ["mint", "Low-carbon by design", "Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t."],
   ["sand", "A way in, at any stage", "Students, young people starting out and people changing careers do real work for a real organisation, and leave with a reviewed record on their impact CV: proof an employer can check."],
@@ -121,7 +122,7 @@ export function home() {
       <div class="ms-open stack" style="--gap:22px" data-reveal>
         <h2 class="ms-title">Ethical work, open to <span class="ms-hl">everyone.</span></h2>
         <div class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></div>
-        <div class="ms-boxes"><article class="ms-box intro"><p>Experience in the ethical sector shouldn’t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p></article>${MS_BOXES.map(([cls, h, p]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p></article>`).join("")}</div>
+        <div class="ms-boxes">${MS_BOXES.map(([cls, h, p]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p></article>`).join("")}</div>
       </div>
       <div class="hv-exchange" data-reveal>
         <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p>${exampleCvCard()}</div>
