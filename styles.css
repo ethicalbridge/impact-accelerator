@@ -1720,3 +1720,5 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .ms-beliefs li::before { content: counter(b, decimal-leading-zero); font: 700 .85rem var(--sans); color: var(--clay); letter-spacing: .08em; }
 .ms-sources { max-width: 80ch; border-left: 3px solid var(--line-strong); padding-left: 14px; margin: 0; }
 @media (max-width: 720px) { .ms-stats { grid-template-columns: minmax(0, 1fr); } }
+.ms-src { font-size: .78rem; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+.ms-src a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
