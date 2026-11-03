@@ -96,6 +96,13 @@ function faqAndSafety(middle = "") {
   </div>`;
 }
 
+// "Ethical work, open to everyone": three boxes on the home page, each figure with its source.
+const msSrc = (label, url) => `<span>Source:</span> <a href="${url}" target="_blank" rel="noopener">${label}<span class="visually-hidden"> (opens in a new tab)</span></a>`;
+const MS_BOXES = [
+  ["clay", "Open to everyone", "Most people never get international or non-profit experience, and those who do are mostly the ones who can pay for it. Handova is free, done from home, from 4 hours a month, and fits around classes, paid work and caring.", "3.5%", "of UK graduates in 2021–22 spent time abroad during their degree", msSrc("Universities UK International, Gone international (2025)", "https://www.universitiesuk.ac.uk/universities-uk-international/insights-and-publications/uuki-publications/gone-international-new-generation-0")],
+  ["mint", "Low-carbon by design", "Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t.", "3.0 t", "CO2e for one return economy flight, London to Jakarta, per passenger", `<span>Our calculation with the</span> <a href="https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2026" target="_blank" rel="noopener">UK government’s 2026 conversion factors<span class="visually-hidden"> (opens in a new tab)</span></a>`],
+  ["sand", "A way in, at any stage", "Students, young people starting out and people changing careers do real work for a real organisation, and leave with a reviewed record on their impact CV: proof an employer can check.", "£6,600", "what a six-month unpaid internship in London costs, in rent, bills and transport", msSrc("Sutton Trust, Internships briefing (2018)", "https://www.suttontrust.com/wp-content/uploads/2018/01/Internships-2018-briefing.pdf")],
+];
 export function home() {
   const trust = [["gift", "Free for everyone", "No fees for organisations or professionals."], ["eye", "Approved before going public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
   const rest = `
@@ -111,6 +118,11 @@ export function home() {
         <div class="hb-side pro"><span class="hv-tag">Professionals and students</span><strong class="hb-title">Want to give what they know</strong><ul class="hb-list"><li>${icon("check", 20, "#7c3419", 2.4)}<span>To use their skills where it really counts</span></li><li>${icon("check", 20, "#7c3419", 2.4)}<span>A few hours a month, not a long-term commitment</span></li><li>${icon("check", 20, "#7c3419", 2.4)}<span>An organisation they can trust, without searching for months</span></li><li>${icon("check", 20, "#7c3419", 2.4)}<span>Something real to show for it</span></li></ul></div>
         <div class="hb-bridge"><svg class="hb-arch" viewBox="0 0 300 112" aria-hidden="true" focusable="false"><path d="M20 92 Q150 -10 280 92" fill="none" stroke="#0f6f63" stroke-width="5" stroke-linecap="round"/><g stroke="#7fa99b" stroke-width="3" stroke-linecap="round"><line x1="60" y1="66" x2="60" y2="92"/><line x1="100" y1="49" x2="100" y2="92"/><line x1="150" y1="41" x2="150" y2="92"/><line x1="200" y1="49" x2="200" y2="92"/><line x1="240" y1="66" x2="240" y2="92"/></g><line x1="0" y1="92" x2="300" y2="92" stroke="#123e3a" stroke-width="7" stroke-linecap="round"/><rect x="16" y="92" width="10" height="20" rx="3" fill="#123e3a"/><rect x="274" y="92" width="10" height="20" rx="3" fill="#123e3a"/><circle class="hb-dot" cx="150" cy="80" r="8" fill="#e0a07f"/></svg><span class="hb-name">${mark(36)}<span>Handova</span></span><span class="hb-sub">The bridge</span><ol class="hb-planks"><li>One clear need</li><li>A signed agreement</li><li>A few focused hours, free</li></ol></div>
         <div class="hb-side org"><span class="hv-tag">Locally led organisations</span><strong class="hb-title">Big missions, small teams</strong><ul class="hb-list"><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Expertise they cannot afford to hire</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Help shaped around their work, not the helper’s</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>Someone who hands the work over, not someone who disappears</span></li><li>${icon("check", 20, "#0f6f63", 2.4)}<span>No fees, no long onboarding</span></li></ul></div>
+      </div>
+      <div class="ms-open stack" style="--gap:22px" data-reveal>
+        <div class="hv-head"><h2>Ethical work, open to <span class="ms-hl">everyone.</span></h2><p class="lead">Experience in the ethical sector shouldn’t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p></div>
+        <div class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></div>
+        <div class="ms-boxes">${MS_BOXES.map(([cls, h, p, n, t, src]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p><div class="ms-fig"><b>${n}</b><span>${t}</span><small class="ms-src">${src}</small></div></article>`).join("")}</div>
       </div>
       <div class="hv-exchange" data-reveal>
         <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p>${exampleCvCard()}</div>
@@ -222,51 +234,8 @@ export async function about(sub = "mission") {
     const html = `<div><div class="wrap"><div class="page-head">${eyebrow("Questions &amp; safety")}<h1>FAQ &amp; safety</h1><p class="lead">How Handova works day to day, how we keep contributions safe, and how to raise a concern.</p></div>${concernBar}${jumps}</div>${faqAndSafety(`<section class="stack" id="working-responsibly" style="--gap:28px;padding-top:clamp(48px,7vw,96px);scroll-margin-top:96px"><div class="stack" style="--gap:10px">${eyebrow("Working responsibly")}<h2>The rules that keep every contribution safe.</h2><p class="lead" style="max-width:760px">Every professional and every organisation agrees to these before any work starts.</p></div>${workingResponsibly({ withConcern: false, nested: true, policyLinks: false })}${policiesBox}</section>`)}</div><div class="wrap" style="padding-bottom:64px"><p class="faq-contact">Didn’t find your answer? <a href="#contact">Contact us</a>: we usually reply within two working days. For a safety concern, use <a href="#report">Report a concern</a> instead.</p></div>`;
     return { title: "FAQ & safety", description: "Common questions about Handova, how we keep contributions safe, and our legal terms.", html };
   }
-  // Our mission: the overview (same content as the home page).
-  if (sub !== "different") return { ...home(), title: "Our mission" };
-  // What makes us different: open to everyone, low-carbon, who we open the door for, what we believe.
-  const stat = (n, t, src = "") => `<div class="ms-stat"><b>${n}</b><span>${t}</span>${src ? `<small class="ms-src">${src}</small>` : ""}</div>`;
-  const src = (label, url) => `<span>Source:</span> <a href="${url}" target="_blank" rel="noopener">${label}<span class="visually-hidden"> (opens in a new tab)</span></a>`;
-  const flights = `<span>Our calculation with the</span> <a href="https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2026" target="_blank" rel="noopener">UK government’s 2026 conversion factors<span class="visually-hidden"> (opens in a new tab)</span></a>`;
-  const doors = [
-    ["pen", "Students", "Do real work for a real organisation, around your classes. Leave with a reviewed record on your impact CV, not just a line about good intentions."],
-    ["chart", "Young people starting out", "No experience without a job, no job without experience. A first contribution breaks the loop with proof an employer can check."],
-    ["arrow", "People changing careers", "Moving into work that matters? Bring the skills you already have and build an impact CV in the ethical sector, a few hours at a time."],
-    ["home", "Locally led organisations", "Skilled help with one specific need, free. The tool, process or trained team stays with you after the hours are done."],
-  ];
-  const beliefs = [
-    "Ethical work should be open to everyone, not only to those who can pay to get in.",
-    "International experience shouldn’t cost the planet.",
-    "Young people deserve a first line on their CV that proves what they can do.",
-    "It is never too late to move into work that matters.",
-    "Help should leave something behind: skills handed over, capability that stays.",
-  ];
-  const html = `<div class="wrap stack about mission" style="--gap:clamp(40px,5vw,72px);padding-bottom:64px">
-    <div class="how-hero">
-      <div class="stack" style="--gap:16px">${eyebrow("What makes us different")}<h1>Ethical work, open to <span class="ms-hl">everyone.</span></h1><p class="lead">Experience in the ethical sector shouldn’t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p><div class="row" style="--gap:12px">${btn(`Offer your skills ${icon("arrow", 18)}`, "#join?role=professional")}${btn("Post a need", "#join?role=organisation", "secondary")}</div></div>
-      <div class="about-mark" aria-hidden="true">${mark(200, false, "draw")}<span>Skills handed over.<br><b>Capability that stays.</b></span></div>
-    </div>
-    <section class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></section>
-    <section class="ms-flags">
-      <article class="ms-flag clay"><span class="eyebrow">What makes us different · 1</span><h2>Open to everyone</h2><p>Most people never get international or non-profit experience, and those who do are mostly the ones who can pay for it. Handova is free, done from home, from 4 hours a month, and fits around classes, paid work and caring.</p>
-        <div class="ms-stats">${stat("3.5%", "of UK graduates in 2021–22 spent time abroad during their degree", src("Universities UK International, Gone international (2025)", "https://www.universitiesuk.ac.uk/universities-uk-international/insights-and-publications/uuki-publications/gone-international-new-generation-0"))}${stat("9 in 10", "US college graduates in 2023–24 never studied abroad for credit", src("NAFSA, Trends in U.S. study abroad, based on IIE Open Doors", "https://www.nafsa.org/policy-and-advocacy/policy-resources/trends-us-study-abroad"))}${stat("£6,600", "what a six-month unpaid internship in London costs, in rent, bills and transport", src("Sutton Trust, Internships briefing (2018)", "https://www.suttontrust.com/wp-content/uploads/2018/01/Internships-2018-briefing.pdf"))}</div></article>
-      <article class="ms-flag mint"><span class="eyebrow">What makes us different · 2</span><h2>Low-carbon by design</h2><p>Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t.</p>
-        <div class="ms-stats">${stat("3.0 t", "CO2e for one return economy flight, London to Jakarta, per passenger", flights)}${stat("2.7 t", "CO2e for London to Kuala Lumpur; about 1.7 t for London to Nairobi", flights)}${stat("0 t", "of flight emissions for a contribution on Handova")}</div></article>
-    </section>
-    <section class="stack" style="--gap:22px"><div class="stack" style="--gap:10px">${eyebrow("Who we open the door for")}<h2>A bridge for people the usual routes leave out.</h2></div>
-      <div class="grid-4 ms-doors">${doors.map(([ic, h, p]) => `<div class="card stack" style="--gap:10px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><h3>${h}</h3><p class="small muted">${p}</p></div>`).join("")}</div>
-    </section>
-    <section class="ms-beliefs"><div class="stack" style="--gap:10px">${eyebrow("What we believe")}<h2>Five things we won’t compromise on.</h2></div><ol>${beliefs.map((b) => `<li>${b}</li>`).join("")}</ol></section>
-    <p class="small muted ms-sources">Remote work doesn’t replace living abroad: it is the first international experience everyone can afford, and a bridge to more. How we calculated the flights: the great-circle distance there and back, plus the 8% the UK government method adds for indirect routes, multiplied by its 2026 factor for long-haul economy flights including radiative forcing (0.117 kg CO2e per passenger-kilometre).</p>
-    <div class="row" style="--gap:12px">${btn("Our mission", "#about/mission", "secondary")}${btn("Meet our founder", "#about/founder", "secondary")}${btn("Handova and Ethical Bridge", "#about/ethical-bridge", "secondary")}${btn("How it works", "#how", "secondary")}</div>
-  </div>
-  <section class="hv-cta"><span class="hv-orb o1" aria-hidden="true"></span><span class="hv-orb o2" aria-hidden="true"></span>
-    <div class="wrap hv-cta-grid">
-      <div class="stack" style="--gap:18px">${eyebrow("Carry a little of the weight")}<h2>Be part of the bridge.</h2><p class="lead">Give a few hours of your skills, or tell us what your team needs. Either way, the work stays where it is needed.</p><div class="row">${btn("Offer your skills", "#join?role=professional", "light lg")}${btn("Post a need", "#join?role=organisation", "ghost-light lg")}</div></div>
-      <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
-    </div>
-  </section>`;
-  return { title: "What makes us different", description: "Ethical work, open to everyone: free, remote and low-carbon skills-based volunteering with locally led organisations.", html };
+  // Our mission: for now the same content as the home page.
+  return { ...home(), title: "Our mission" };
 }
 
 // ---------- For organisations ----------
