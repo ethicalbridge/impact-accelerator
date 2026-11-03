@@ -144,7 +144,7 @@ export async function adminList(kind, params) {
       ${x.end_reason ? `<span class="small"><strong>Reason:</strong> <span data-no-i18n>${e(x.end_reason)}</span></span>` : ""}</div><div class="al-actions">${btn("Agreement", `#agreement/${x.id}`, "secondary sm")}${kind === "contributions" && x.status === "active" ? `<button class="btn secondary sm" type="button" data-action="admin-contrib-close" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Close for them</button>` : ""}${kind === "contributions" && x.status === "completed" ? (x.hidden_by_handova ? `<button class="btn secondary sm" type="button" data-action="admin-restore-cv" data-id="${x.id}">Restore CV entry…</button>` : `<button class="btn secondary sm" type="button" data-action="admin-hide-cv" data-id="${x.id}">Hide CV entry…</button>`) : ""}${kind === "contributions" ? `<button class="btn secondary sm danger-outline" type="button" data-action="admin-contrib-delete" data-id="${x.id}" data-title="${e(x.scope?.need_title || "")}">Delete</button>` : ""}</div></div>`).join("");
   }
 
-  const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:20px">
+  const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
     ${back("Admin", "#admin")}
     <div>${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1></div>
     <nav class="rs-tabs" aria-label="Lists">${Object.entries(LISTS).map(([k, t]) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>

@@ -17,7 +17,7 @@ export async function adminOrg(id) {
   if (!state.user) return { redirect: `#signin?next=${encodeURIComponent(`#admin-org/${id}`)}` };
   if (!state.isAdmin) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1></div>` };
   const o = await result(db.from("organisations").select("*").eq("id", id).maybeSingle()).catch(() => null);
-  if (!o) return { title: "Organisation", html: `<div class="wrap" style="padding-block:40px 80px">${back("All organisations", "#admin-list/organisations")}${empty("Organisation not found", "It may have been deleted.")}</div>` };
+  if (!o) return { title: "Organisation", html: `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)">${back("All organisations", "#admin-list/organisations")}${empty("Organisation not found", "It may have been deleted.")}</div>` };
   const [members, sigs, held, sug, needs, engs, acts] = await Promise.all([
     result(db.from("organisation_members").select("user_id,role,full_name,created_at").eq("organisation_id", id)).catch(() => []),
     result(db.from("agreement_signatures").select("user_id,full_name,signer_role,email,version,signed_at").eq("organisation_id", id).order("signed_at", { ascending: false })).catch(() => []),
@@ -49,7 +49,7 @@ export async function adminOrg(id) {
   const LABEL = { org_changes_suggested: "Changes suggested to the organisation", org_suggestion_withdrawn: "Suggestion withdrawn" };
   const label = (a) => LABEL[a.action] || String(a.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
-  const html = `<div class="wrap" style="padding-block:40px 80px"><div class="stack" style="--gap:20px">
+  const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
     ${back("All organisations", "#admin-list/organisations")}
     <div class="row" style="--gap:16px;align-items:center;flex-wrap:nowrap">${o.logo_url && safeURL(o.logo_url) ? `<img class="org-review-logo" src="${e(safeURL(o.logo_url))}" alt="" referrerpolicy="no-referrer">` : `<span class="al-logo al-logo-empty">${icon("home", 20)}</span>`}
       <div style="min-width:0">${eyebrow("Admin · Organisation")}<h1 style="font-size:clamp(1.8rem,3.4vw,2.8rem)" data-no-i18n>${e(o.name)}</h1></div>${status(o.status)}</div>
