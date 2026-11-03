@@ -1696,3 +1696,27 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .admin-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -8px; } .admin-shortcuts .btn { gap: 6px; }
 .deliver-box p { margin: 0; }
 .notice.deliver-box { align-items: flex-start; }
+
+/* Our mission */
+.mission .ms-hl { color: var(--clay); }
+.ms-message { background: var(--deep); color: var(--paper); border-radius: var(--radius); padding: clamp(24px, 4vw, 40px); display: grid; gap: 10px; }
+.ms-message .eyebrow { color: var(--on-deep-quiet); }
+.ms-message p { margin: 0; font: 500 clamp(1.35rem, 2.6vw, 2rem)/1.3 var(--serif); }
+.ms-flags { display: grid; gap: 20px; }
+.ms-flag { border-radius: var(--radius); padding: clamp(22px, 3.5vw, 36px); display: grid; gap: 12px; }
+.ms-flag.clay { background: var(--clay-bg); }
+.ms-flag.clay .eyebrow { color: var(--clay-ink); }
+.ms-flag.mint { background: var(--mint); }
+.ms-flag h2 { font-size: clamp(1.9rem, 3.4vw, 2.6rem); margin: 0; }
+.ms-flag > p { margin: 0; max-width: 70ch; }
+.ms-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 6px; }
+.ms-stat { background: rgba(255, 253, 248, 0.75); border-radius: var(--radius-sm); padding: 16px 18px; display: grid; gap: 4px; align-content: start; }
+.ms-stat b { font: 500 clamp(1.8rem, 3vw, 2.4rem)/1.1 var(--serif); color: var(--ink); }
+.ms-stat span { font-size: .9rem; color: var(--muted); }
+.ms-doors h3 { font: 500 1.35rem/1.2 var(--serif); margin: 0; }
+.ms-beliefs { display: grid; gap: 18px; }
+.ms-beliefs ol { margin: 0; padding: 0; list-style: none; counter-reset: b; display: grid; gap: 0; }
+.ms-beliefs li { counter-increment: b; display: grid; grid-template-columns: 3rem 1fr; gap: 12px; align-items: baseline; padding: 16px 0; border-top: 1px solid var(--line); font: 500 clamp(1.15rem, 2vw, 1.45rem)/1.35 var(--serif); }
+.ms-beliefs li::before { content: counter(b, decimal-leading-zero); font: 700 .85rem var(--sans); color: var(--clay); letter-spacing: .08em; }
+.ms-sources { max-width: 80ch; border-left: 3px solid var(--line-strong); padding-left: 14px; margin: 0; }
+@media (max-width: 720px) { .ms-stats { grid-template-columns: minmax(0, 1fr); } }
