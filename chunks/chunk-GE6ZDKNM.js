@@ -253,9 +253,9 @@ The objective of the evaluation is to assess the overall performance of SEE II i
         <div class="hb-side org"><span class="hv-tag">Locally led organisations</span><strong class="hb-title">Big missions, small teams</strong><ul class="hb-list"><li>${s("check",20,"#0f6f63",2.4)}<span>Expertise they cannot afford to hire</span></li><li>${s("check",20,"#0f6f63",2.4)}<span>Help shaped around their work, not the helper\u2019s</span></li><li>${s("check",20,"#0f6f63",2.4)}<span>Someone who hands the work over, not someone who disappears</span></li><li>${s("check",20,"#0f6f63",2.4)}<span>No fees, no long onboarding</span></li></ul></div>
       </div>
       <div class="ms-open stack" style="--gap:22px" data-reveal>
-        <div class="hv-head"><h2>Ethical work, open to <span class="ms-hl">everyone.</span></h2><p class="lead">Experience in the ethical sector shouldn\u2019t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p></div>
+        <h2 class="ms-title">Ethical work, open to <span class="ms-hl">everyone.</span></h2>
         <div class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></div>
-        <div class="ms-boxes">${va.map(([a,n,t])=>`<article class="ms-box ${a}"><h3>${n}</h3><p>${t}</p></article>`).join("")}</div>
+        <div class="ms-boxes"><article class="ms-box intro"><p>Experience in the ethical sector shouldn\u2019t depend on who can afford a flight or an unpaid internship. Handova connects skilled people with locally led organisations, remotely and free, so the skills stay where they are needed and everyone who gives them builds a record that counts.</p></article>${va.map(([a,n,t])=>`<article class="ms-box ${a}"><h3>${n}</h3><p>${t}</p></article>`).join("")}</div>
       </div>
       <div class="hv-exchange" data-reveal>
         <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation\u2019s own words.</p>${ba()}</div>
