@@ -1,7 +1,7 @@
 // Adds a confirmed Handova account that ticked "Send me the Ethical Bridge and Handova newsletter" to the Brevo list.
 // Called by the database (trigger on email confirmation, and an hourly retry) with {"user_id": "<uuid>"}.
 // A caller can't choose the email address or add anyone who didn't opt in: everything is read from the account.
-// Inactive until the secrets BREVO_API_KEY and BREVO_LIST_ID are set (Supabase → Edge Functions → Secrets).
+// Inactive until the secret BREVO_API_KEY is set; the list is "Ethical Bridge Newsletter" (ID 3) unless BREVO_LIST_ID is set (Supabase → Edge Functions → Secrets).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const json = (body: unknown, status = 200) =>
@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   try { ({ user_id: uid } = await req.json()); } catch { return json({ error: "Invalid body" }, 400); }
   if (typeof uid !== "string" || !/^[0-9a-f-]{36}$/i.test(uid)) return json({ error: "Invalid id" }, 400);
 
-  const key = Deno.env.get("BREVO_API_KEY"), list = Number(Deno.env.get("BREVO_LIST_ID") || 0);
+  const key = Deno.env.get("BREVO_API_KEY"), list = Number(Deno.env.get("BREVO_LIST_ID") || 3); // 3 = "Ethical Bridge Newsletter" in Brevo
   if (!key || !list) return json({ skipped: "Brevo is not configured yet" });
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
