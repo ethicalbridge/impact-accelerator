@@ -43,12 +43,14 @@ export function privacy() {
     <li><strong>Profile basics:</strong> an organisation’s number of paid staff (shown on its public page) and a professional’s career stage (private to Handova).</li>
     <li><strong>Reports made without an account:</strong> what you tell us and, only if you choose to give it, your email address so we can reply.</li>
     <li><strong>Technical information:</strong> our hosting and database providers keep short-term logs (such as IP address and browser) to run and secure the service.</li>
+    <li><strong>Newsletter (only if you tick the box):</strong> your email address and name, and a record of your consent: when you gave it and the wording you agreed to.</li>
     <li><strong>Error reports:</strong> when a page fails in your browser, the site sends Handova the error message, the page name and the site version. Anything that looks like an email address or an ID is removed first, and we don’t record who you are, your IP address or your browser.</li></ul>
   <h2>Why we use it, and on what legal basis</h2><ul>
     <li><strong>To provide the service you asked for</strong> (contract): your account, profile, matching, agreements, hours, notifications and your impact CV.</li>
     <li><strong>To keep people safe and prevent misuse</strong> (legitimate interests): reviewing organisations and profiles before they are public, marking inactive profiles, keeping records of signed agreements, and handling reports of concern.</li>
     <li><strong>To verify your identity</strong> (your explicit consent): you give it when you start the identity check, and you can withdraw it by writing to us. Without a verified identity you cannot sign a contribution agreement.</li>
     <li><strong>To understand use of the website</strong> (your consent): if you choose Accept analytics, Google Analytics records page views so we can improve Handova. You can decline or withdraw this choice without losing access to the service.</li>
+    <li><strong>To send you the Ethical Bridge and Handova newsletter</strong> (your consent): only if you tick the box when you create your account. We add you to the list once you confirm your email address. Every newsletter has an unsubscribe link, and you can also write to us to stop it.</li>
     <li><strong>To learn whether Handova helps</strong> (legitimate interests): questionnaire answers, career stage and team size, reported only as totals, never with names. An independent evaluator contacts you only if you said yes; we would share only your name and email with them, for that purpose only.</li>
     <li><strong>To meet legal obligations</strong> (legal obligation): for example, responding to authorities where the law requires it.</li></ul>
   <p>We do not sell your information or use it for advertising. Google Analytics is optional and starts only after you accept analytics cookies. It receives page views with generic page names, and may receive approximate location and browser or device information. We do not send profile names or private link details in Analytics page views. See our <a href="#cookies">cookie notice</a> for details and to change your choice.</p>
@@ -66,7 +68,8 @@ export function privacy() {
     <li><strong>GitHub Pages</strong> (United States) publishes the website.</li>
     <li><strong>Didit</strong> carries out identity checks under a data processing agreement. We send Didit your email address so it can link the check to your Handova account.</li>
     <li><strong>Google Analytics</strong> processes website usage information when you accept analytics. Google may process this information outside your country.</li>
-    <li><strong>Hostinger</strong> (email hosting) sends account emails and notifications from hello@handova.org.</li></ul>
+    <li><strong>Hostinger</strong> (email hosting) sends account emails and notifications from hello@handova.org.</li>
+    <li><strong>Brevo</strong> (Sendinblue SAS, France) sends the Ethical Bridge and Handova newsletter, if you subscribed. We send Brevo your email address and name.</li></ul>
   <p>Where a provider processes information outside your country, including in the United States, we rely on safeguards such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
   <h2>How long we keep it</h2><ul>
     <li><strong>Your account and profile:</strong> until you delete them, or until they have not been used for a long time. A profile closed for inactivity is kept, unpublished, so you can publish it again; if you don’t sign in for 24 months, we remind you and then delete it. An account with no profile and no organisation, such as a sign-up that was never finished, is treated the same way: after 24 months without signing in, we remind you and then delete it. An organisation suspended because its last member left is deleted after 24 months, after a reminder.</li>
@@ -82,6 +85,7 @@ export function privacy() {
     <li><strong>Reports of concern:</strong> six years after the case closes, or longer if legal proceedings are ongoing or expected. Cases involving a child are kept until the child turns 25 or for six years after closure, whichever is later. We review them once a year.</li>
     <li><strong>Records of Handova decisions:</strong> six years. <strong>Email notification log:</strong> 12 months. <strong>Privacy requests and data breach records:</strong> three years after they are closed.</li>
     <li><strong>Analytics:</strong> Google Analytics cookies may remain for up to two years unless you withdraw consent or clear them sooner. Analytics user and event data retention is set to two months. You can withdraw consent at any time in the cookie settings.</li>
+    <li><strong>Newsletter:</strong> until you unsubscribe. Deleting your Handova account does not unsubscribe you; use the link in any newsletter or write to us. Your consent record is kept with your account.</li>
     <li><strong>Error reports:</strong> 90 days.</li>
     <li><strong>Technical logs:</strong> for the short period our providers set, usually days to weeks.</li></ul>
   <h2>If something goes wrong</h2><p>If a data breach is likely to affect you, we will tell you and the relevant authority without undue delay.</p>
