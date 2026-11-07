@@ -48,6 +48,8 @@ const bindRole = () => {
   apply();
 };
 
+// The newsletter tick box wording, saved with the consent (Brevo list shared by Ethical Bridge and Handova).
+const NEWSLETTER_WORDING = "Send me the Ethical Bridge and Handova newsletter: news, new needs and stories from the field. Optional, and you can unsubscribe at any time.";
 // Hidden from people (and screen readers); bots that fill every field fill it, and are quietly ignored.
 const honeypot = `<div class="hp-field" aria-hidden="true"><label>Leave this empty<input type="text" name="hv_check" tabindex="-1" autocomplete="off"></label></div>`;
 // A colleague invited to an organisation's team: just their own sign-in details (O2).
@@ -57,7 +59,7 @@ function teamJoin() {
     <p class="muted">Use the email address your colleague invited. Once you confirm it and sign in, you can accept the invitation and open your organisation’s workspace.</p>
     <input type="hidden" name="role" value="organisation"><input type="hidden" name="team" value="1">${honeypot}
     <div class="form-grid">${field("contact_name", "Your full name", { required: true, full: true, attrs: 'autocomplete="name" maxlength="120"' })}${field("email", "Email address", { type: "email", required: true, full: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
-    <div class="checkbox-box" style="margin-top:18px">${check("adult", "I am 18 or older.", false, true)}${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use <span class="visually-hidden">(opens in a new tab)</span></a> and have read the <a href="#privacy" target="_blank">Privacy notice <span class="visually-hidden">(opens in a new tab)</span></a>.`, false, true)}</div>
+    <div class="checkbox-box" style="margin-top:18px">${check("adult", "I am 18 or older.", false, true)}${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use <span class="visually-hidden">(opens in a new tab)</span></a> and have read the <a href="#privacy" target="_blank">Privacy notice <span class="visually-hidden">(opens in a new tab)</span></a>.`, false, true)}${check("newsletter", NEWSLETTER_WORDING)}</div>
     <div style="margin-top:18px">${formEnd("Create account")}</div>
   </form>`;
   return { title: "Join your organisation’s team", description: "Create a free Handova account to join your organisation’s team.", html: authShell("join", "organisation", form) };
@@ -86,6 +88,7 @@ export async function join(params) {
       <div class="checkbox-box" style="margin-top:18px">
         ${check("adult", "I am 18 or older.", false, true)}
         ${check("terms", `I agree to the <a href="#terms" target="_blank">Terms of use <span class="visually-hidden">(opens in a new tab)</span></a> and have read the <a href="#privacy" target="_blank">Privacy notice <span class="visually-hidden">(opens in a new tab)</span></a>.`, false, true)}
+        ${check("newsletter", NEWSLETTER_WORDING)}
       </div>
       <div style="margin-top:18px">${formEnd("Create account")}</div>
       <p class="small muted" style="margin-top:12px"><span class="only-organisation">Next, we will email you a confirmation link. Then you complete your organisation details, and we review them before your needs go public.</span><span class="only-professional">Next, we will email you a confirmation link. Then you complete your profile, and we review it before it is public.</span></p>
@@ -673,7 +676,7 @@ export async function submitAccount(kind, form) {
     if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
     if (role === "organisation" && !team && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
     // Proof of what was accepted at sign-up: the Terms and privacy notice versions, when, and the 18+ confirmation.
-    const accepted = { terms_version: config.termsVersion, privacy_version: config.privacyVersion, terms_accepted_at: new Date().toISOString(), adult_confirmed: fd.has("adult") };
+    const accepted = { terms_version: config.termsVersion, privacy_version: config.privacyVersion, terms_accepted_at: new Date().toISOString(), adult_confirmed: fd.has("adult"), ...(fd.has("newsletter") ? { newsletter: true, newsletter_consent_at: new Date().toISOString(), newsletter_wording: NEWSLETTER_WORDING } : {}) };
     const meta = team ? { role, full_name: val(fd, "contact_name"), team: true, lang: getLang(), ...accepted }
       : role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...accepted };
     const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: meta } });
