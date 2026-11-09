@@ -4147,7 +4147,6 @@
 "Profiles to review":"Profils à examiner",
 "Identity checks":"Vérifications d’identité",
 "Concerns and safety":"Signalements et sécurité",
-"Matches and contributions":"Mises en relation et contributions",
 "Organisation teams":"Équipes des organisations",
 "Daily summary":"Résumé quotidien",
 "New needs that match your skills":"Nouveaux besoins qui correspondent à vos compétences",
@@ -4161,4 +4160,6 @@
 "1 unread":"1 non lue",
 "unread":"non lues",
 "Open the admin page to review":"Ouvrir la page d’administration pour examiner",
-"No alerts yet.":"Aucune alerte pour l’instant."}
+"No alerts yet.":"Aucune alerte pour l’instant.",
+"Matches and activity":"Mises en relation et activité",
+"Matches and activity alerts don’t send an email each: you get one summary email a day instead.":"Les alertes de mises en relation et d’activité n’envoient pas un e-mail chacune : vous recevez à la place un e-mail récapitulatif par jour."}
