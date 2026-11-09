@@ -1737,7 +1737,7 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 
 /* Why now: AI and the first step into work (9 Nov 2026) */
 .ms-why { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(24px, 4vw, 40px); display: grid; gap: 22px; }
-.ms-why-head { display: grid; gap: 10px; max-width: 860px; }
+.ms-why-head { display: grid; gap: 10px; }
 .ms-why-head h3 { font: 500 clamp(1.6rem, 3vw, 2.3rem)/1.2 var(--serif); margin: 0; }
 .ms-why-head p { margin: 0; font-size: 1.05rem; }
 .ms-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
