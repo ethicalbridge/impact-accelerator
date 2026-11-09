@@ -163,7 +163,7 @@ export async function agreements(which) {
   return { title, description: "The agreement every " + (org ? "organisation" : "professional") + " signs before joining Handova.", html };
 }
 
-// The Handova policies (version 1.0, approved 20 October 2026). The text lives in assets/policies as HTML
+// The Handova policies (version 1.1, 9 November 2026: students included; first approved 20 October 2026). The text lives in assets/policies as HTML
 // fragments with a PDF of each; it is in English only.
 export const POLICIES = [
   ["safeguarding", "Safeguarding Policy and Procedure", "How we keep children, adults at risk and everyone on Handova safe, and what happens when someone reports a concern."],
@@ -173,12 +173,13 @@ export const POLICIES = [
   ["fraud", "Fraud, Bribery and Corruption Policy and Procedure", "How we prevent, spot and respond to fraud, bribery, corruption and misuse of Handova."],
   ["whistleblowing", "Whistleblowing Policy and Procedure", "How anyone can raise a concern about wrongdoing safely, including about Handova itself."],
 ];
-const policyPdf = (slug) => `assets/policies/handova-${slug}-v1.0.pdf`;
+const POLICY_VERSION = "1.1";
+const policyPdf = (slug) => `assets/policies/handova-${slug}-v${POLICY_VERSION}.pdf`;
 const enNote = () => (getLang() === "en" ? "" : `<p class="small muted binding-note">Our policies are available in English only for now.</p>`);
 
 export function policies() {
   const cards = POLICIES.map(([slug, title, sum]) => `<div class="card stack policy-card" style="--gap:10px"><h2 class="h3"><a href="#policies/${slug}">${title}</a></h2><p class="muted">${sum}</p><div class="row" style="--gap:8px"><a class="btn sm" href="#policies/${slug}" aria-label="${e(`Read the ${title}`)}">Read</a><a class="btn secondary sm" href="${policyPdf(slug)}" download aria-label="${e(`Download PDF of the ${title}`)}">Download PDF</a></div></div>`).join("");
-  const html = `<div class="wrap" style="padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Trust and safety")}<h1>Our policies</h1><p class="lead">The rules behind every contribution on Handova. They form part of the agreements professionals and organisations sign.</p>${enNote()}<p class="small muted">Version 1.0, approved on 20 October 2026 by Julieta Castiñeira de Dios, founder. Handova is run by Ethical Bridge LLC, registered in Wyoming, USA.</p></div>
+  const html = `<div class="wrap" style="padding-bottom:var(--section-gap)"><div class="page-head">${eyebrow("Trust and safety")}<h1>Our policies</h1><p class="lead">The rules behind every contribution on Handova. They form part of the agreements professionals and organisations sign.</p>${enNote()}<p class="small muted">Version 1.1, approved on 9 November 2026 by Julieta Castiñeira de Dios, founder (first approved on 20 October 2026). Version 1.1 includes students and adds standards for students and for working remotely. Handova is run by Ethical Bridge LLC, registered in Wyoming, USA.</p></div>
     <div class="grid policy-grid">${cards}</div>
     <div class="card stack" style="--gap:10px;margin-top:32px"><h2 class="h3">Something worrying you?</h2><p class="muted">Report it on the platform, or write to ${mail(config.safeguardingEmail)}. If someone is in immediate danger, contact local emergency services first.</p><div class="row">${btn("Report a concern", "#report")}${btn("Working responsibly", "#safety", "secondary")}</div></div></div>`;
   return { title: "Our policies", description: "Handova’s safeguarding, conduct, anti-harassment, data protection, fraud and whistleblowing policies.", html };
@@ -190,11 +191,11 @@ export async function policy(slug) {
   const [, title, sum] = found;
   let text = "";
   try {
-    const r = await fetch(`assets/policies/${slug}.html?v=1.0`);
+    const r = await fetch(`assets/policies/${slug}.html?v=${POLICY_VERSION}`);
     if (!r.ok) throw Error("missing");
     text = await r.text();
   } catch { text = `<p>This policy could not be loaded. <a href="${policyPdf(slug)}" download>Download the PDF</a> instead.</p>`; }
-  const head = `<div class="page-head">${eyebrow("Our policies")}<h1>${title}</h1><p class="lead">${sum}</p>${enNote()}<p class="small muted">Version 1.0 · Approved on 20 October 2026 · Owner: Julieta Castiñeira de Dios · Next review: October 2027</p><div class="row" style="--gap:8px"><a class="btn secondary sm" href="${policyPdf(slug)}" download>${icon("doc", 16)} Download PDF</a>${btn("All policies", "#policies", "secondary sm")}</div></div>`;
+  const head = `<div class="page-head">${eyebrow("Our policies")}<h1>${title}</h1><p class="lead">${sum}</p>${enNote()}<p class="small muted">Version 1.1 · Approved on 9 November 2026 (first approved on 20 October 2026) · Owner: Julieta Castiñeira de Dios · Next review: October 2027</p><div class="row" style="--gap:8px"><a class="btn secondary sm" href="${policyPdf(slug)}" download>${icon("doc", 16)} Download PDF</a>${btn("All policies", "#policies", "secondary sm")}</div></div>`;
   const html = `<div class="wrap policy-page" style="padding-bottom:var(--section-gap)">${head}${legalBody(text, true)}</div>`;
   return { title, description: sum, html };
 }

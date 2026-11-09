@@ -5,3 +5,4 @@ dist/
 .e2e-site/
 test-results/
 playwright-report/
+.policy-build/
