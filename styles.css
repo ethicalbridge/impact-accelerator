@@ -339,10 +339,22 @@ blockquote.endorse p { font: 400 1.2rem/1.45 var(--serif); }
 .message.mine { align-self: flex-end; background: var(--mint); border-color: #bcd6cd; }
 .message small { display: block; color: var(--muted); margin-bottom: 4px; }
 .notif { display: flex; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); }
-.notif-box { padding-block: 18px 6px; }
-.notif-box-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; }
-.notif-box-head h2 { font: 500 clamp(1.25rem, 2vw, 1.5rem)/1.2 var(--serif); margin: 0; flex: 1; min-width: 0; }
-.notif-box-head .link-btn { font-size: .9rem; }
+.notif-box { padding: 0; }
+.notif-box > summary { list-style: none; cursor: pointer; padding: 14px clamp(16px, 3vw, 24px); border-radius: var(--radius); }
+.notif-box > summary::-webkit-details-marker { display: none; }
+.notif-box > summary:hover { background: rgba(18, 62, 58, .04); }
+.notif-box > summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.notif-box-head { display: flex; align-items: center; gap: 12px; }
+.notif-box-head h2 { font: 500 clamp(1.15rem, 1.9vw, 1.4rem)/1.2 var(--serif); margin: 0; flex: 1; min-width: 0; }
+.notif-box-head > svg { flex-shrink: 0; transition: transform .2s; }
+.notif-box[open] > .notif-box-head > svg { transform: rotate(180deg); }
+.notif-count { color: var(--muted); font-family: var(--sans); font-size: .95em; font-weight: 600; }
+.notif-box.has-count .notif-count { color: var(--clay); }
+.notif-box-body { padding: 0 clamp(16px, 3vw, 24px) 6px; }
+.notif-box-tools { padding-bottom: 4px; }
+.notif-box-tools .link-btn { font-size: .9rem; }
+.notif-queue-link { display: inline-block; padding-bottom: 12px; font-weight: 600; color: var(--teal); }
+.notif-none { padding: 4px 0 14px; margin: 0; }
 .notif-more > summary { cursor: pointer; padding: 14px 0; border-top: 1px solid var(--line); font-weight: 600; color: var(--teal); list-style: none; }
 .notif-more > summary::-webkit-details-marker { display: none; }
 .notif.unread strong::after { content: ""; display: inline-block; width: 8px; height: 8px; margin-left: 8px; border-radius: 4px; background: var(--ochre); vertical-align: middle; }
