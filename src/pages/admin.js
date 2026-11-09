@@ -6,14 +6,14 @@ import { decisionDialog } from "./workspace.js";
 // Notifications are grouped into dropdowns by what they are about (9 Nov 2026). Handova admins see their review queues first.
 // Each rule is [title, icon, kinds, queue]; the first rule that matches a notification's kind wins.
 // A review queue always shows, with the number of items waiting now in brackets (0 when nothing is waiting).
-// Other groups show only when they have notifications, with the number of unread ones in brackets.
+// Matches and activity always shows too. Other groups show only when they have notifications. Both count unread ones.
 const ADMIN_GROUPS = [
   ["Organisations to review", "home", /^(org_review|org_changed|org_without_member)$/, "orgs"],
   ["Needs to review", "doc", /^(need_submitted|need_changed|need_deadline)$/, "needs"],
   ["Profiles to review", "user", /^(profile_review|profile_changed)$/, "profiles"],
   ["Identity checks", "shield", /^id_check$/, "ids"],
   ["Concerns and safety", "flag", /^(report|conflict_declared|survey_concern|work_again_no)$/, "reports"],
-  ["Matches and contributions", "people", /^(admin_application|admin_chosen|admin_signed|admin_completed|ended)$/],
+  ["Matches and activity", "people", /^(admin_application|admin_chosen|admin_signed|admin_completed|ended)$/, "", true],
   ["Organisation teams", "people", /^team$/],
   ["Daily summary", "inbox", /^admin_digest$/],
 ];
@@ -32,7 +32,7 @@ export async function notifications() {
   if (!state.user) return { redirect: "#signin?next=%23notifications" };
   const rows = await result(db.from("notifications").select("*").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(300));
   const rules = [...(state.isAdmin ? ADMIN_GROUPS : []), ...GROUPS, ["Other", "bell", /./]];
-  const groups = rules.map(([title, ic, , queue]) => ({ title, ic, queue, items: [] }));
+  const groups = rules.map(([title, ic, , queue, always]) => ({ title, ic, queue, always, items: [] }));
   // What is waiting for Handova right now, counted the same way as the admin page's queues.
   const n = (q) => q.then((r) => r.count || 0).catch(() => 0);
   const waiting = state.isAdmin ? Object.fromEntries(await Promise.all(Object.entries({
@@ -54,11 +54,11 @@ export async function notifications() {
       <div class="notif-box-body">${unread.length ? `<div class="row between notif-box-tools"><span class="small muted">${unread.length === 1 ? "1 unread" : `${unread.length} <span>unread</span>`}</span><button class="link-btn small" type="button" data-action="read-group" data-ids="${unread.map((r) => r.id).join(",")}">Mark as read</button></div>` : ""}${g.queue ? `<a class="small notif-queue-link" href="#admin">Open the admin page to review</a>` : ""}
       ${g.items.length ? g.items.slice(0, SHOWN).map(row).join("") : `<p class="small muted notif-none">No alerts yet.</p>`}${more.length ? `<details class="notif-more"><summary>${more.length === 1 ? "Show 1 more" : `<span>Show more</span> (${more.length})`}</summary>${more.map(row).join("")}</details>` : ""}</div></details>`;
   };
-  const filled = groups.filter((g) => g.queue || g.items.length);
+  const filled = groups.filter((g) => g.queue || g.always || g.items.length);
   const html = `<div class="wrap" style="max-width:860px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
     <div class="row between">${`<div>${eyebrow("Notifications")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What’s new</h1></div>`}${rows.some((r) => !r.read_at) ? `<button class="btn secondary sm" type="button" data-action="read-all">Mark all as read</button>` : ""}</div>
     ${filled.length ? filled.map(box).join("") : `<div class="card">${empty("Nothing yet", "Applications, decisions, agreements and messages will appear here.")}</div>`}
-    <p class="small muted">We also send you a short email for each notification (never the content of messages). You can turn emails off in <a href="#account">Account and privacy</a>.</p>
+    <p class="small muted">We also send you a short email for each notification (never the content of messages). You can turn emails off in <a href="#account">Account and privacy</a>.</p>${state.isAdmin ? `<p class="small muted">Matches and activity alerts don’t send an email each: you get one summary email a day instead.</p>` : ""}
   </div></div>`;
   return { title: "Notifications", html };
 }
