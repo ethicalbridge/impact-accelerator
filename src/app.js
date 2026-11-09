@@ -121,7 +121,7 @@ async function renderPage() {
     delete main.dataset.staticHome;
     document.title = `${t(out.title)} · Handova`;
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.content = t(out.description || "Skilled professionals contributing to the needs locally led organisations define. Free for everyone.");
+    if (meta) meta.content = t(out.description || "Skilled professionals and students contributing to the needs locally led organisations define. Free for everyone.");
     out.after?.();
     enhance(main, r.name);
     // A link can ask the next page to bring one element into view (e.g. the "publish" box at the end of a long form).
