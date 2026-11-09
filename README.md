@@ -21,6 +21,8 @@ Once both sides have signed, a contribution shows on the professional's public p
 
 When Handova approves a need for the first time, every professional with an active profile gets a notification and email about it (naming any skills they share with the need). Admins can open any organisation at `#admin-org/<id>` to see everything about it and suggest profile changes, which the organisation accepts or declines from its workspace.
 
+Handova admins get an in-app notification when a professional applies, an organisation chooses someone, both sign and the work is completed, plus one summary email a day (08:05 Singapore time) when anything happened. A week after a need goes live with no applications, the professionals matched to it who have hours available get one reminder.
+
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").
 
 If an organisation stops responding, an admin can close the contribution from Admin → Contributions ("Close for them"): hours the organisation already approved stay on the professional's record, marked "Closed by Handova". An account can't be deleted while its owner has a contribution still open, or is the only person managing an organisation with one. Text typed in a dialog is kept as a draft in that browser tab until it is sent.
