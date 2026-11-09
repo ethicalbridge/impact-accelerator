@@ -62,6 +62,8 @@ pnpm start       # serves dist/ on http://127.0.0.1:4173
 pnpm qa          # builds a mock-backed copy into ../qa-site and serves it
 ```
 
+Policies: the text of each policy is `assets/policies/<slug>.html` (shown at `#policies/<slug>`). After editing one, bump the version in `scripts/policy-pdfs.py` and `POLICY_VERSION` in `src/pages/legal.js`, run `python3 scripts/policy-pdfs.py` to rebuild the PDFs (Python Playwright and pypdf), and rebuild the site.
+
 In the QA copy, sign in as `admin@example.test`, `org@example.test` or `talent@example.test` with any password. Data lives only in that browser's local storage. `MOCK` builds refuse to run without `OUT`, so the mock can never replace the production `app.js`; CI also checks this.
 
 ## Email notifications
