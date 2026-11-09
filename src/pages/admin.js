@@ -3,14 +3,16 @@ import { icon, eyebrow, status, pill, field, select, check, formEnd, btn, empty,
 import { date, safeURL } from "../utils.js";
 import { decisionDialog } from "./workspace.js";
 
-// Notifications are grouped into boxes by what they are about (9 Nov 2026). Handova admins see their review queues first.
-// Each rule is [title, icon, kinds]; the first rule that matches a notification's kind wins.
+// Notifications are grouped into dropdowns by what they are about (9 Nov 2026). Handova admins see their review queues first.
+// Each rule is [title, icon, kinds, queue]; the first rule that matches a notification's kind wins.
+// A review queue always shows, with the number of items waiting now in brackets (0 when nothing is waiting).
+// Other groups show only when they have notifications, with the number of unread ones in brackets.
 const ADMIN_GROUPS = [
-  ["Organisations to review", "home", /^(org_review|org_changed|org_without_member)$/],
-  ["Needs to review", "doc", /^(need_submitted|need_changed|need_deadline)$/],
-  ["Profiles to review", "user", /^(profile_review|profile_changed)$/],
-  ["Identity checks", "shield", /^id_check$/],
-  ["Concerns and safety", "flag", /^(report|conflict_declared|survey_concern|work_again_no)$/],
+  ["Organisations to review", "home", /^(org_review|org_changed|org_without_member)$/, "orgs"],
+  ["Needs to review", "doc", /^(need_submitted|need_changed|need_deadline)$/, "needs"],
+  ["Profiles to review", "user", /^(profile_review|profile_changed)$/, "profiles"],
+  ["Identity checks", "shield", /^id_check$/, "ids"],
+  ["Concerns and safety", "flag", /^(report|conflict_declared|survey_concern|work_again_no)$/, "reports"],
   ["Matches and contributions", "people", /^(admin_application|admin_chosen|admin_signed|admin_completed|ended)$/],
   ["Organisation teams", "people", /^team$/],
   ["Daily summary", "inbox", /^admin_digest$/],
@@ -30,16 +32,29 @@ export async function notifications() {
   if (!state.user) return { redirect: "#signin?next=%23notifications" };
   const rows = await result(db.from("notifications").select("*").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(300));
   const rules = [...(state.isAdmin ? ADMIN_GROUPS : []), ...GROUPS, ["Other", "bell", /./]];
-  const groups = rules.map(([title, ic]) => ({ title, ic, items: [] }));
+  const groups = rules.map(([title, ic, , queue]) => ({ title, ic, queue, items: [] }));
+  // What is waiting for Handova right now, counted the same way as the admin page's queues.
+  const n = (q) => q.then((r) => r.count || 0).catch(() => 0);
+  const waiting = state.isAdmin ? Object.fromEntries(await Promise.all(Object.entries({
+    orgs: n(db.from("organisations").select("id", { count: "exact", head: true }).eq("status", "pending")),
+    needs: n(db.from("needs").select("id", { count: "exact", head: true }).eq("status", "pending")),
+    profiles: n(db.from("profiles").select("user_id", { count: "exact", head: true }).eq("review_status", "pending")),
+    idProfiles: n(db.from("profiles").select("user_id", { count: "exact", head: true }).in("id_status", ["name_mismatch", "in_review"])),
+    idVideo: n(db.from("id_video_requests").select("user_id", { count: "exact", head: true }).eq("status", "requested")),
+    reports: n(db.from("reports").select("id", { count: "exact", head: true }).neq("status", "resolved")),
+  }).map(async ([k, v]) => [k, await v]))) : {};
+  waiting.ids = (waiting.idProfiles || 0) + (waiting.idVideo || 0);
   for (const r of rows) groups[rules.findIndex(([, , re]) => re.test(r.kind || "-"))].items.push(r);
   const row = (r) => `<a class="notif ${r.read_at ? "" : "unread"}" href="${e(r.link || "#home")}" data-action="read-one" data-id="${r.id}">${icon("bell", 22, "#0f6f63")}<div class="stack" style="--gap:2px"><strong>${e(r.title)}</strong>${r.body ? `<span class="muted">${e(r.body)}</span>` : ""}<span class="small muted">${date(r.created_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></div></a>`;
   const box = (g) => {
     const unread = g.items.filter((r) => !r.read_at);
+    const count = g.queue ? waiting[g.queue] || 0 : unread.length;
     const more = g.items.slice(SHOWN);
-    return `<section class="card notif-box" aria-label="${e(g.title)}"><div class="notif-box-head"><span class="icon-tile">${icon(g.ic, 20, "#0f6f63")}</span><h2>${g.title}</h2>${unread.length ? `<span class="pill">${unread.length} <span>new</span></span><button class="link-btn small" type="button" data-action="read-group" data-ids="${unread.map((r) => r.id).join(",")}">Mark as read</button>` : ""}</div>
-      ${g.items.slice(0, SHOWN).map(row).join("")}${more.length ? `<details class="notif-more"><summary>${more.length === 1 ? "Show 1 more" : `<span>Show more</span> (${more.length})`}</summary>${more.map(row).join("")}</details>` : ""}</section>`;
+    return `<details class="card notif-box${count ? " has-count" : ""}"><summary class="notif-box-head"><span class="icon-tile">${icon(g.ic, 20, "#0f6f63")}</span><h2>${g.title} <span class="notif-count">(${count})</span></h2>${icon("chevron", 20, "#0f6f63")}</summary>
+      <div class="notif-box-body">${unread.length ? `<div class="row between notif-box-tools"><span class="small muted">${unread.length === 1 ? "1 unread" : `${unread.length} <span>unread</span>`}</span><button class="link-btn small" type="button" data-action="read-group" data-ids="${unread.map((r) => r.id).join(",")}">Mark as read</button></div>` : ""}${g.queue ? `<a class="small notif-queue-link" href="#admin">Open the admin page to review</a>` : ""}
+      ${g.items.length ? g.items.slice(0, SHOWN).map(row).join("") : `<p class="small muted notif-none">No alerts yet.</p>`}${more.length ? `<details class="notif-more"><summary>${more.length === 1 ? "Show 1 more" : `<span>Show more</span> (${more.length})`}</summary>${more.map(row).join("")}</details>` : ""}</div></details>`;
   };
-  const filled = groups.filter((g) => g.items.length);
+  const filled = groups.filter((g) => g.queue || g.items.length);
   const html = `<div class="wrap" style="max-width:860px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
     <div class="row between">${`<div>${eyebrow("Notifications")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What’s new</h1></div>`}${rows.some((r) => !r.read_at) ? `<button class="btn secondary sm" type="button" data-action="read-all">Mark all as read</button>` : ""}</div>
     ${filled.length ? filled.map(box).join("") : `<div class="card">${empty("Nothing yet", "Applications, decisions, agreements and messages will appear here.")}</div>`}
