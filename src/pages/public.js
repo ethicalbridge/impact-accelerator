@@ -103,6 +103,13 @@ const MS_BOXES = [
   ["mint", "Low-carbon by design", "Work with a team in Indonesia, Kenya or Peru without a long-haul flight. The experience crosses borders; the emissions don’t."],
   ["sand", "A way in, at any stage", "Students, young people starting out and people changing careers do real work for a real organisation, and leave with a reviewed record on their impact CV: proof an employer can check."],
 ];
+// Why now (University Outreach Strategy, 9 Nov 2026): AI and the first step into work. Figures as cited there.
+const MS_STATS = [
+  ["19%", "lower employment for 22 to 25-year-olds in the most AI-exposed US jobs, compared with peers in less-exposed jobs", "Stanford Digital Economy Lab, 2026"],
+  ["32%", "fewer entry-level job postings in the UK since ChatGPT launched in November 2022", "Adzuna, 2025"],
+  ["67 million", "young people unemployed in 2025, a youth unemployment rate of 12.4%", "ILO, 2026"],
+  ["27.5% vs 15.4%", "of working-age people use generative AI in wealthier economies, against developing economies, and the gap is widening", "Microsoft AI Economy Institute, 2026"],
+];
 export function home() {
   const trust = [["gift", "Free for everyone", "No fees for organisations, professionals or students."], ["eye", "Approved before going public", "Every organisation and profile is reviewed first."], ["pen", "Agreed before work", "Both sides sign the scope before anything starts."], ["shield", "Reviewed, not claimed", "Hours and outcomes come from the organisation."]];
   const rest = `
@@ -123,6 +130,12 @@ export function home() {
         <h2 class="ms-title">Ethical work, open to <span class="ms-hl">everyone.</span></h2>
         <div class="ms-message"><span class="eyebrow">Our promise</span><p>Build real experience with a real organisation, from wherever you are. Free, flexible, and no flight needed.</p></div>
         <div class="ms-boxes">${MS_BOXES.map(([cls, h, p]) => `<article class="ms-box ${cls}"><h3>${h}</h3><p>${p}</p></article>`).join("")}</div>
+        <section class="ms-why" aria-labelledby="ms-why-title">
+          <div class="ms-why-head"><span class="eyebrow">Why now</span><h3 id="ms-why-title">A first step into work in the age of AI.</h3>
+            <p><span>AI is taking over the tasks that used to give graduates their first job: research, drafting, data entry and admin. Employers hire fewer juniors, so young people struggle to get the experience every job asks for.</span> <span>In developing countries, young people also have the least access to AI tools and training.</span> <span>Handova gives students and people starting out real, verified experience with ethical organisations, so they can enter the job market while contributing to something that matters.</span></p></div>
+          <ul class="ms-stats">${MS_STATS.map(([n, what, src]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span><cite>${src}</cite></li>`).join("")}</ul>
+          <p class="small muted">The evidence is early: these studies describe a trend, not proven causes. What they show is that the first step into work is getting harder to reach, especially for young people.</p>
+        </section>
       </div>
       <div class="hv-exchange" data-reveal>
         <div class="hv-ex-side pro"><span class="hv-tag">What stays with the professional</span><strong>A lasting record</strong><p>A reviewed record on their impact CV: the need, the output and the organisation’s own words.</p>${exampleCvCard()}</div>
