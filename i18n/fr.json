@@ -4192,15 +4192,11 @@
 "No alerts yet.":"Aucune alerte pour l’instant.",
 "Matches and activity":"Mises en relation et activité",
 "Matches and activity alerts don’t send an email each: you get one summary email a day instead.":"Les alertes de mises en relation et d’activité n’envoient pas un e-mail chacune : vous recevez à la place un e-mail récapitulatif par jour.",
-"Sensitive information:":"Informations sensibles :",
 "Sensitive information: handle with care":"Informations sensibles : à manier avec précaution",
 "This work may involve sensitive information about the people this organisation serves. Both sides agree to:":"Ce travail peut impliquer des informations sensibles sur les personnes que cette organisation accompagne. Les deux parties s’engagent à :",
 "Work with anonymised or summary information. Never share names, photos, locations or anything else that identifies the people served.":"Travailler avec des informations anonymisées ou synthétiques. Ne jamais partager de noms, de photos, de lieux ni rien qui permette d’identifier les personnes accompagnées.",
 "Keep it private: never post it online, put it in a public link or send it through chat apps. Share files only through a secure channel the organisation chooses, never through Handova Messages.":"La garder privée : ne jamais la publier en ligne, la mettre dans un lien public ni l’envoyer par une messagerie. Partager les fichiers uniquement par un canal sécurisé choisi par l’organisation, jamais par la messagerie Handova.",
 "Agree in writing first if some personal information is truly needed: what it is, why, how it is shared and when it is deleted.":"Convenir d’abord par écrit si certaines informations personnelles sont vraiment nécessaires : lesquelles, pourquoi, comment elles sont partagées et quand elles sont supprimées.",
-"Never put it into AI tools, personal devices or personal accounts, and delete every copy at handover.":"Ne jamais la saisir dans des outils d’IA, des appareils ou des comptes personnels, et supprimer toutes les copies à la remise du travail.",
 "Report a suspected leak to the other side and to Handova within 24 hours.":"Signaler toute fuite suspectée à l’autre partie et à Handova dans les 24 heures.",
-"the need’s public safety notice will warn about sensitive information":"l’avis public de sécurité du besoin signalera des informations sensibles",
-"Protecting the people this organisation serves":"Protéger les personnes que cette organisation accompagne",
-"Whatever the work, both sides agree to:":"Quel que soit le travail, les deux parties s’engagent à :",
-"All our policies":"Toutes nos politiques"}
+"All our policies":"Toutes nos politiques",
+"Never put sensitive data into AI tools, personal devices or personal accounts, and delete every copy at handover.":"Ne jamais saisir de données sensibles dans des outils d’IA, des appareils ou des comptes personnels, et supprimer toutes les copies à la remise du travail."}
