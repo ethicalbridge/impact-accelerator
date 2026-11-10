@@ -397,22 +397,17 @@ function bindFilters(rows, card, noun, failed = false) {
 }
 
 // ---------- Need detail ----------
-// Every need shows a public reminder of how both sides protect the people the organisation serves, with direct links to
-// the policies (Safeguarding Policy s.3–4, Data Protection Policy s.6). Needs whose safety answers flag sensitive
-// information (distressing content, personal data by exception, or a risk if it leaked) say so first.
-// Flagged needs show it above the description; the others below it.
-function sensitiveNotice(n, top) {
+// Every need shows the same public reminder of how both sides protect the people the organisation serves, with direct
+// links to the policies (Safeguarding Policy s.3–4, Data Protection Policy s.6). Founder decision, 11 Nov 2026.
+function sensitiveNotice(n) {
   if (n.example) return "";
-  const sg = n.safeguarding || {};
-  const flagged = sg.distressing === "yes" || sg.personal_data === "exception" || sg.leak_risk === "yes";
-  if (flagged !== top) return "";
-  return `<section class="card sensitive-note${flagged ? " flagged" : ""}" aria-labelledby="sens-h"><div class="row" style="gap:12px;align-items:center;flex-wrap:nowrap"><span class="icon-tile">${icon("shield", 20, "#0f6f63")}</span><h2 id="sens-h">${flagged ? "Sensitive information: handle with care" : "Protecting the people this organisation serves"}</h2></div>
-    <p>${flagged ? "This work may involve sensitive information about the people this organisation serves. Both sides agree to:" : "Whatever the work, both sides agree to:"}</p>
+  return `<section class="card sensitive-note" aria-labelledby="sens-h"><div class="row" style="gap:12px;align-items:center;flex-wrap:nowrap"><span class="icon-tile">${icon("shield", 20, "#0f6f63")}</span><h2 id="sens-h">Sensitive information: handle with care</h2></div>
+    <p>This work may involve sensitive information about the people this organisation serves. Both sides agree to:</p>
     <ul class="bullets">
       <li>Work with anonymised or summary information. Never share names, photos, locations or anything else that identifies the people served.</li>
       <li>Keep it private: never post it online, put it in a public link or send it through chat apps. Share files only through a secure channel the organisation chooses, never through Handova Messages.</li>
       <li>Agree in writing first if some personal information is truly needed: what it is, why, how it is shared and when it is deleted.</li>
-      <li>Never put it into AI tools, personal devices or personal accounts, and delete every copy at handover.</li>
+      <li>Never put sensitive data into AI tools, personal devices or personal accounts, and delete every copy at handover.</li>
       <li>Report a suspected leak to the other side and to Handova within 24 hours.</li>
     </ul>
     <p class="small sensitive-links"><a href="#policies/safeguarding">Safeguarding Policy</a><a href="#policies/data-protection">Data Protection Policy</a><a href="#policies/code-of-conduct">Code of Conduct</a><a href="#policies">All our policies</a></p></section>`;
@@ -466,14 +461,13 @@ export async function need(id) {
           ${n.example || n.handed ? "" : `<div class="mobile-cta">${cta}</div>`}
         </section>
         ${n.safeguarding?.distressing === "yes" || n.safeguarding?.regulated === "yes" ? `<div class="notice" role="note">${icon("alert", 20)}<span>${[n.safeguarding?.distressing === "yes" ? "Heads-up: this work may involve distressing content, such as testimonies of violence. You can pause or stop at any time." : "", n.safeguarding?.regulated === "yes" ? `This work needs a qualification for regulated advice${n.safeguarding?.regulated_note ? ` (<span data-no-i18n>${e(n.safeguarding.regulated_note)}</span>)` : ""}.` : ""].filter(Boolean).join(" ")}</span></div>` : ""}
-        ${sensitiveNotice(n, true)}
+        ${sensitiveNotice(n)}
         <section class="card need-body">
           <div class="need-sec"><h2>The challenge</h2><p class="prose" data-no-i18n>${e(n.description)}</p></div>
           <div class="need-sec"><h2>${n.handed ? "What was handed over" : "What you would deliver"}</h2><ul class="need-deliver">${deliverables.map((d) => `<li>${icon("check", 20, "#0f6f63", 2.4)}<span data-no-i18n>${e(d)}</span></li>`).join("")}</ul></div>
           ${(n.skills || []).length ? `<div class="need-sec"><h2>Skills involved</h2>${tags(n.skills)}</div>` : ""}
           <div class="need-sec"><h2>Working languages</h2><p>${e((n.languages || []).map(t).join(", "))}. Support in any one of these is welcome.</p></div>
         </section>
-        ${sensitiveNotice(n, false)}
         ${n.example || n.handed ? "" : `<section class="card need-steps"><h2>How it works</h2><ol>
           <li><strong>Apply</strong><span>Send a short plan: how you would approach the output, and when you could do it.</span></li>
           <li><strong>Agree</strong><span>If you are chosen, you and the organisation both sign a contribution agreement before any work starts.</span></li>

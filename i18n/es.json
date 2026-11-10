@@ -4205,15 +4205,11 @@
 "No alerts yet.":"Todavía no hay alertas.",
 "Matches and activity":"Coincidencias y actividad",
 "Matches and activity alerts don’t send an email each: you get one summary email a day instead.":"Las alertas de coincidencias y actividad no envían un correo cada una: en su lugar recibes un correo de resumen al día.",
-"Sensitive information:":"Información sensible:",
 "Sensitive information: handle with care":"Información sensible: manéjala con cuidado",
 "This work may involve sensitive information about the people this organisation serves. Both sides agree to:":"Este trabajo puede implicar información sensible sobre las personas a las que atiende esta organización. Ambas partes se comprometen a:",
 "Work with anonymised or summary information. Never share names, photos, locations or anything else that identifies the people served.":"Trabajar con información anonimizada o resumida. Nunca compartir nombres, fotos, ubicaciones ni nada que identifique a las personas atendidas.",
 "Keep it private: never post it online, put it in a public link or send it through chat apps. Share files only through a secure channel the organisation chooses, never through Handova Messages.":"Mantenerla privada: nunca publicarla en internet, ponerla en un enlace público ni enviarla por apps de mensajería. Compartir archivos solo por un canal seguro que elija la organización, nunca por los Mensajes de Handova.",
 "Agree in writing first if some personal information is truly needed: what it is, why, how it is shared and when it is deleted.":"Acordar primero por escrito si de verdad se necesita alguna información personal: cuál, por qué, cómo se comparte y cuándo se borra.",
-"Never put it into AI tools, personal devices or personal accounts, and delete every copy at handover.":"Nunca introducirla en herramientas de IA, dispositivos personales ni cuentas personales, y borrar todas las copias en la entrega.",
 "Report a suspected leak to the other side and to Handova within 24 hours.":"Informar de cualquier sospecha de filtración a la otra parte y a Handova en un plazo de 24 horas.",
-"the need’s public safety notice will warn about sensitive information":"el aviso público de seguridad de la necesidad advertirá sobre información sensible",
-"Protecting the people this organisation serves":"Proteger a las personas a las que atiende esta organización",
-"Whatever the work, both sides agree to:":"Sea cual sea el trabajo, ambas partes se comprometen a:",
-"All our policies":"Todas nuestras políticas"}
+"All our policies":"Todas nuestras políticas",
+"Never put sensitive data into AI tools, personal devices or personal accounts, and delete every copy at handover.":"Nunca introducir datos sensibles en herramientas de IA, dispositivos personales ni cuentas personales, y borrar todas las copias en la entrega."}
