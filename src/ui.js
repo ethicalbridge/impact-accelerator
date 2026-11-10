@@ -479,7 +479,7 @@ export function orgCover(org = {}, { banner = false } = {}) {
   return `<div class="org-cover${banner ? " banner" : ""}" aria-hidden="true">${mark}</div>`;
 }
 // What a published need's pill says (27 Oct 2026): every state, never who applied or who was chosen.
-export const NEED_STATE = { open: ["Open", ""], applications: ["Open · receiving applications", ""], deadline_passed: ["Applications closed", "grey"], chosen: ["Professional chosen", "ochre"], in_progress: ["In progress", "ochre"], handed_over: ["Handed over", ""], closed: ["Closed", "grey"] };
+export const NEED_STATE = { open: ["Open · no applications yet", ""], applications: ["Open · professionals applied", ""], deadline_passed: ["Applications closed", "grey"], chosen: ["Professional chosen", "ochre"], in_progress: ["In progress", "ochre"], handed_over: ["Handed over", ""], closed: ["Closed", "grey"] };
 export function needCard(n) {
   const org = n.organisation || {};
   const kind = coverKind(n.skills, n.title);
