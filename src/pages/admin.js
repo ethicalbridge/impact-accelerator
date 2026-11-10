@@ -73,6 +73,7 @@ function safetyReview(sg = {}) {
   if (sg.leak_risk === "yes") flags.push(`<strong>Risk if leaked:</strong> ${e(sg.leak_risk_note || "")}`);
   if (sg.distressing === "yes") flags.push(`<strong>Distressing content</strong> (professionals are warned)`);
   if (sg.regulated === "yes") flags.push(`<strong>Regulated advice:</strong> ${e(sg.regulated_note || "")}`);
+  if (sg.distressing === "yes" || sg.personal_data === "exception" || sg.leak_risk === "yes") flags.push(`<strong>Sensitive information:</strong> the need’s public safety notice will warn about sensitive information`);
   return `<div class="sg-review small"><span class="sg-flags">${ticks.map(([k, l]) => `<span class="pill ${sg[k] === "yes" ? "" : "clay"}">${ok(sg[k] === "yes")} ${l}</span>`).join("")}</span>${flags.length ? `<ul class="bullets">${flags.map((f) => `<li>${f}</li>`).join("")}</ul>` : `<span class="muted">No personal data, leak risk, distressing content or regulated advice.</span>`}</div>`;
 }
 

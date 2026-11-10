@@ -1747,3 +1747,10 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .ms-stats cite { font-style: normal; font-size: 0.82rem; color: var(--muted); }
 @media (max-width: 1100px) { .ms-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .ms-stats { grid-template-columns: minmax(0, 1fr); } }
+
+/* Public notice on every need: how both sides protect the people served. Flagged needs get the warmer colour. */
+.sensitive-note { display: grid; gap: 12px; background: var(--mint); border-color: transparent; }
+.sensitive-note.flagged { background: var(--ochre-bg); }
+.sensitive-note h2 { font: 500 clamp(1.2rem, 1.8vw, 1.45rem)/1.25 var(--serif); margin: 0; }
+.sensitive-note p, .sensitive-note ul { margin: 0; }
+.sensitive-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-weight: 600; }
