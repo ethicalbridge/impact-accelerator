@@ -77,7 +77,7 @@ import{b as r,c as b,g as U,j as S,l as G,m as q,o as P,r as f}from"./chunk-5OLN
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>
   <div class="c-body">
-    <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${r(e.need)}</p></div><div><span class="label-cap">Expected output</span><p style="white-space:pre-line">${r(e.output)}</p></div></div>
+    <div class="stack" style="--gap:14px"><div><span class="label-cap">Expected output</span><p style="white-space:pre-line">${r(e.output)}</p></div><div><span class="label-cap">The need</span><p style="white-space:pre-line">${r(e.need)}</p></div></div>
     ${e.deliverables?`<div><span class="label-cap">Handed over</span><ul class="bullets">${String(e.deliverables).split(/\n+/).map(h=>h.trim()).filter(Boolean).map(h=>`<li>${r(h)}</li>`).join("")}</ul></div>`:""}
     ${e.endorsement?`<blockquote class="endorse"><p data-no-i18n>\u201C${r(e.endorsement)}\u201D</p><span class="small muted">\u2014 ${r([e.endorser_name,e.endorsed_by_role||"the organisation"].filter(Boolean).join(", "))}, ${r(e.organisation)}${e.endorsement_language&&e.endorsement_language!=="English"?` \xB7 <span>${r(j("Written in {lang}",{lang:v(e.endorsement_language)}))}</span>`:""}${a?" \xB7 Example":""}</span></blockquote>`:e.pending?`<p class="small c-note">${p("clock",16)}<span>${r(e.organisation)} will review this work and add its endorsement here.</span></p>`:""}
     ${(e.skills||[]).length?`<div><span class="label-cap">${e.skills_confirmed?`Skills confirmed by ${r(e.organisation)}`:e.example||a?"Skills":"Skills the need asked for"}</span>${D(e.skills)}</div>`:""}
