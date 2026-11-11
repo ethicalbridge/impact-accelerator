@@ -2,7 +2,7 @@ import { locale, t, tf } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS, fieldError } from "../core.js";
 import { NEED_STATE, icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
-import { BUILT_SKILLS, filterRecords, professionalAreas, date, plural, today, safeURL } from "../utils.js";
+import { BUILT_SKILLS, filterRecords, professionalAreas, date, plural, today, safeURL, extraThisMonth } from "../utils.js";
 import { config } from "../config.js";
 import { workingResponsibly, POLICIES } from "./legal.js";
 
@@ -362,7 +362,8 @@ export async function needs() {
     <div class="page-head">${eyebrow("Open needs")}<h1>Where your expertise can help.</h1><p class="lead">Every need is written by an approved, locally led organisation: the output they need, the skills involved and a realistic number of hours.</p></div>
     ${filtersForm("needs", talentLanguages([exampleProfile, ...(pros || [])]))}
     ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : noneYet ? exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.") : `<div class="notice" role="note">${icon("clock", 20, "#0f6f63")}<span>No needs are open for applications right now. New ones appear here as soon as Handova approves them, and professionals with a profile are told by email.</span></div>`}
-    <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
+    <div class="stack" style="--gap:8px;padding-top:12px">${eyebrow("Open and in progress")}<h2>Open needs.</h2><p class="lead" style="max-width:none">Needs open for applications first, then needs a professional is already working on.</p></div>
+    <div class="grid" id="results"></div>
     ${closed.length ? `<section class="stack" style="--gap:18px;padding-top:12px">
       <div class="stack" style="--gap:8px">${eyebrow("Closed or handed over")}<h2>Needs already closed or handed over.</h2><p class="lead" style="max-width:none">Needs that were handed over to the organisation, and needs whose apply-by date has passed.</p></div>
       <div class="grid">${closed.map(needCard).join("")}</div>
@@ -625,11 +626,11 @@ export async function profile(id) {
       const showAvail = owner || (!!state.user && state.memberships.length > 0);
       return `<section class="stats-dark stats-btns${showAvail ? " stats-5" : ""}" aria-label="${showAvail ? "Impact so far and availability" : "Impact so far"}">${contributions.length ? `${tile(hours, "hours handed over")}${tile(contributions.length, pending ? "contributions" : "reviewed contributions")}${tile(orgs, "organisations helped")}${pending ? tile(pending, "awaiting the organisation’s review") : tile(countries, "countries")}` : `<div class="stat-new"><strong>New on Handova</strong><span>Profile reviewed by Handova${p.id_status === "approved" ? " · ID verified" : ""}</span><span class="stat-note">Contributions will appear here once an organisation reviews them.</span></div>`}${(() => {
         // Monthly allowance: hours given this calendar month come off it, and it refills on the 1st.
-        const per = Number(p.hours_available) || 0, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const extra = extraThisMonth(p), per = (Number(p.hours_available) || 0) + extra, now = new Date(), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const used = contributions.filter((c) => { const d = new Date(c.completed || c.completed_at || c.started || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
         const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(locale(), { day: "numeric", month: "long" });
         if (!showAvail) return "";
-        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left > 0 ? "Available now" : tf("Available again from {date}", { date: next })) : "Not available right now"}</span>${owner ? `<button type="button" class="stat-more" data-action="hours-change">Change my hours ${icon("arrow", 14)}</button>` : ""}${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}</div>`;
+        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left > 0 ? "Available now" : tf("Available again from {date}", { date: next })) : "Not available right now"}</span>${extra ? `<span class="stat-note">+${extra} <span>extra this month</span></span>` : ""}${owner ? `<button type="button" class="stat-more" data-action="extra-hours">Add extra hours this month ${icon("arrow", 14)}</button>` : ""}${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}</div>`;
       })()}</section>`; })()}
     ${contributions.length ? `<p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them." : "Only work reviewed by the organisation counts."}</p>` : ""}
     <div class="split left">

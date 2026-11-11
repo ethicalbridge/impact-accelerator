@@ -102,6 +102,11 @@ export function date(value, opts = { day: "numeric", month: "short", year: "nume
 export const today = () => new Date().toISOString().slice(0, 10);
 export const initials = (name) => (String(name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
 export const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+// Extra hours a professional added for the current month only (11 Nov 2026); they lapse on the 1st of next month.
+export function extraThisMonth(p = {}) {
+  const d = new Date(), m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  return String(p.extra_hours_month || "").slice(0, 10) === m ? Number(p.extra_hours) || 0 : 0;
+}
 export function hashOf(text) {
   let h = 0;
   for (const c of String(text)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
