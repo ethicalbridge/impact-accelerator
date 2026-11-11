@@ -1755,3 +1755,8 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .sensitive-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-weight: 600; }
 .solved-note { background: var(--mint); border-color: #bcd6cd; color: var(--ink); font-size: 1.05rem; }
 .solved-note strong { color: var(--teal); }
+/* The two-minute questionnaire after a finished contribution: hard to miss */
+.survey-ask { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; background: var(--ochre-bg); border: 2px solid var(--ochre-line, #e2c98f); }
+.survey-ask h2 { font: 500 clamp(1.35rem, 2.2vw, 1.75rem)/1.2 var(--serif); margin: 0; }
+.survey-ask p { margin: 0; }
+@media (max-width: 640px) { .survey-ask { grid-template-columns: minmax(0, 1fr); } .survey-ask .icon-tile { display: none; } .survey-ask .btn { justify-self: start; } }
