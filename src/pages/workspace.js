@@ -12,6 +12,25 @@ const listRows = (rows, fallback) => (rows.length ? `<div>${rows.join("")}</div>
 const row = (left, right) => `<div class="list-row"><div class="stack" style="--gap:4px;min-width:0">${left}</div><div class="row" style="--gap:8px">${right}</div></div>`;
 
 // ================= Professional workspace =================
+// The two-minute questionnaire after a finished contribution matters a lot (11 Nov 2026): a highlighted card at the top
+// of the dashboard, and the questionnaire opens by itself once per browser session until it is answered or skipped.
+function surveyAsk(list, kind) {
+  const x = list[0];
+  if (!x) return "";
+  const other = e(x.other_name || (kind === "professional" ? "the organisation" : "the professional"));
+  return `<section class="card survey-ask" aria-labelledby="survey-ask-h"><span class="icon-tile">${icon("chat", 24, "#0f6f63")}</span>
+    <div class="stack" style="--gap:6px;min-width:0"><h2 id="survey-ask-h">Please tell us how it went</h2>
+    <p><span>Your contribution with</span> ${other} <span>is finished:</span> ${quoted(x.need_title || "")}. <span>Two minutes of questions. Your answers are how Handova learns what works and shows its impact, and they are never shown to</span> ${kind === "professional" ? "<span>the organisation</span>" : "<span>the professional</span>"}.</p>
+    ${list.length > 1 ? `<p class="small muted">${list.length} <span>questionnaires are waiting. You’ll find them all under Waiting for you.</span></p>` : ""}</div>
+    <button class="btn" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="${kind}" data-short="${x.short_form ? 1 : ""}">Answer now</button></section>`;
+}
+function autoSurvey(list, kind) {
+  const x = list[0];
+  if (!x) return;
+  try { const k = "ia-survey-auto-" + x.engagement_id; if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch { return; }
+  setTimeout(() => { if (!document.querySelector("dialog[open]")) surveyDialog(x.engagement_id, kind, kind === "organisation" && !!x.short_form); }, 700);
+}
+
 export async function workspace(sub, params = new URLSearchParams()) {
   if (!state.user) return { redirect: "#signin?next=%23workspace" };
   if (!state.profile) return { redirect: state.memberships.length ? "#org" : "#onboarding" };
@@ -67,7 +86,9 @@ export async function workspace(sub, params = new URLSearchParams()) {
     ...(priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
-  const appRows = apps.map((a) => `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || "Need")}</a><span class="small muted">${parts([e(a.need?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`);
+  // An accepted application shows where the contribution is now (11 Nov 2026), not just "Accepted".
+  const ENG_PILL = { awaiting_signatures: ["Agreement to sign", "ochre"], active: ["In progress", "ochre"], completed: ["Handed over", ""], ended: ["Ended early", "grey"] };
+  const appRows = apps.map((a) => { const eg = a.status === "accepted" ? engagements.find((x) => x.need_id === a.need_id) : null; const st = eg && ENG_PILL[eg.status]; return `<div class="todo-row"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${a.need_id}" style="font-weight:700" data-no-i18n>${e(a.need?.title || eg?.scope?.need_title || "")}</a>${a.need?.title || eg?.scope?.need_title ? "" : `<span style="font-weight:700">A need that is no longer public</span>`}<span class="small muted">${parts([e(a.need?.organisation?.name || eg?.organisation?.name || ""), `applied ${date(a.created_at)}`])}</span></div><div class="todo-actions">${st ? pill(...st) : pill(...(APP[a.status] || [a.status, "grey"]))}${a.status === "pending" ? `${btn("Messages", `#conversation-for/${a.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="withdraw" data-id="${a.id}">Withdraw</button>` : ""}</div></div>`; });
   const cvRows = completed.map((x) => {
     const corr = x.correction_requested_at;
     const corrLine = corr ? (x.endorsement_edited_at ? `<span class="small" style="color:var(--teal);font-weight:600">Corrected by the organisation on ${date(x.endorsement_edited_at)}.</span>` : `<span class="small muted">You asked for a correction on ${date(corr)}. The organisation can edit it within 14 days.</span>`) : "";
@@ -86,6 +107,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
     ${suspendedBanner()}
     ${p.id_status === "approved" ? "" : identityCard(p)}
     ${reviewBanner(p)}
+    ${surveyAsk(surveys, "professional")}
     <div class="pro-grid">
       <div class="stack" style="--gap:22px;min-width:0">
         <section class="card stack" style="--gap:6px"><h2 class="card-title">Waiting for you</h2>${todo.length ? `<div>${todo.join("")}</div>` : `<div class="quiet-empty"><p><strong>Nothing needs you right now.</strong> When an organisation invites you, or you have an agreement to sign or time to log, it appears here.</p>${btn("Browse open needs", "#needs", "secondary sm")}</div>`}</section>
@@ -108,7 +130,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
     </div>
     ${saved.filter((s) => s.need).length ? `<section class="stack"><h2 class="card-title">Saved needs</h2><div class="grid">${saved.filter((s) => s.need).map((s) => needCard(s.need)).join("")}</div></section>` : ""}
   </div>`;
-  return wsShell("Your workspace", html, "#workspace", pendingInv.length + toSign.length);
+  return { ...wsShell("Your workspace", html, "#workspace", pendingInv.length + toSign.length), after: () => autoSurvey(surveys, "professional") };
 }
 
 function reviewBanner(p) {
@@ -272,10 +294,11 @@ export async function org(sub, id) {
   const none = !data.needs.length
     ? empty("Start by posting a need", "One piece of work, up to 16 hours: describe one clear output and the skills involved.", btn("Post a need", "#org/need", "sm"))
     : empty("Nothing needs you right now", "When someone applies, logs hours or needs your signature, it appears here and we notify you.", btn("See your needs", "#org/needs", "secondary sm"));
-  return shell(`<div class="stack" style="--gap:22px">${head("To do", postBtn)}${switcher}${banner}
+  return { ...shell(`<div class="stack" style="--gap:22px">${head("To do", postBtn)}${switcher}${banner}
+    ${surveyAsk(data.surveys || [], "organisation")}
     <section class="card stack" style="--gap:6px"><h2 class="card-title">Waiting for you</h2>${todo.length ? `<div>${todo.map((t) => t.html).join("")}</div>` : none}</section>
     ${waiting.length ? `<section class="card stack" style="--gap:10px"><h2 class="card-title">Waiting for others</h2><p class="small muted">For your information. No action needed.</p><ul class="wait-list">${waiting.join("")}</ul></section>` : ""}
-  </div>`);
+  </div>`), after: () => autoSurvey(data.surveys || [], "organisation") };
 }
 
 // Everything the organisation needs to act on, most urgent first.
