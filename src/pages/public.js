@@ -21,7 +21,9 @@ async function publishedNeeds() {
   return rows.map((n) => ({ ...n, progress: by[n.id]?.state || (n.status === "open" ? (n.deadline && n.deadline < today() ? "deadline_passed" : "open") : "closed"), applicants: by[n.id]?.applicants || 0 }));
 }
 const isOpen = (n) => n.progress === "open" || n.progress === "applications";
-const UNDERWAY = ["chosen", "in_progress", "handed_over", "deadline_passed"];
+// The needs list shows open needs first, then needs in progress; needs already closed come in their own section below.
+const IN_PROGRESS = ["chosen", "in_progress"];
+const CLOSED = ["handed_over", "deadline_passed"];
 const loadError = (text) => `<div class="banner warn load-error" role="alert">${icon("alert", 22)}<p>${text}</p><button class="btn secondary sm" type="button" data-action="reload">Try again</button></div>`;
 
 // ---------- Home ----------
@@ -347,10 +349,11 @@ export async function needs() {
   const [all, pros] = await Promise.all([publishedNeeds(), approvedTalent("languages")]);
   const failed = all === null;
   const real = (all || []).filter(isOpen);
-  const underway = (all || []).filter((n) => UNDERWAY.includes(n.progress));
+  const working = (all || []).filter((n) => IN_PROGRESS.includes(n.progress));
+  const closed = (all || []).filter((n) => CLOSED.includes(n.progress));
   // Examples only when there are no real needs at all, never when the list failed to load (W4).
-  const noneYet = !real.length && !underway.length;
-  const rows = failed ? [] : real.length ? real : noneYet ? exampleNeeds : [];
+  const noneYet = !real.length && !working.length && !closed.length;
+  const rows = failed ? [] : real.length || working.length ? [...real, ...working] : noneYet ? exampleNeeds : [];
   // A signed-in professional already has a profile: point them to it instead of to sign-up (T21).
   const proCard = state.profile
     ? `<div class="card stack" style="--gap:14px;background:var(--mint);border-color:#bcd6cd"><span class="serif" style="font-size:1.8rem">Can’t find the right fit yet?</span><p class="muted">Organisations can invite you to a need that matches your skills. Keep your profile up to date so they find you.</p><div class="row">${btn(`Edit your profile ${icon("arrow", 18)}`, "#workspace/profile")}</div></div>`
@@ -360,9 +363,9 @@ export async function needs() {
     ${filtersForm("needs", talentLanguages([exampleProfile, ...(pros || [])]))}
     ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : noneYet ? exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.") : `<div class="notice" role="note">${icon("clock", 20, "#0f6f63")}<span>No needs are open for applications right now. New ones appear here as soon as Handova approves them, and professionals with a profile are told by email.</span></div>`}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
-    ${underway.length ? `<section class="stack" style="--gap:18px;padding-top:12px">
-      <div class="stack" style="--gap:8px">${eyebrow("Already underway")}<h2>Needs in progress.</h2><p class="lead" style="max-width:680px">Needs that have found a professional, are being worked on or were handed over, and needs whose apply-by date has passed.</p></div>
-      <div class="grid">${underway.map(needCard).join("")}</div>
+    ${closed.length ? `<section class="stack" style="--gap:18px;padding-top:12px">
+      <div class="stack" style="--gap:8px">${eyebrow("Closed")}<h2>Needs already closed.</h2><p class="lead" style="max-width:680px">Needs that were handed over to the organisation, and needs whose apply-by date has passed.</p></div>
+      <div class="grid">${closed.map(needCard).join("")}</div>
     </section>` : ""}
     ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
       <div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Handed over")}<h2>Needs already handed over.</h2><p class="lead" style="max-width:680px">Work our founder handed over to organisations in the Ethical Bridge network before Handova opened. The organisations have not reviewed it on Handova yet. The capability stays with each team; the record stays on the impact CV. Open one to see it on the organisation’s page.</p></div>${btn(`See the impact CV ${icon("arrow", 18)}`, "#profile/" + exampleProfile.user_id, "secondary")}</div>
@@ -446,6 +449,7 @@ export async function need(id) {
     ${back("All needs", "#needs")}
     ${n.status === "draft" || n.status === "pending" ? `<div class="notice" role="note">${pill(n.status === "draft" ? "Draft" : "Waiting for review", n.status === "draft" ? "grey" : "ochre")}<span>Not public yet: only your organisation and Handova can see this need.</span></div>` : ""}
     ${n.handed ? `<div class="notice" role="note">${handedPill()}<span>This need has been solved. It is shown so you can see the kind of work Handova is for.</span></div>` : n.example ? exampleNotice() : ""}
+    ${prog?.state === "handed_over" ? `<div class="notice solved-note" role="note">${icon("check", 22, "#0f6f63")}<span><strong>A professional already solved this need.</strong> <span>The work was delivered and handed over to the organisation. It stays here so you can see the kind of work Handova is for.</span></span></div>` : ""}
     ${n.example ? ((k) => `<div class="card flush cover-banner" style="background:${COVER_BG[k] || COVER_BG.design}">${cover(k, { fit: "meet" })}</div>`)(coverKind(n.skills, n.title)) : ""}
     <div class="split">
       <div class="stack" style="--gap:22px">

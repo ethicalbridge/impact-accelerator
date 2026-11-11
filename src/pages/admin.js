@@ -20,7 +20,7 @@ const ADMIN_GROUPS = [
 const GROUPS = [
   ["New needs that match your skills", "search", /^need_new$/],
   ["Applications and invitations", "send", /^(application|invitation)/],
-  ["Agreements and work", "pen", /^(agreement|signed|sign_|awaiting_signatures|first_call|hours|delivered|completed|endorse|ended|contribution_removed|followup|survey_reminder|activity_reminder|retention_org_reminder)/],
+  ["Agreements and work", "pen", /^(agreement|signed|sign_|awaiting_signatures|first_call|hours|delivered|completed|endorse|ended|contribution_removed|followup|survey_reminder|survey_invite|activity_reminder|retention_org_reminder)/],
   ["Messages", "chat", /^(message|reply_reminder)$/],
   ["Your organisation", "home", /^org_/],
   ["Your needs", "doc", /^(need_|apply_by_|closing_soon)/],

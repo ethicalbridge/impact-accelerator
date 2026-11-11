@@ -1753,3 +1753,5 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .sensitive-note h2 { font: 500 clamp(1.2rem, 1.8vw, 1.45rem)/1.25 var(--serif); margin: 0; }
 .sensitive-note p, .sensitive-note ul { margin: 0; }
 .sensitive-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-weight: 600; }
+.solved-note { background: var(--mint); border-color: #bcd6cd; color: var(--ink); font-size: 1.05rem; }
+.solved-note strong { color: var(--teal); }

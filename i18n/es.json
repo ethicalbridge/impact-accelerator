@@ -126,7 +126,6 @@
   "reminders sent": "recordatorios enviados",
   "A professional has been chosen for this need. Applications are closed.": "Se ha elegido a una persona profesional para esta necesidad. Las postulaciones están cerradas.",
   "A professional is working on this need. Applications are closed.": "Una persona profesional está trabajando en esta necesidad. Las postulaciones están cerradas.",
-  "Already underway": "Ya en marcha",
   "Applications closed": "Postulaciones cerradas",
   "Applications closed on": "Postulaciones cerradas el",
   "Applications close on": "Las postulaciones cierran el",
@@ -141,7 +140,6 @@
   "Decline the new date?": "¿Rechazar la nueva fecha?",
   "Handova approves the new date; until then the current one stays.": "Handova aprueba la nueva fecha; mientras tanto, se mantiene la actual.",
   "Need more time to find someone? Ask for a later date.": "¿Necesitas más tiempo para encontrar a alguien? Pide una fecha posterior.",
-  "Needs that have found a professional, are being worked on or were handed over, and needs whose apply-by date has passed.": "Necesidades que ya encontraron a una persona profesional, están en curso o fueron entregadas, y necesidades cuya fecha límite ya pasó.",
   "New apply-by date": "Nueva fecha límite",
   "New apply-by date waiting for Handova:": "Nueva fecha límite pendiente de Handova:",
   "New apply-by dates to approve": "Nuevas fechas límite por aprobar",
@@ -4215,4 +4213,8 @@
 "Never put sensitive data into AI tools, personal devices or personal accounts, and delete every copy at handover.":"Nunca introducir datos sensibles en herramientas de IA, dispositivos personales ni cuentas personales, y borrar todas las copias en la entrega.",
 "Open · no applications yet":"Abierta · aún sin postulaciones",
 "Open · professionals applied":"Abierta · hay postulaciones",
-"Open, professionals applied":"Abiertas, hay postulaciones"}
+"Open, professionals applied":"Abiertas, hay postulaciones",
+"Needs already closed.":"Necesidades ya cerradas.",
+"Needs that were handed over to the organisation, and needs whose apply-by date has passed.":"Necesidades que ya se entregaron a la organización y necesidades cuya fecha límite para postular ya pasó.",
+"A professional already solved this need.":"Un profesional ya resolvió esta necesidad.",
+"The work was delivered and handed over to the organisation. It stays here so you can see the kind of work Handova is for.":"El trabajo se entregó a la organización. Se mantiene aquí para que veas el tipo de trabajo para el que sirve Handova."}
