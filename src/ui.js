@@ -536,7 +536,7 @@ export function contributionCard(c, { example = false, owner = false, cvUrl = ""
     <span class="c-toggle" aria-hidden="true"></span>
   </summary>
   <div class="c-body">
-    <div class="grid-2" style="gap:18px"><div><span class="label-cap">The need</span><p>${e(c.need)}</p></div><div><span class="label-cap">Expected output</span><p style="white-space:pre-line">${e(c.output)}</p></div></div>
+    <div class="stack" style="--gap:14px"><div><span class="label-cap">Expected output</span><p style="white-space:pre-line">${e(c.output)}</p></div><div><span class="label-cap">The need</span><p style="white-space:pre-line">${e(c.need)}</p></div></div>
     ${c.deliverables ? `<div><span class="label-cap">Handed over</span><ul class="bullets">${String(c.deliverables).split(/\n+/).map((d) => d.trim()).filter(Boolean).map((d) => `<li>${e(d)}</li>`).join("")}</ul></div>` : ""}
     ${c.endorsement ? `<blockquote class="endorse"><p data-no-i18n>“${e(c.endorsement)}”</p><span class="small muted">— ${e([c.endorser_name, c.endorsed_by_role || "the organisation"].filter(Boolean).join(", "))}, ${e(c.organisation)}${c.endorsement_language && c.endorsement_language !== "English" ? ` · <span>${e(tf("Written in {lang}", { lang: t(c.endorsement_language) }))}</span>` : ""}${example ? " · Example" : ""}</span></blockquote>` : c.pending ? `<p class="small c-note">${icon("clock", 16)}<span>${e(c.organisation)} will review this work and add its endorsement here.</span></p>` : ""}
     ${(c.skills || []).length ? `<div><span class="label-cap">${c.skills_confirmed ? `Skills confirmed by ${e(c.organisation)}` : c.example || example ? "Skills" : "Skills the need asked for"}</span>${tags(c.skills)}</div>` : ""}
