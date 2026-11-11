@@ -1,8 +1,8 @@
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, invalidMessage, fieldError, fieldErrors, fieldProblem, val, loadSession } from "../core.js";
 import { icon, avatar, eyebrow, empty, btn, back, status, pill, field, select, check, formEnd, needCard, tags, languagePicker, skillPicker, dropdown, countrySelect, TIMEZONES } from "../ui.js";
 import { profileForm, orgForm, identityCard, orgResignForm, proResignForm, needsResign, loadPersonState, suspendedBanner } from "./account.js";
-import { list, languages, date, plural, today, SKILL_GROUPS } from "../utils.js";
-import { getLang, t, tf } from "../i18n.js";
+import { list, languages, date, plural, today, SKILL_GROUPS, extraThisMonth } from "../utils.js";
+import { getLang, t, tf, locale } from "../i18n.js";
 import { PRO_AGREEMENT_VERSION, loadAgreementCopy } from "../agreement.js";
 import { QUESTIONS, SURVEY_VERSION, questionHtml, readAnswers, wireExclusive, STAFF_SIZES, CAREER_STAGES } from "../survey.js";
 
@@ -121,7 +121,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
             <div><dt>Hours reviewed</dt><dd>${approvedHours}</dd></div>
             <div><dt>Contributions completed</dt><dd>${completed.length}</dd></div>
             <div><dt>Applications waiting</dt><dd>${apps.filter((a) => a.status === "pending").length}</dd></div>
-            <div class="impact-hours"><dt>Free this month</dt><dd>${(() => { const per = Number(p.hours_available) || 0, ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1); const used = completed.filter((x) => new Date(x.completed_at || 0) >= ms).reduce((t, x) => t + Number(engHours(x) || 0), 0); return `${Math.max(per - used, 0)} <span class="small muted"><span>of</span> ${per} h</span>`; })()}</dd><button class="btn secondary sm" type="button" data-action="hours-change">Change my monthly hours</button></div>
+            <div class="impact-hours"><dt>Free this month</dt><dd>${(() => { const extra = extraThisMonth(p), per = (Number(p.hours_available) || 0) + extra, ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1); const used = completed.filter((x) => new Date(x.completed_at || 0) >= ms).reduce((t, x) => t + Number(engHours(x) || 0), 0); return `${Math.max(per - used, 0)} <span class="small muted"><span>of</span> ${per} h</span>${extra ? `<span class="small muted" style="display:block">${p.hours_available} h <span>each month</span> + ${extra} h <span>extra this month</span></span>` : ""}`; })()}</dd><div class="row" style="--gap:6px 14px;flex-wrap:wrap"><button class="btn secondary sm" type="button" data-action="extra-hours">Add extra hours this month</button><button class="link-btn small" type="button" data-action="hours-change">Change my monthly hours</button></div></div>
           </dl>
           <p class="small muted">${completed.length ? "Endorsed work you choose to show appears on your public impact CV." : "Your first completed and endorsed contribution will appear on your public impact CV."}</p>
           <div class="row" style="--gap:8px">${btn("View my impact CV", `#profile/${uid}`, "secondary sm")}${btn("Edit profile", "#workspace/profile", "secondary sm")}</div>
@@ -1022,6 +1022,25 @@ export function hoursDialog() {
     <p class="muted">Organisations plan around this number. It shows on your impact CV, and it refills on the 1st of each month.</p>
     ${select("hours", "Hours each month", HOURS_CHOICES.map((h) => [String(h), `${h} hours a month`]), String(HOURS_CHOICES.includes(cur) ? cur : 4), { required: true })}
     ${formEnd("Save", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+// Extra hours for this month only, on top of the monthly commitment (11 Nov 2026). 0 removes them.
+const EXTRA_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
+export function extraHoursDialog() {
+  const cur = extraThisMonth(state.profile || {});
+  const month = new Date().toLocaleDateString(locale(), { month: "long" });
+  openDialog("Add extra hours this month", `<form class="form" data-form="extra-hours">
+    <p class="muted"><span>Free for more this month? Add extra hours on top of the</span> ${Number(state.profile?.hours_available) || 4} <span>hours you give each month. They count only until the end of</span> ${e(month)}. <span>Then your usual hours apply again.</span></p>
+    ${select("extra", "Extra hours this month", EXTRA_CHOICES.map((h) => [String(h), h ? `+${h} hours` : "No extra hours"]), String(EXTRA_CHOICES.includes(cur) ? cur : 0), { required: true })}
+    ${formEnd("Save", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitExtraHours(form) {
+  await withForm(form, async (fd) => {
+    const h = Number(fd.get("extra"));
+    if (!(h >= 0 && h <= 40)) throw Error("Choose between 0 and 40 extra hours.");
+    const d = new Date(), month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    await result(db.from("profiles").update({ extra_hours: h, extra_hours_month: h ? month : null }).eq("user_id", state.user.id));
+    await loadSession(); closeDialog(); toast(h ? "Saved. Your extra hours count until the end of this month." : "Saved. No extra hours this month."); go(location.hash);
+  });
 }
 export async function submitHours(form) {
   await withForm(form, async (fd) => {
