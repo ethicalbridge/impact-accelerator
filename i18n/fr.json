@@ -2658,7 +2658,6 @@
 "hours":"heures",
 "hours available a month":"heures disponibles par mois",
 "hours for each need":"heures par besoin",
-"hours handed over":"heures transmises",
 "more":"plus",
 "name, country, city, type, website, a summary, its Ethical Bridge directory page, and the name of the person who represents it.":"nom, pays, ville, type, site web, une présentation, sa page dans l’annuaire Ethical Bridge et le nom de la personne qui la représente.",
 "name, title, introduction, photo, country, time zone, languages, skills, roles and qualifications, the hours you commit each month, your LinkedIn profile link (required) and any other professional link, and your confirmations that you are 18 or over and that contributions are unpaid.":"nom, titre, présentation, photo, pays, fuseau horaire, langues, compétences, postes et diplômes, les heures auxquelles vous vous engagez chaque mois, le lien vers votre profil LinkedIn (obligatoire) et tout autre lien professionnel, ainsi que vos confirmations que vous avez 18 ans ou plus et que les contributions sont non rémunérées.",
@@ -4238,4 +4237,10 @@
 "Saved. Your extra hours count until the end of this month.":"Enregistré. Vos heures en plus comptent jusqu’à la fin du mois.",
 "Saved. No extra hours this month.":"Enregistré. Pas d’heures en plus ce mois-ci.",
 "No extra hours":"Pas d’heures en plus",
-"+{n} hours":"+{n} heures"}
+"+{n} hours":"+{n} heures",
+"handed over this month":"remises ce mois-ci",
+"extra hours this month":"heures en plus ce mois-ci",
+"This month":"Ce mois-ci",
+"Your hours this month:":"Vos heures ce mois-ci :",
+"hours handed over":"heures remises",
+"hours left to give":"heures restantes à donner"}

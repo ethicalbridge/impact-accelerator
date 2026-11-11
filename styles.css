@@ -1770,3 +1770,14 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .impact-hours .btn { white-space: normal; }
 .impact-hours .btn.extra { background: var(--clay); border-color: var(--clay); color: #fff; }
 .impact-hours .btn.extra:hover { background: var(--clay-ink); border-color: var(--clay-ink); }
+/* Your impact: this month's hours, given and left (11 Nov 2026) */
+.impact-hours dt { font-weight: 700; color: var(--ink); font-size: .92rem; }
+.impact-hours dd.ih-split { order: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font: inherit; }
+.ih-split > span { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--mint); }
+.ih-split > span + span { background: var(--clay-bg); }
+.ih-split strong { font: 500 1.7rem/1 var(--serif); color: var(--deep); }
+.ih-split small { font-size: .82rem; color: var(--muted); }
+.ih-total { margin: 2px 0 0; }
+/* Availability tile on the impact CV: every line readable on the orange */
+.stat-avail .stat-note, .stat-avail .stat-note span { color: #fff !important; }
+.stat-avail .stat-more { color: #fff !important; opacity: 1 !important; }
