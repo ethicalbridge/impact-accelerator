@@ -1781,3 +1781,4 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 /* Availability tile on the impact CV: every line readable on the orange */
 .stat-avail .stat-note, .stat-avail .stat-note span { color: #fff !important; }
 .stat-avail .stat-more { color: #fff !important; opacity: 1 !important; }
+.ih-extra { margin: 2px 0 0; font-weight: 700; color: var(--clay-ink); }

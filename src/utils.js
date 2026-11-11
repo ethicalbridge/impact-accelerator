@@ -107,6 +107,15 @@ export function extraThisMonth(p = {}) {
   const d = new Date(), m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   return String(p.extra_hours_month || "").slice(0, 10) === m ? Number(p.extra_hours) || 0 : 0;
 }
+// This month's hours: what was handed over and what is left. Extra hours sit on top of what was left when they were
+// added, so hours handed over earlier in the month don't use them up. items: [{ at, hours }] of finished work.
+export function monthHours(p = {}, items = []) {
+  const base = Number(p.hours_available) || 0, extra = extraThisMonth(p), now = new Date(), ms = new Date(now.getFullYear(), now.getMonth(), 1);
+  const since = extra && p.extra_hours_since ? new Date(p.extra_hours_since) : null;
+  let before = 0, after = 0;
+  for (const it of items) { const d = new Date(it.at || 0); if (d < ms) continue; const h = Number(it.hours) || 0; if (since && d >= since) after += h; else before += h; }
+  return { base, extra, used: before + after, left: Math.max(Math.max(base - before, 0) + extra - after, 0) };
+}
 export function hashOf(text) {
   let h = 0;
   for (const c of String(text)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
