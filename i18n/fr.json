@@ -4201,7 +4201,6 @@
 "Open · no applications yet":"Ouvert · pas encore de candidatures",
 "Open · professionals applied":"Ouvert · des professionnels ont postulé",
 "Open, professionals applied":"Ouverts, des professionnels ont postulé",
-"Needs already closed.":"Besoins déjà clôturés.",
 "Needs that were handed over to the organisation, and needs whose apply-by date has passed.":"Besoins déjà remis à l’organisation et besoins dont la date limite de candidature est passée.",
 "A professional already solved this need.":"Un professionnel a déjà répondu à ce besoin.",
 "The work was delivered and handed over to the organisation. It stays here so you can see the kind of work Handova is for.":"Le travail a été remis à l’organisation. Il reste ici pour que vous voyiez le type de travail auquel sert Handova.",
@@ -4218,4 +4217,11 @@
 "the professional":"le professionnel",
 "questionnaires are waiting. You’ll find them all under Waiting for you.":"questionnaires vous attendent. Vous les trouverez tous sous « À vous de jouer ».",
 "Agreement to sign":"Accord à signer",
-"A need that is no longer public":"Un besoin qui n’est plus public"}
+"A need that is no longer public":"Un besoin qui n’est plus public",
+"Free this month":"Disponibles ce mois-ci",
+"Change my monthly hours":"Modifier mes heures mensuelles",
+"Change my hours":"Modifier mes heures",
+"{n} open need":"{n} besoin ouvert",
+"{n} open needs":"{n} besoins ouverts",
+"Closed or handed over":"Clôturés ou remis",
+"Needs already closed or handed over.":"Besoins déjà clôturés ou remis."}

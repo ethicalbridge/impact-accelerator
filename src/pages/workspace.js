@@ -121,7 +121,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
             <div><dt>Hours reviewed</dt><dd>${approvedHours}</dd></div>
             <div><dt>Contributions completed</dt><dd>${completed.length}</dd></div>
             <div><dt>Applications waiting</dt><dd>${apps.filter((a) => a.status === "pending").length}</dd></div>
-            <div class="impact-hours"><dt>Available each month</dt><dd>${p.hours_available} h</dd><button class="link-btn small" type="button" data-action="hours-change">Change</button></div>
+            <div class="impact-hours"><dt>Free this month</dt><dd>${(() => { const per = Number(p.hours_available) || 0, ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1); const used = completed.filter((x) => new Date(x.completed_at || 0) >= ms).reduce((t, x) => t + Number(engHours(x) || 0), 0); return `${Math.max(per - used, 0)} <span class="small muted"><span>of</span> ${per} h</span>`; })()}</dd><button class="btn secondary sm" type="button" data-action="hours-change">Change my monthly hours</button></div>
           </dl>
           <p class="small muted">${completed.length ? "Endorsed work you choose to show appears on your public impact CV." : "Your first completed and endorsed contribution will appear on your public impact CV."}</p>
           <div class="row" style="--gap:8px">${btn("View my impact CV", `#profile/${uid}`, "secondary sm")}${btn("Edit profile", "#workspace/profile", "secondary sm")}</div>

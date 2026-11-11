@@ -1760,3 +1760,4 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .survey-ask h2 { font: 500 clamp(1.35rem, 2.2vw, 1.75rem)/1.2 var(--serif); margin: 0; }
 .survey-ask p { margin: 0; }
 @media (max-width: 640px) { .survey-ask { grid-template-columns: minmax(0, 1fr); } .survey-ask .icon-tile { display: none; } .survey-ask .btn { justify-self: start; } }
+.impact-hours .btn { margin-top: 8px; justify-self: start; }
