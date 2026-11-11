@@ -364,7 +364,7 @@ export async function needs() {
     ${failed ? loadError("We can’t load needs right now. Please try again in a minute.") : real.length ? "" : noneYet ? exampleNotice("There are no open needs yet, so you are seeing examples. Real needs from approved organisations will appear here.") : `<div class="notice" role="note">${icon("clock", 20, "#0f6f63")}<span>No needs are open for applications right now. New ones appear here as soon as Handova approves them, and professionals with a profile are told by email.</span></div>`}
     <h2 class="visually-hidden">Results</h2><div class="grid" id="results"></div>
     ${closed.length ? `<section class="stack" style="--gap:18px;padding-top:12px">
-      <div class="stack" style="--gap:8px">${eyebrow("Closed")}<h2>Needs already closed.</h2><p class="lead" style="max-width:680px">Needs that were handed over to the organisation, and needs whose apply-by date has passed.</p></div>
+      <div class="stack" style="--gap:8px">${eyebrow("Closed or handed over")}<h2>Needs already closed or handed over.</h2><p class="lead" style="max-width:none">Needs that were handed over to the organisation, and needs whose apply-by date has passed.</p></div>
       <div class="grid">${closed.map(needCard).join("")}</div>
     </section>` : ""}
     ${solvedNeeds.length ? `<section class="stack" style="--gap:18px;padding-top:24px">
@@ -390,7 +390,11 @@ function bindFilters(rows, card, noun, failed = false) {
     if (data.area) { data.areaSkills = (SKILL_GROUPS.find(([a]) => a === data.area)?.[1] || []).map((x) => x.toLowerCase()); data.standardSkills = STANDARD; }
     const found = filterRecords(rows, data);
     // Two parts, so each is translated (D27); "(examples)" only when something is listed.
-    $("#count").innerHTML = `<span>${plural(found.length, noun)}</span>${found.length && rows.every((r) => r.example && !r.founder) ? ` <span>(examples)</span>` : ""}`;
+    // Real needs: open ones and the ones in progress are counted apart, so "6 open needs" means open (11 Nov 2026).
+    const openN = found.filter(isOpen).length, busy = found.length - openN;
+    $("#count").innerHTML = noun === "need" && !rows.every((r) => r.example)
+      ? `<span>${plural(openN, "open need")}</span>${busy ? ` · ${busy} <span>in progress</span>` : ""}`
+      : `<span>${plural(found.length, noun)}</span>${found.length && rows.every((r) => r.example && !r.founder) ? ` <span>(examples)</span>` : ""}`;
     $("#results").innerHTML = found.length ? found.map(card).join("") : empty("No matches", "Try another area or language.", `<button class="btn secondary sm" type="button" data-action="clear-filters">Clear filters</button>`);
   };
   f.addEventListener("input", draw);
@@ -625,7 +629,7 @@ export async function profile(id) {
         const used = contributions.filter((c) => { const d = new Date(c.completed || c.completed_at || c.started || c.created_at || 0); return d >= mStart; }).reduce((t, c) => t + Number(c.hours || 0), 0);
         const left = Math.max(per - used, 0), next = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(locale(), { day: "numeric", month: "long" });
         if (!showAvail) return "";
-        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left > 0 ? "Available now" : tf("Available again from {date}", { date: next })) : "Not available right now"}</span>${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}</div>`;
+        return `<div class="stat-avail"><strong data-counter="${left}">${left}</strong><span>${per ? `of ${per} hours free this month` : "hours available a month"}</span><span class="stat-note">${per ? (left > 0 ? "Available now" : tf("Available again from {date}", { date: next })) : "Not available right now"}</span>${owner ? `<button type="button" class="stat-more" data-action="hours-change">Change my hours ${icon("arrow", 14)}</button>` : ""}${canInvite && left && !invited ? `<button type="button" class="stat-more" data-action="invite" data-id="${e(p.user_id)}">Invite to a need ${icon("arrow", 14)}</button>` : ""}</div>`;
       })()}</section>`; })()}
     ${contributions.length ? `<p class="small muted" style="margin-top:-18px">${contributions.some((c) => c.pending) ? "Hours and work are as recorded by the professional until each organisation reviews them." : "Only work reviewed by the organisation counts."}</p>` : ""}
     <div class="split left">
