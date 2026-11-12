@@ -437,6 +437,13 @@ export async function need(id) {
       result(db.from("saved_needs").select("need_id").eq("need_id", id).eq("user_id", state.user.id).maybeSingle()).then(Boolean).catch(() => false),
     ]);
   }
+  // Handova admins see who applied, with their message (12 Nov 2026). The organisation still chooses.
+  let adminApps = null;
+  if (state.isAdmin && !n.example && !n.handed) {
+    const apps = await result(db.from("applications").select("id,user_id,status,message,created_at").eq("need_id", id).order("created_at")).catch(() => []);
+    const people = apps.length ? await result(db.from("profiles").select("user_id,name,headline").in("user_id", apps.map((a) => a.user_id))).catch(() => []) : [];
+    adminApps = apps.map((a) => ({ ...a, p: people.find((x) => x.user_id === a.user_id) }));
+  }
   const deliverables = n.deliverables || n.output.split(/\n|;/).map((s) => s.trim()).filter(Boolean);
   let cta;
   if (n.handed) cta = `<p class="small muted">This need was delivered and handed over by <a href="#profile/${e(n.contributor.id)}">${e(n.contributor.name)}</a>. ${n.pending ? "The organisation’s endorsement is pending." : ""}</p>${btn("See open needs", "#needs", "lg")}`;
@@ -497,6 +504,9 @@ export async function need(id) {
           ${!n.example && !n.handed && !isMember && state.user ? `<button class="btn secondary" type="button" data-action="save-need" data-id="${e(n.id)}">${icon("bookmark", 18)}${saved ? "Saved · remove" : "Save for later"}</button>` : ""}
           <p class="small muted">Unpaid, voluntary contribution. You will sign a contribution agreement with the organisation before any work begins.</p>
         </div>
+        ${adminApps ? `<div class="side-card admin-apps"><div class="row between"><strong>Applications (${adminApps.length})</strong>${pill("Admin view", "grey")}</div>
+          ${adminApps.length ? adminApps.map((a) => `<div class="stack" style="--gap:4px;border-top:1px solid var(--line);padding-top:10px"><div class="row between" style="--gap:8px"><a href="#profile/${e(a.user_id)}" style="font-weight:700" data-no-i18n>${e(a.p?.name || "Professional")}</a>${status(a.status)}</div>${a.p?.headline ? `<span class="small muted" data-no-i18n>${e(a.p.headline)}</span>` : ""}<span class="small muted"><span>Applied</span> ${date(a.created_at)}</span>${a.message ? `<details class="small"><summary>Their message</summary><p style="white-space:pre-line;margin:6px 0 0" data-no-i18n>${e(a.message)}</p></details>` : ""}</div>`).join("") : `<p class="small muted">Nobody has applied yet.</p>`}
+          <p class="small muted">Only Handova admins see this. The organisation chooses who to work with.</p></div>` : ""}
         ${open && !n.example && !n.handed ? shareBox(n) : ""}
         ${(n.skills || []).some((k) => BUILT_SKILLS().includes(String(k).toLowerCase())) ? `<div class="banner warn">${icon("alert", 22, "#7a4f0e")}<p class="small"><strong>Advisory work only.</strong> <span>Designs, drawings and calculations shared here must be checked and signed off by a locally licensed professional before anything is built.</span></p></div>` : ""}
         <div class="banner">${icon("lock", 22, "#0f6f63")}<p class="small">Never share passwords, card details or access codes. Confidential information is shared only after the agreement is signed.</p></div>

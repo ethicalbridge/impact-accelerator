@@ -21,7 +21,7 @@ Once both sides have signed, a contribution shows on the professional's public p
 
 When Handova approves a need for the first time, every professional with an active profile gets a notification and email about it (naming any skills they share with the need). Admins can open any organisation at `#admin-org/<id>` to see everything about it and suggest profile changes, which the organisation accepts or declines from its workspace.
 
-Handova admins get an in-app notification when a professional applies, an organisation chooses someone, both sign and the work is completed, plus one summary email a day (08:05 Singapore time) when anything happened. A week after a need goes live with no applications, the professionals matched to it who have hours available get one reminder.
+Handova admins get a notification and an email whenever a professional applies, an organisation chooses someone, both sign and the work is completed (always emailed, even with emails turned off). On a need's page, admins see who applied and their message. A week after a need goes live with no applications, the professionals matched to it who have hours available get one reminder.
 
 Anyone signed in can report a profile, need or conversation; admins see reports, pending organisations and pending profiles in `#admin`. Every user can delete their account; organisations keep an anonymised record ("Former member").
 
