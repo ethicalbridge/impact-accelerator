@@ -11,8 +11,8 @@ import nodemailer from "npm:nodemailer@6.9.16";
 const SITE = Deno.env.get("SITE_URL") ?? "https://handova.org/";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-// Alerts Handova admins receive by email even when they turned emails off (re-audit A19).
-const ADMIN_ALWAYS = new Set(["report", "id_check"]);
+// Alerts Handova admins receive by email even when they turned emails off (re-audit A19; milestones added 12 Nov 2026).
+const ADMIN_ALWAYS = new Set(["report", "id_check", "admin_application", "admin_chosen", "admin_signed", "admin_completed"]);
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
