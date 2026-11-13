@@ -79,15 +79,16 @@ function speeds(d) {
   ];
 }
 
-const remChips = (list = []) => list.length
+const remChips = (all = []) => { const list = all.filter((r) => r.kind !== "id_check"); return list.length
   ? `<div class="pg-rem"><span class="small muted">${list.length === 1 ? "1 reminder sent" : `${list.length} <span>reminders sent</span>`}:</span> ${list.map((r) => `<span class="pg-chip" title="${e(r.title || "")}">${icon(r.emailed ? "mail" : "bell", 13)} ${short(r.at)}</span>`).join("")}</div>`
-  : "";
+  : ""; };
 
 // One horizontal timeline: done steps show their date; the first missing step shows how long it has been waiting.
 function track(steps, limitFor, stopped = false) {
   steps = steps.filter((s) => !s.skip);
   // The current step is the first missing one with nothing done after it; a missing step before a done one was skipped.
-  const lastDone = steps.map((s) => !!s.at).lastIndexOf(true), cur = stopped ? -1 : steps.findIndex((s, i) => !s.at && i > lastDone);
+  // Only how far each one got is marked (founder decision, 13 Nov 2026); what is waiting is in the list above.
+  const lastDone = steps.map((s) => !!s.at).lastIndexOf(true), cur = -1;
   const prevAt = lastDone >= 0 ? steps[lastDone].at : null;
   return `<ol class="pg-track">${steps.map((s, i) => {
     const done = !!s.at, isCur = i === cur, skipped = !done && i < lastDone, w = isCur ? days(prevAt) : null, sev = isCur ? sevOf(w, limitFor?.(s) || "setup") : "";
@@ -149,6 +150,8 @@ function proCard(p) {
 export async function progress() {
   if (!state.isAdmin) return { title: "Progress", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1></div>` };
   const d = await result(db.rpc("admin_progress"));
+  // Automatic "verify your identity" prompts are not reminders about a stuck step.
+  for (const k of ["orgs", "needs", "pros", "signups", "contribs"]) for (const x of d[k] || []) x.reminders = (x.reminders || []).filter((r) => r.kind !== "id_check");
   const list = waits(d);
   const groupsOf = (x) => x.who === "both" ? ["org", "pro"] : x.who === "pros" ? ["pro"] : [x.who];
   const by = (w) => list.filter((x) => groupsOf(x).includes(w));
