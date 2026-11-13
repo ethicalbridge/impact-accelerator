@@ -1870,3 +1870,5 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .pg-filters .pg-tab[aria-pressed="true"] { background: var(--deep); color: var(--paper); border-color: var(--deep); }
 .pg-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
 .pg-wait[hidden] { display: none !important; }
+.pg-nth { display: inline-grid; place-items: center; min-width: 1.4em; height: 1.4em; border-radius: 99px; background: var(--mint); font-size: .72rem; }
+.pg-need-name { display: block; font-weight: 500; color: var(--muted); font-size: .76rem; max-width: 16ch; margin-inline: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -124,12 +124,15 @@ function needCard(n) {
   return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${n.id}" class="pg-title">${e(n.title)}</a><span class="small muted">${e(n.org)} · ${n.apps} ${n.apps === 1 ? "<span>application</span>" : "<span>applications</span>"}${n.apps_pending ? ` (${n.apps_pending} <span>waiting for a decision</span>)` : ""} · ${n.matched} <span>matching professionals told</span>${n.deadline ? ` · <span>apply by</span> ${short(n.deadline)}` : ""}</span></div>${s}</div>
     ${track(steps, (x) => x.lim, n.status === "closed" || n.status === "draft")}${remChips(n.reminders)}</article>`;
 }
-function orgCard(o) {
+function orgCard(o, allNeeds = []) {
   const steps = [
     { label: "Signed up", at: o.created_at },
     { label: "Approved", at: o.approved_at, who: o.status === "changes_requested" ? "org" : "handova", lim: o.status === "changes_requested" ? "setup" : "handova" },
-    { label: "First need sent", at: o.first_need_at, who: "org", lim: "setup" },
   ];
+  // One step per need the organisation sent, oldest first (or one empty step when none yet).
+  const mine = allNeeds.filter((n) => n.org_id === o.id).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  if (!mine.length) steps.push({ label: "First need sent", at: null, who: "org", lim: "setup" });
+  mine.forEach((n, i) => steps.push({ label: `<span class="pg-nth">${i + 1}</span> <span>need sent</span><span class="pg-need-name" data-no-i18n>${e(n.title)}</span>`, at: n.created_at }));
   const s = o.status === "approved" ? pill("Approved", "") : o.status === "pending" ? pill("To review", "ochre") : o.status === "changes_requested" ? pill("Asked for details", "ochre") : pill(o.status, "grey");
   return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#admin-org/${o.id}" class="pg-title">${e(o.name)}</a><span class="small muted">${e(o.country || "")}${o.contact_email ? ` · <a href="mailto:${e(o.contact_email)}" data-no-i18n>${e(o.contact_email)}</a>` : ""} · ${o.needs} ${o.needs === 1 ? "<span>need</span>" : "<span>needs</span>"}${o.last_sign_in ? ` · <span>last signed in</span> ${short(o.last_sign_in)}` : ""}</span></div>${s}</div>
     ${track(steps, (x) => x.lim)}${remChips(o.reminders)}</article>`;
@@ -172,7 +175,7 @@ export async function progress() {
       <div class="pg-tabs" role="tablist">${[["contribs", "Contributions", d.contribs.length], ["needs", "Needs", d.needs.length], ["orgs", "Organisations", d.orgs.length], ["pros", "Professionals", d.pros.length]].map(([k, l, n], i) => `<button type="button" role="tab" class="pg-tab" data-pg-tab="${k}" aria-selected="${i === 0}">${l} <span class="muted">(${n})</span></button>`).join("")}</div>
       <div data-pg-panel="contribs" class="stack" style="--gap:12px">${d.contribs.length ? d.contribs.map(contribCard).join("") : empty("No contributions yet", "")}</div>
       <div data-pg-panel="needs" class="stack" style="--gap:12px" hidden>${d.needs.map(needCard).join("")}</div>
-      <div data-pg-panel="orgs" class="stack" style="--gap:12px" hidden>${d.orgs.map(orgCard).join("")}</div>
+      <div data-pg-panel="orgs" class="stack" style="--gap:12px" hidden>${d.orgs.map((o) => orgCard(o, d.needs)).join("")}</div>
       <div data-pg-panel="pros" class="stack" style="--gap:12px" hidden>${d.pros.map(proCard).join("")}</div>
     </section>
   </div></div>`;
