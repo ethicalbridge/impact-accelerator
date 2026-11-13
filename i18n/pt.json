@@ -4203,7 +4203,6 @@
 "Show more":"Mostrar mais",
 "1 unread":"1 não lida",
 "unread":"não lidas",
-"Open the admin page to review":"Abrir a página de administração para revisar",
 "No alerts yet.":"Ainda não há alertas.",
 "Matches and activity":"Correspondências e atividade",
 "Matches and activity alerts don’t send an email each: you get one summary email a day instead.":"Os alertas de correspondências e atividade não enviam um e-mail cada: em vez disso, você recebe um e-mail de resumo por dia.",
@@ -4346,5 +4345,6 @@
   "e.g. MA African Studies, Law, Computer science": "ex.: Mestrado em Estudos Africanos, Direito, Ciência da Computação",
   "Where you are in your studies": "Em que etapa dos estudos você está",
   "Filled in from your university’s link.": "Preenchido pelo link da sua universidade.",
-  "Agreement signed on": "Acordo assinado em"
-}
+  "Agreement signed on": "Acordo assinado em",
+"These stay new until you review them.":"Continuam como novas até você revisá-las.",
+"Open the admin page to review":"Abrir a página de administração para revisar"}

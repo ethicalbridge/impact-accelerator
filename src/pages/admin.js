@@ -5,8 +5,8 @@ import { decisionDialog } from "./workspace.js";
 
 // Notifications are grouped into dropdowns by what they are about (9 Nov 2026). Handova admins see their review queues first.
 // Each rule is [title, icon, kinds, queue]; the first rule that matches a notification's kind wins.
-// A review queue always shows, with the number of items waiting now in brackets (0 when nothing is waiting).
-// Matches and activity always shows too. Other groups show only when they have notifications. Both count unread ones.
+// Review groups always show. Every group's number in brackets is its unread alerts, so it matches the dots and the bell.
+// Matches and activity always shows too. Other groups show only when they have notifications.
 const ADMIN_GROUPS = [
   ["Organisations to review", "home", /^(org_review|org_changed|org_without_member)$/, "orgs"],
   ["Needs to review", "doc", /^(need_submitted|need_changed|need_deadline)$/, "needs"],
@@ -33,35 +33,23 @@ export async function notifications() {
   const rows = await result(db.from("notifications").select("*").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(300));
   const rules = [...(state.isAdmin ? ADMIN_GROUPS : []), ...GROUPS, ["Other", "bell", /./]];
   const groups = rules.map(([title, ic, , queue, always]) => ({ title, ic, queue, always, items: [] }));
-  // What is waiting for Handova right now, counted the same way as the admin page's queues.
-  const n = (q) => q.then((r) => r.count || 0).catch(() => 0);
-  const waiting = state.isAdmin ? Object.fromEntries(await Promise.all(Object.entries({
-    orgs: n(db.from("organisations").select("id", { count: "exact", head: true }).eq("status", "pending")),
-    orgChanges: result(db.from("organisation_changes").select("changes")).then((r) => r.filter((c) => c.changes && Object.keys(c.changes).length).length).catch(() => 0),
-    needs: n(db.from("needs").select("id", { count: "exact", head: true }).eq("status", "pending")),
-    deadlines: n(db.from("needs").select("id", { count: "exact", head: true }).not("requested_deadline", "is", null)),
-    profiles: n(db.from("profiles").select("user_id", { count: "exact", head: true }).eq("review_status", "pending")),
-    idProfiles: n(db.from("profiles").select("user_id", { count: "exact", head: true }).in("id_status", ["name_mismatch", "in_review"])),
-    idVideo: n(db.from("id_video_requests").select("user_id", { count: "exact", head: true }).eq("status", "requested")),
-    reports: n(db.from("reports").select("id", { count: "exact", head: true }).neq("status", "resolved")),
-  }).map(async ([k, v]) => [k, await v]))) : {};
-  waiting.ids = (waiting.idProfiles || 0) + (waiting.idVideo || 0);
-  // New organisations plus edits to approve; new needs plus new apply-by dates to approve (11 Nov 2026).
-  waiting.orgs = (waiting.orgs || 0) + (waiting.orgChanges || 0);
-  waiting.needs = (waiting.needs || 0) + (waiting.deadlines || 0);
   for (const r of rows) groups[rules.findIndex(([, , re]) => re.test(r.kind || "-"))].items.push(r);
-  const row = (r) => `<a class="notif ${r.read_at ? "" : "unread"}" href="${e(r.link || "#home")}" data-action="read-one" data-id="${r.id}">${icon("bell", 22, "#0f6f63")}<div class="stack" style="--gap:2px"><strong>${e(r.title)}</strong>${r.body ? `<span class="muted">${e(r.body)}</span>` : ""}<span class="small muted">${date(r.created_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></div></a>`;
+  // Review alerts for admins stay unread until the item is reviewed (the database marks them read then), so every
+  // count on this page, the dots and the bell all show the same thing (13 Nov 2026).
+  const REVIEW = /^(org_review|need_submitted|need_deadline|profile_review)$/;
+  const isReview = (r) => state.isAdmin && REVIEW.test(r.kind || "");
+  const row = (r) => `<a class="notif ${r.read_at ? "" : "unread"}" href="${e(r.link || "#home")}" data-action="read-one" data-id="${r.id}"${isReview(r) ? ' data-review="1"' : ""}>${icon("bell", 22, "#0f6f63")}<div class="stack" style="--gap:2px"><strong>${e(r.title)}</strong>${r.body ? `<span class="muted">${e(r.body)}</span>` : ""}<span class="small muted">${date(r.created_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></div></a>`;
   const box = (g) => {
-    const unread = g.items.filter((r) => !r.read_at);
-    const count = g.queue ? waiting[g.queue] || 0 : unread.length;
+    const unread = g.items.filter((r) => !r.read_at), readable = unread.filter((r) => !isReview(r));
+    const count = unread.length;
     const more = g.items.slice(SHOWN);
     return `<details class="card notif-box${count ? " has-count" : ""}"><summary class="notif-box-head"><span class="icon-tile">${icon(g.ic, 20, "#0f6f63")}</span><h2>${g.title} <span class="notif-count">(${count})</span></h2>${icon("chevron", 20, "#0f6f63")}</summary>
-      <div class="notif-box-body">${unread.length ? `<div class="row between notif-box-tools"><span class="small muted">${unread.length === 1 ? "1 unread" : `${unread.length} <span>unread</span>`}</span><button class="link-btn small" type="button" data-action="read-group" data-ids="${unread.map((r) => r.id).join(",")}">Mark as read</button></div>` : ""}${g.queue ? `<a class="small notif-queue-link" href="#admin">Open the admin page to review</a>` : ""}
+      <div class="notif-box-body">${readable.length ? `<div class="row between notif-box-tools"><span class="small muted">${readable.length === 1 ? "1 unread" : `${readable.length} <span>unread</span>`}</span><button class="link-btn small" type="button" data-action="read-group" data-ids="${readable.map((r) => r.id).join(",")}">Mark as read</button></div>` : ""}${g.queue ? `<p class="small muted notif-queue-note"><span>These stay new until you review them.</span> <a href="#admin">Open the admin page to review</a></p>` : ""}
       ${g.items.length ? g.items.slice(0, SHOWN).map(row).join("") : `<p class="small muted notif-none">No alerts yet.</p>`}${more.length ? `<details class="notif-more"><summary>${more.length === 1 ? "Show 1 more" : `<span>Show more</span> (${more.length})`}</summary>${more.map(row).join("")}</details>` : ""}</div></details>`;
   };
   const filled = groups.filter((g) => g.queue || g.always || g.items.length);
   const html = `<div class="wrap" style="max-width:860px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
-    <div class="row between">${`<div>${eyebrow("Notifications")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What’s new</h1></div>`}${rows.some((r) => !r.read_at) ? `<button class="btn secondary sm" type="button" data-action="read-all">Mark all as read</button>` : ""}</div>
+    <div class="row between">${`<div>${eyebrow("Notifications")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">What’s new</h1></div>`}${rows.some((r) => !r.read_at && !isReview(r)) ? `<button class="btn secondary sm" type="button" data-action="read-group" data-ids="${rows.filter((r) => !r.read_at && !isReview(r)).map((r) => r.id).join(",")}">Mark all as read</button>` : ""}</div>
     ${filled.length ? filled.map(box).join("") : `<div class="card">${empty("Nothing yet", "Applications, decisions, agreements and messages will appear here.")}</div>`}
     <p class="small muted">We also send you a short email for each notification (never the content of messages). You can turn emails off in <a href="#account">Account and privacy</a>.</p>${state.isAdmin ? `<p class="small muted">Matches and activity alerts don’t send an email each: you get one summary email a day instead.</p>` : ""}
   </div></div>`;

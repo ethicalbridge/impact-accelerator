@@ -1791,3 +1791,5 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .stat-avail .stat-note, .stat-avail .stat-note span { color: #fff !important; }
 .stat-avail .stat-more { color: #fff !important; opacity: 1 !important; }
 .ih-extra { margin: 2px 0 0; font-weight: 700; color: var(--clay-ink); }
+.notif-queue-note { margin: 0 0 12px; }
+.notif-queue-note a { font-weight: 600; color: var(--teal); }
