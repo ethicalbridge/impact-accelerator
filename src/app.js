@@ -235,7 +235,7 @@ const actions = {
   "toggle-public": async (el) => { try { await result(db.rpc("set_contribution_visibility", { p_id: el.dataset.id, p_public: el.checked })); toast(el.checked ? "Added to your impact CV." : "Removed from your impact CV."); } catch (err) { el.checked = !el.checked; toast(errorMessage(err)); } },
   "switch-org": (el) => { sessionStorage.setItem("ia-org", el.value); render(); },
   "switch-role": async (el) => { await db.auth.updateUser({ data: { role: el.dataset.id } }); await loadSession(); render(); },
-  "read-one": async (el) => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", el.dataset.id); state.unread = Math.max(0, state.unread - 1); },
+  "read-one": async (el) => { if (el.dataset.review || !el.classList.contains("unread")) return; await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", el.dataset.id); state.unread = Math.max(0, state.unread - 1); },
   "read-group": async (el) => { const ids = (el.dataset.ids || "").split(",").filter(Boolean); if (!ids.length) return; await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", state.user.id).in("id", ids).is("read_at", null); state.unread = Math.max(0, state.unread - ids.length); render(); },
   "read-all": async () => { await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", state.user.id).is("read_at", null); state.unread = 0; render(); },
   "admin-org": (el) => adm.adminDecision("org", el.dataset.id, el.dataset.decision),
