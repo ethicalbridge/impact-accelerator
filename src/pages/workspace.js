@@ -31,12 +31,15 @@ function autoSurvey(list, kind) {
   setTimeout(() => { if (!document.querySelector("dialog[open]")) surveyDialog(x.engagement_id, kind, kind === "organisation" && !!x.short_form); }, 700);
 }
 
+// The profile form's study fields, from what is saved privately (and whether the study line is shown).
+const studentOf = (x, p) => x ? { university: x.university_name || "", university_id: x.university_id || "", programme: x.study_programme || "", level: x.study_level || "", end: x.study_end ? String(x.study_end).slice(0, 7) : "", share: !!x.share_with_university, show: !!p?.study_label } : {};
+
 export async function workspace(sub, params = new URLSearchParams()) {
   if (!state.user) return { redirect: "#signin?next=%23workspace" };
   if (!state.profile) return { redirect: state.memberships.length ? "#org" : "#onboarding" };
   const p = state.profile, uid = state.user.id;
   const [priv] = await Promise.all([
-    result(db.from("user_private").select("career_stage,research_contact").eq("user_id", uid).maybeSingle()).catch(() => null),
+    result(db.from("user_private").select("career_stage,research_contact,university_id,university_name,study_programme,study_level,study_end,share_with_university").eq("user_id", uid).maybeSingle()).catch(() => null),
     loadPersonState().catch(() => {}),
     // Only the pages that show the agreement download its reading copy (W15).
     sub === "agreement" || sub === "profile" ? loadAgreementCopy() : null,
@@ -48,7 +51,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
     return wsShell(title, `<div class="stack" style="--gap:20px">${back(/^#agreement\//.test(next) ? "Back to the contribution agreement" : "Back to workspace", /^#agreement\/[\w-]+$/.test(next) ? e(next) : "#workspace")}${eyebrow("Handova professional agreement")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${title}</h1>${needsResign() ? proResignForm(next) : `<p class="muted">You have signed the current Handova professional agreement. <a href="#agreements/professional">Read it</a>.</p>${/^#agreement\/[\w-]+$/.test(next) ? btn("Back to the contribution agreement", e(next), "sm") : ""}`}</div>`, "#workspace");
   }
   if (sub === "profile") {
-    return wsShell("Edit profile", `<div class="stack" style="--gap:20px">${back("Back to workspace", "#workspace")}${eyebrow("Your profile")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">Edit your profile</h1>${suspendedBanner()}${reviewBanner(p)}${profileForm({ ...p, career_stage: priv?.career_stage || "" })}</div>`, "#workspace/profile");
+    return wsShell("Edit profile", `<div class="stack" style="--gap:20px">${back("Back to workspace", "#workspace")}${eyebrow("Your profile")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">Edit your profile</h1>${suspendedBanner()}${reviewBanner(p)}${profileForm({ ...p, career_stage: priv?.career_stage || "", student: studentOf(priv, p), partnerUnis: await result(db.rpc("partner_universities")).catch(() => []) || [] })}</div>`, "#workspace/profile");
   }
   const [apps, invites, engagements, saved] = await Promise.all([
     result(db.from("applications").select("*, need:needs(id,title,organisation:organisations(name))").eq("user_id", uid).order("created_at", { ascending: false })),
@@ -83,7 +86,7 @@ export async function workspace(sub, params = new URLSearchParams()) {
       : todoRow(`Log your time on ${quoted(x.scope?.need_title || "")}`, `${e(x.organisation?.name || "")} · ${engHours(x)} of ${x.scope?.hours} hours approved${p.published && p.review_status === "approved" ? ` · <a href="#profile/${uid}">${x.show_in_progress === false ? "hidden from your profile" : "shown on your profile as in progress"}</a>` : ""}`, `${`<button class="btn sm" type="button" data-action="goto-focus" data-href="#agreement/${x.id}" data-target="log-form">Log time</button>`}${btn("Messages", `#conversation-for/${x.need_id}/${uid}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="mark-delivered" data-id="${x.id}">I’ve delivered everything</button>`)),
     ...surveys.map((x) => todoRow(`Two minutes: how did your contribution with ${e(x.other_name || "the organisation")} go?`, `${quoted(x.need_title || "")} · <span>your answers are never shown to the organisation</span>`, `<button class="btn sm" type="button" data-action="survey" data-id="${x.engagement_id}" data-kind="professional">Answer</button>`)),
     ...(p.published || state.suspension ? [] : [todoRow("Your profile is private", "Organisations can’t see it or invite you yet. Send it for review when it’s ready; we usually reply within two working days.", `<button class="btn sm" type="button" data-action="goto-focus" data-href="#workspace/profile" data-target="publish-box">Send for review</button>`)]),
-    ...(priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
+    ...(!p.experience_level ? [todoRow("Add your experience level", "Organisations can now find professionals and students by experience. Choose yours in your profile: it takes a few seconds.", btn("Add it", "#workspace/profile", "secondary sm"))] : priv?.career_stage ? [] : [todoRow("One quick question: your career stage", "Private: only Handova sees it. It helps us show who contributes, without names.", `<button class="btn secondary sm" type="button" data-action="career-stage">Answer</button>`)]),
   ];
   const APP = { pending: ["Waiting for the organisation", "ochre"], accepted: ["Accepted", ""], declined: ["Not selected", "grey"], withdrawn: ["Withdrawn", "grey"] };
   // An accepted application shows where the contribution is now (11 Nov 2026), not just "Accepted".

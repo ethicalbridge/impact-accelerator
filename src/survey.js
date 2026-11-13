@@ -39,7 +39,8 @@ export const QUESTIONS = {
 };
 
 export const STAFF_SIZES = [["none", "None, volunteers only"], ["1-5", "1–5"], ["6-20", "6–20"], ["21-50", "21–50"], ["50+", "More than 50"]];
-export const CAREER_STAGES = [["student", "Student"], ["early", "Early career (under 5 years of work)"], ["mid", "Mid-career (5–10 years)"], ["experienced", "Experienced (10–15 years)"], ["senior", "Senior (over 15 years)"], ["retired", "Retired"], ["break", "Career break or between jobs"]];
+// Bands match the public experience level (13 Nov 2026), which now sets this private answer.
+export const CAREER_STAGES = [["student", "Student"], ["early", "Early career (up to 3 years of work)"], ["mid", "Mid-career (4–7 years)"], ["experienced", "Experienced (8–12 years)"], ["senior", "Senior (13 years or more)"], ["retired", "Retired"], ["break", "Career break or between jobs"]];
 
 // [code, label] for every option; scales are coded "1".."n".
 export const optionsOf = (q) => q.type === "scale" ? q.options.map((label, i) => [String(i + 1), label]) : q.options;

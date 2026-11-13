@@ -2,7 +2,7 @@ import { locale, t, tf } from "../i18n.js";
 import { db, state, result, e, openDialog, toast, go, withForm, val, $, PROFILE_COLS, fieldError } from "../core.js";
 import { NEED_STATE, icon, mark, avatar, avatarFor, handoverStrip, roleTag, handedPill, cover, orgCover, coverKind, COVER_BG, needCard, talentCard, contributionCard, exampleBadge, exampleNotice, tags, pill, eyebrow, empty, btn, back, field, formEnd, safeLink, status, entryList, SKILL_GROUPS } from "../ui.js";
 import { exampleNeeds, exampleProfile, exampleContributions, solvedNeeds, handovaOrgs } from "../examples.js";
-import { BUILT_SKILLS, filterRecords, professionalAreas, date, plural, today, safeURL, extraThisMonth, monthHours } from "../utils.js";
+import { BUILT_SKILLS, filterRecords, professionalAreas, date, plural, today, safeURL, extraThisMonth, monthHours, EXPERIENCE_LEVELS, experienceLabel } from "../utils.js";
 import { config } from "../config.js";
 import { workingResponsibly, POLICIES } from "./legal.js";
 
@@ -334,12 +334,13 @@ async function approvedTalent(cols) {
 function filtersForm(kind, langs) {
   const opts = (arr) => arr.map((x) => (Array.isArray(x) ? `<option value="${e(x[0])}">${e(x[1])}</option>` : `<option>${e(x)}</option>`)).join("");
   // On phones only the search shows, with a "Filters" button that opens the three dropdowns (D11).
-  return `<form class="filters" id="filters" role="search" aria-label="Filter ${kind}">
+  return `<form class="filters${kind === "talent" ? " f4" : ""}" id="filters" role="search" aria-label="Filter ${kind}">
     <div class="f-search"><label>Search<input name="search" type="search" placeholder="${kind === "needs" ? "Skill, organisation or keyword" : "Name, skill or experience"}" autocomplete="off"></label><button class="btn secondary f-toggle" type="button" aria-expanded="false" aria-controls="f-more">${icon("settings", 18)}<span>Filters</span><span class="f-count" hidden></span></button></div>
     <div class="f-more" id="f-more">
     <label class="more">Professional area<select name="area"><option value="">All areas</option>${opts(professionalAreas.map((a) => a.label))}</select></label>
     <label class="more">Working language<select name="language"><option value="">Any language</option>${opts(langs)}</select></label>
     <label class="more">Hours<select name="hours"><option value="">Any hours</option><option value="4">Up to 4 hours</option><option value="8">5 to 8 hours</option><option value="16">9 to 16 hours</option></select></label>
+    ${kind === "talent" ? `<label class="more">Experience<select name="experience"><option value="">Any experience</option><option value="students">All students</option>${opts(EXPERIENCE_LEVELS)}</select></label>` : ""}
     </div>
     <div class="actions"><p id="count" class="muted" role="status" aria-live="polite"></p><span class="row" style="--gap:16px"><button class="link-btn" type="reset">Clear filters</button></span></div>
   </form>`;
@@ -383,7 +384,7 @@ function bindFilters(rows, card, noun, failed = false) {
   const toggle = f.querySelector(".f-toggle"), badge = f.querySelector(".f-count");
   toggle?.addEventListener("click", () => { const on = f.classList.toggle("show-more"); toggle.setAttribute("aria-expanded", String(on)); if (on) f.querySelector(".f-more select")?.focus(); });
   const draw = () => {
-    const active = ["area", "language", "hours"].filter((k) => f.elements[k]?.value).length;
+    const active = ["area", "language", "hours", "experience"].filter((k) => f.elements[k]?.value).length;
     if (badge) { badge.hidden = !active; badge.textContent = String(active); }
     if (failed || !rows.length) { $("#count").textContent = ""; $("#results").innerHTML = ""; return; }
     const data = Object.fromEntries(new FormData(f));
@@ -531,7 +532,7 @@ function shareBox(n) {
 export async function talent(params = new URLSearchParams()) {
   // Arriving from the organisation workspace ("Find talent", "Invite a professional"): offer the way back.
   const fromOrg = params.get("from") === "org" && state.memberships?.length;
-  const loaded = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status");
+  const loaded = await approvedTalent("user_id,name,headline,location,country,languages,skills,hours_available,arrangement,bio,photo_url,experience_items,inactive_since,id_status,experience_level,study_label");
   const failed = loaded === null, real = loaded || [];
   // Active professionals first; inactive ones stay listed, labelled, at the end.
   const fLive = config.founderUserId && real.find((p) => p.user_id === config.founderUserId);
@@ -620,7 +621,7 @@ export async function profile(id) {
     <section class="profile-head">
       ${avatarFor(p, 150)}
       <div class="stack" style="--gap:12px"><div class="row" style="--gap:10px">${eyebrow("Impact CV")}${p.id_status === "approved" ? `<span class="id-badge">${icon("check", 14, "currentColor", 2.6)}ID verified</span>` : ""}${p.inactive_since ? pill("Inactive", "grey") : ""}</div><h1>${e(p.name)}</h1><p class="lead">${e(p.headline || "")}</p>
-        <div class="meta">${p.country ? `<span>${icon("map", 19, "#0f6f63")}${e(t(p.country))}</span>` : ""}<span>${icon("globe", 19, "#0f6f63")}${/^UTC/.test(p.location || "") ? `${e(p.location)} · remote` : "Remote"}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).map(t).join(" · "))}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span></div></div>
+        <div class="meta">${p.country ? `<span>${icon("map", 19, "#0f6f63")}${e(t(p.country))}</span>` : ""}<span>${icon("globe", 19, "#0f6f63")}${/^UTC/.test(p.location || "") ? `${e(p.location)} · remote` : "Remote"}</span><span>${icon("language", 19, "#0f6f63")}${e((p.languages || []).map(t).join(" · "))}</span><span>${icon("clock", 19, "#0f6f63")}${p.hours_available ? `${p.hours_available} hours a month` : p.founder ? "Availability on request" : "Not available right now"}</span>${experienceLabel(p.experience_level) ? `<span>${icon("chart", 19, "#0f6f63")}${experienceLabel(p.experience_level)}</span>` : ""}${p.study_label ? `<span data-no-i18n>${icon("doc", 19, "#0f6f63")}${e(p.study_label)}</span>` : ""}</div></div>
       <div class="stack actions-col no-print" style="--gap:10px">
         ${owner ? btn("Edit profile", "#workspace/profile") : canInvite ? (invited ? `<span class="pill invited-pill">${icon("clock", 16)}<span>${e(tf("Invited to {need} · waiting for a reply", { need: `“${invited.need?.title || ""}”` }))}</span></span>` : `<button class="btn invite-btn" type="button" data-action="invite" data-id="${e(p.user_id)}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>`) : state.profile && !state.memberships.length ? "" : `<button class="btn invite-btn" type="button" data-action="invite-cta" data-id="${e(p.user_id)}" data-sample="${ex ? 1 : 0}">${icon("plus", 18)}<span>Invite ${e((p.name || "").split(" ")[0])} to help</span></button>`}${state.isAdmin && !ex && isPublic && !owner ? `<button class="btn secondary" type="button" data-action="introduce" data-id="${e(p.user_id)}" data-name="${e(p.name)}">Introduce to a need</button>` : ""}
         ${safeURL(p.linkedin) ? `<a class="btn linkedin" href="${e(safeURL(p.linkedin))}" target="_blank" rel="noopener noreferrer">${icon("linkedin", 18)}View on LinkedIn <span class="visually-hidden">(opens in a new tab)</span></a>` : ""}

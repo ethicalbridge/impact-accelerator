@@ -753,10 +753,17 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
 /* Join / sign in split by role */
 .role-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .auth-side { display: flex; flex-direction: column; justify-content: center; gap: 28px; }
-.auth[data-role="organisation"] :is(.only-professional, .only-none),
-.auth[data-role="professional"] :is(.only-organisation, .only-none),
-.auth[data-role="none"] :is(.only-organisation, .only-professional, .only-any),
-.auth[data-role=""] :is(.only-organisation, .only-professional, .only-any) { display: none !important; }
+.auth[data-role="organisation"] :is(.only-professional, .only-student, .only-person, .only-none),
+.auth[data-role="professional"] :is(.only-organisation, .only-student, .only-none),
+.auth[data-role="student"] :is(.only-organisation, .only-professional, .only-none),
+.auth[data-role="none"] :is(.only-organisation, .only-professional, .only-student, .only-person, .only-any),
+.auth[data-role=""] :is(.only-organisation, .only-professional, .only-student, .only-person, .only-any) { display: none !important; }
+/* Three ways to join: icon above the words so each card fits a third of the form. */
+.role-tabs.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.role-tabs.three .role-card { flex-direction: column; gap: 10px; padding: 16px; }
+.study-fields .checkbox-box[hidden] { display: none; }
+.pf-study[disabled] { display: none; }
+.pf-study { border: 0; padding: 0; margin: 0; min-width: 0; }
 .auth fieldset[disabled] { display: none; }
 .auth .form > fieldset + fieldset { animation: hv-panel 0.35s cubic-bezier(.2,.8,.2,1); }
 
@@ -786,7 +793,8 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
   .about-steps li:not(:last-child)::after { display: none; }
 }
 @media (max-width: 640px) {
-  .path-switch, .role-tabs, .about-links { grid-template-columns: minmax(0, 1fr); }
+  .path-switch, .role-tabs, .role-tabs.three, .about-links { grid-template-columns: minmax(0, 1fr); }
+  .role-tabs.three .role-card { flex-direction: row; }
   .about-founder { grid-template-columns: minmax(0, 1fr); }
 }
 /* the exchange: what stays on both sides */
@@ -1633,6 +1641,7 @@ html.i18n-wait #main, html.i18n-wait .site-header, html.i18n-wait .site-footer {
 /* D11: filters. Desktop keeps the one-line grid; phones show the search and a "Filters" button. */
 .filters .f-search, .filters .f-more { display: contents; }
 @media (min-width: 1101px) { .filters { grid-template-columns: 2fr repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1101px) { .filters.f4 { grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); } }
 .filters .f-toggle { display: none; }
 @media (max-width: 1100px) { .filters label:first-child { grid-column: auto; } .filters .f-search > label { grid-column: 1 / -1; } }
 @media (max-width: 640px) {

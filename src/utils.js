@@ -61,6 +61,13 @@ export const SKILL_GROUPS = [
 const STOP = new Set(["and", "of", "the", "for", "to", "in", "a", "set", "up", "e", "g"]);
 export const professionalAreas = SKILL_GROUPS.map(([label, skills]) => ({ label, keywords: [...new Set(skills.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w)))] }));
 
+// Experience level (13 Nov 2026): public on the profile, so organisations can filter by it. Bands do not overlap.
+export const EXPERIENCE_LEVELS = [["student_early", "Student, early years"], ["student_final", "Student, final year or postgraduate"], ["graduate", "Recent graduate (last 2 years)"], ["y1_3", "1–3 years of work experience"], ["y4_7", "4–7 years of work experience"], ["y8_12", "8–12 years of work experience"], ["y13", "13 years or more"]];
+export const isStudentLevel = (v) => /^student_/.test(String(v || ""));
+export const experienceLabel = (v) => EXPERIENCE_LEVELS.find(([k]) => k === v)?.[1] || "";
+// Level of study, private to the student and Handova.
+export const STUDY_LEVELS = [["bachelor", "Bachelor’s or undergraduate"], ["master", "Master’s"], ["phd", "PhD or doctorate"], ["other", "Other (diploma, certificate, exchange)"]];
+
 const words = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
 const norm = (text) => words(text).join(" ");
 
@@ -89,6 +96,8 @@ export function filterRecords(rows, f = {}) {
     if (f.hours === "8" && !(h > 4 && h <= 8)) return false;
     if (f.hours === "16" && !(h > 8)) return false;
     if (f.available && !(r.hours_available > 0)) return false;
+    // Experience: one band, or "students" for both student bands.
+    if (f.experience && !(f.experience === "students" ? isStudentLevel(r.experience_level) : r.experience_level === f.experience)) return false;
     return true;
   });
 }

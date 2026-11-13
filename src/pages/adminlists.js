@@ -1,7 +1,8 @@
 // Handova only: the records behind each number on the Admin page, with actions where they make sense.
 import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, val, PROFILE_COLS, errorMessage } from "../core.js";
 import { icon, eyebrow, back, empty, pill, status, field, formEnd, btn, NEED_STATE } from "../ui.js";
-import { date } from "../utils.js";
+import { date, experienceLabel, STUDY_LEVELS } from "../utils.js";
+import { config } from "../config.js";
 import { loadReports, sortReports, reportSummary, targetLink, refOf, REASONS } from "./admin.js";
 
 const STAFF = { none: "Volunteers only", "1-5": "1–5 paid staff", "6-20": "6–20 paid staff", "21-50": "21–50 paid staff", "50+": "More than 50 paid staff" };
@@ -9,6 +10,8 @@ export const LISTS = {
   people: "Everyone who signed up",
   organisations: "Registered organisations",
   professionals: "Registered professionals",
+  students: "Registered students",
+  universities: "Registered universities",
   needs: "Needs",
   contributions: "Contributions",
   followups: "Six-month follow-ups",
@@ -63,6 +66,23 @@ export async function adminList(kind, params) {
     body = rows.map((p) => `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0"><div class="row" style="--gap:8px"><a href="#profile/${p.user_id}" style="font-weight:700" data-no-i18n>${e(p.name)}</a>${pub(p) ? pill("Public") : status(p.published ? p.review_status : "draft")}${p.id_status === "approved" ? pill("ID verified") : ""}</div>
       <span class="small muted" data-no-i18n>${e(p.headline || "")}</span><span class="small muted">${[e(p.country || ""), `${p.hours_available || 0} h a month`, `joined ${date(p.created_at)}`, p.closed_at ? `closed ${date(p.closed_at)}` : ""].filter(Boolean).join(" · ")}</span></div>
       <div class="al-actions">${p.review_status === "pending" ? `<button class="btn sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="approved">Approve</button><button class="btn secondary sm" type="button" data-action="admin-profile" data-id="${p.user_id}" data-decision="changes_requested">Ask for changes</button>` : ""}${btn("View profile", `#profile/${p.user_id}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-suspend" data-id="${p.user_id}">Suspend…</button>${p.user_id === state.user.id ? "" : `<button class="btn secondary sm danger-outline" type="button" data-action="admin-delete-account" data-id="${p.user_id}" data-name="${e(p.name)}">Delete account…</button>`}</div></div>`).join("");
+  }
+
+  if (kind === "universities") {
+    // Partner universities (13 Nov 2026): places agreed and the period, and the students linked to each one.
+    const unis = await result(db.rpc("admin_universities")).catch(() => []);
+    const by = (st) => unis.filter((u) => u.status === st).length;
+    filters = [["", "All", unis.length], ["partner", "Agreement signed", by("partner")], ["prospect", "No agreement yet", by("prospect")], ["ended", "Ended", by("ended")]];
+    rows = unis.filter((u) => (!show || u.status === show) && match(u.name, u.country, u.contact_name));
+    body = `<p class="small muted">A student who picks a university with a signed agreement, or signs up through its link, is linked to it and uses one place.</p>` + rows.map(uniRow).join("");
+  }
+
+  if (kind === "students") {
+    const studs = await result(db.rpc("admin_students")).catch(() => []);
+    const linked = (x) => !!x.university_id;
+    filters = [["", "All", studs.length], ["partner", "At a partner university", studs.filter(linked).length], ["other", "Other universities", studs.filter((x) => !linked(x)).length], ["sharing", "Sharing progress", studs.filter((x) => x.share_with_university).length], ["no_profile", "No profile yet", studs.filter((x) => x.profile_status === "no_profile").length]];
+    rows = studs.filter((x) => (!show || (show === "partner" ? linked(x) : show === "other" ? !linked(x) : show === "sharing" ? x.share_with_university : x.profile_status === show)) && match(x.name, x.email, x.university_name, x.study_programme));
+    body = rows.map(studentRow).join("");
   }
 
   if (kind === "people") {
@@ -148,7 +168,7 @@ export async function adminList(kind, params) {
     ${back("Admin", "#admin")}
     <div>${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1></div>
     <nav class="rs-tabs" aria-label="Lists">${Object.entries(LISTS).map(([k, t]) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
-    ${kind === "reports" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn secondary sm" type="button" data-action="admin-record-report">Record an emailed report</button></div>` : chips(filters)}
+    ${kind === "reports" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn secondary sm" type="button" data-action="admin-record-report">Record an emailed report</button></div>` : kind === "universities" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn sm" type="button" data-action="admin-uni">${icon("plus", 16)}<span>Add a university</span></button></div>` : chips(filters)}
     <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="${kind === "reports" ? "Search by reference or words" : "Search by name, country…"}"></form>
     <section class="card">${rows.length ? `<p class="small muted">${rows.length} ${rows.length === 1 ? "record" : "records"}</p>${body}` : empty("Nothing here", "No records match this view.")}</section>
   </div></div>`;
@@ -221,6 +241,71 @@ export async function submitDeleteContrib(form) {
     await result(db.rpc("admin_delete_contribution", { p_id: form.dataset.id, p_confirm: val(fd, "confirm"), p_reason: val(fd, "reason"), p_test: fd.has("test") })).catch((err) => reportBlock(form, err, "contribution"));
     closeDialog();
     toast("Contribution deleted.");
+    go(location.hash);
+  });
+}
+
+// ---------- Students and universities ----------
+const UNI_STATUS = { partner: ["Agreement signed", ""], prospect: ["No agreement yet", "grey"], ended: ["Ended", "grey"] };
+const STUDENT_STATUS = { no_profile: ["No profile yet", "grey"], draft: ["Private draft", "grey"], pending: ["Under review", "clay"], changes_requested: ["Changes requested", "clay"], public: ["Public", ""], closed: ["Closed", "grey"], rejected: ["Not approved", "grey"] };
+const signupLink = (code) => `${config.siteUrl}#join?role=student&uni=${encodeURIComponent(code)}`;
+function uniRow(u) {
+  const used = u.students || 0, left = u.seats ? u.seats - used : null;
+  const places = u.seats ? `<strong>${used} of ${u.seats} places used</strong> · ${left >= 0 ? `${left} left` : `<span style="color:var(--clay)">${-left} over the agreed number</span>`}` : `<strong>${used} ${used === 1 ? "student" : "students"}</strong>`;
+  const period = u.starts_on || u.ends_on ? `${u.starts_on ? date(u.starts_on) : "…"} – ${u.ends_on ? date(u.ends_on) : "…"}` : "";
+  return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0">
+    <div class="row" style="--gap:8px"><a href="#admin-list/students?q=${encodeURIComponent(u.name)}" style="font-weight:700" data-no-i18n>${e(u.name)}</a>${pill(...UNI_STATUS[u.status] || [u.status, "grey"])}</div>
+    <span class="small muted">${[u.country ? `<span data-no-i18n>${e(u.country)}</span>` : "", u.agreement_signed_on ? `agreement signed ${date(u.agreement_signed_on)}` : "", period].filter(Boolean).join(" · ")}</span>
+    <span class="small">${places}${u.awaiting ? ` · ${u.awaiting} <span>still confirming their email</span>` : ""}${u.typed ? ` · ${u.typed} <span>typed this name but not linked</span>` : ""}</span>
+    ${u.contact_name || u.contact_email ? `<span class="small muted" data-no-i18n>${e([u.contact_name, u.contact_email].filter(Boolean).join(" · "))}</span>` : ""}
+    ${u.status === "partner" ? `<span class="small muted"><span>Sign-up link:</span> <span data-no-i18n>${e(signupLink(u.code))}</span></span>` : ""}
+  </div><div class="al-actions">${u.status === "partner" ? `<button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(signupLink(u.code))}">${icon("link", 16)}<span>Copy sign-up link</span></button>` : ""}${btn("Students", `#admin-list/students?q=${encodeURIComponent(u.name)}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-uni" data-id="${e(u.id)}">Edit</button></div></div>`;
+}
+function studentRow(x) {
+  const [label, tone] = STUDENT_STATUS[x.profile_status] || [x.profile_status, "grey"];
+  const level = STUDY_LEVELS.find(([k]) => k === x.study_level)?.[1] || "";
+  const ends = x.study_end ? `ends ${date(x.study_end, { month: "short", year: "numeric" })}` : "";
+  return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0">
+    <div class="row" style="--gap:8px">${x.profile_status === "no_profile" ? `<strong data-no-i18n>${e(x.name || x.email)}</strong>` : `<a href="#profile/${e(x.user_id)}" style="font-weight:700" data-no-i18n>${e(x.name || x.email)}</a>`}${pill(label, tone)}${x.university_id ? pill("Partner university") : ""}${x.share_with_university ? pill("Shares progress") : ""}${x.email_confirmed ? "" : pill("Email not confirmed", "grey")}</div>
+    <span class="small"><span data-no-i18n>${e(x.university_name || "")}</span>${x.university_name ? "" : "<span>University not given</span>"}${x.study_programme ? ` · <span data-no-i18n>${e(x.study_programme)}</span>` : ""}${level ? ` · ${level}` : ""}${ends ? ` · ${ends}` : ""}</span>
+    <span class="small muted">${[experienceLabel(x.experience_level), `<span data-no-i18n>${e(x.email || "")}</span>`, `signed up ${date(x.signed_up_at)}`, `${Number(x.hours_approved || 0)} h approved`, `${x.contributions} ${x.contributions === 1 ? "contribution" : "contributions"}`].filter(Boolean).join(" · ")}</span>
+  </div><div class="al-actions">${x.profile_status === "no_profile" ? "" : btn("View profile", `#profile/${x.user_id}`, "secondary sm")}</div></div>`;
+}
+// Add or edit a university: the agreement, places and period, and the code in its sign-up link.
+const slug = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+export async function uniDialog(id) {
+  const u = id ? await result(db.from("universities").select("*").eq("id", id).maybeSingle()).catch(() => null) : null;
+  if (id && !u) return toast("We couldn’t load this university. Please try again.");
+  const v = u || {};
+  const opt = (k, label) => `<option value="${k}" ${(v.status || "prospect") === k ? "selected" : ""}>${label}</option>`;
+  openDialog(u ? "Edit university" : "Add a university", `<form class="form" data-form="admin-uni" data-id="${e(id || "")}">
+    <div class="form-grid">
+      ${field("name", "University or college", { value: v.name || "", required: true, full: true, attrs: 'maxlength="200"' })}
+      ${field("country", "Country", { value: v.country || "", attrs: 'maxlength="80"' })}
+      <label class="field" for="f-status"><span>Status</span><select id="f-status" name="status">${opt("prospect", "No agreement yet")}${opt("partner", "Agreement signed")}${opt("ended", "Ended")}</select></label>
+      ${field("agreement_signed_on", "Agreement signed on", { type: "date", value: v.agreement_signed_on || "" })}
+      ${field("seats", "Student places agreed", { type: "number", value: v.seats ?? "", attrs: 'min="1" max="100000" step="1"', hint: "Leave empty for no limit." })}
+      ${field("starts_on", "From", { type: "date", value: v.starts_on || "" })}
+      ${field("ends_on", "To", { type: "date", value: v.ends_on || "", hint: "After this date, new students can’t pick it." })}
+      ${field("code", "Code in the sign-up link", { value: v.code || "", attrs: 'maxlength="60" pattern="[a-z0-9-]{3,60}"', hint: "Lower-case letters, numbers and hyphens. Made from the name if empty." })}
+      ${field("contact_name", "Contact at the university", { value: v.contact_name || "", attrs: 'maxlength="160"' })}
+      ${field("contact_email", "Contact email", { type: "email", value: v.contact_email || "", attrs: 'maxlength="254"' })}
+      ${field("notes", "Notes (only Handova sees them)", { type: "textarea", value: v.notes || "", full: true, attrs: 'maxlength="4000" rows="3"' })}
+    </div>
+    ${formEnd(u ? "Save" : "Add university", `<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitUni(form) {
+  await withForm(form, async (fd) => {
+    if (!form.checkValidity()) { form.reportValidity(); throw Error("Please check the highlighted fields."); }
+    const row = { name: val(fd, "name"), country: val(fd, "country"), status: val(fd, "status"), agreement_signed_on: val(fd, "agreement_signed_on") || null, seats: val(fd, "seats") ? Number(val(fd, "seats")) : null, starts_on: val(fd, "starts_on") || null, ends_on: val(fd, "ends_on") || null, code: val(fd, "code") || slug(val(fd, "name")), contact_name: val(fd, "contact_name"), contact_email: val(fd, "contact_email"), notes: val(fd, "notes") };
+    if (row.code.length < 3) row.code = `${row.code}-uni`.replace(/^-/, "");
+    if (row.starts_on && row.ends_on && row.ends_on < row.starts_on) throw Error("The end date is before the start date.");
+    if (row.status === "partner" && !row.agreement_signed_on) throw Error("Add the date the agreement was signed.");
+    const id = form.dataset.id;
+    if (id) await result(db.from("universities").update(row).eq("id", id));
+    else await result(db.from("universities").insert(row));
+    closeDialog();
+    toast(id ? "University saved." : "University added.");
     go(location.hash);
   });
 }

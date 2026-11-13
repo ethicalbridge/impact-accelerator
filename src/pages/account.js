@@ -3,9 +3,9 @@ import { db, state, result, e, openDialog, closeDialog, toast, go, withForm, inv
 import { icon, mark, avatar, eyebrow, field, select, check, formEnd, btn, back, languagePicker, skillPicker, avatarFor, countrySelect, entryEditor, readEntries, dropdown, TIMEZONES, setEntryLogoUpload } from "../ui.js";
 
 const HOURS_MONTH = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 30, 40].map((h) => [String(h), `${h} hours a month`]);
-import { list, languages, safeURL, date } from "../utils.js";
+import { list, languages, safeURL, date, EXPERIENCE_LEVELS, STUDY_LEVELS, isStudentLevel } from "../utils.js";
 import { config } from "../config.js";
-import { STAFF_SIZES, CAREER_STAGES } from "../survey.js";
+import { STAFF_SIZES } from "../survey.js";
 import { PRO_AGREEMENT, PRO_AGREEMENT_VERSION, proAgreementText, ORG_AGREEMENT, ORG_AGREEMENT_VERSION, orgAgreementText, platformAgreementView, loadAgreementCopy } from "../agreement.js";
 
 const EB_URL = /^https:\/\/(www\.)?ethicalbridge\.org\/\S+$/i;
@@ -22,15 +22,17 @@ const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-heigh
 // Join and sign in, split by who you are: an organisation with needs, or a professional with skills.
 const SIDES = {
   organisation: { join: ["Bring your needs.", "Publish the specific help your team needs and work with skilled professionals, free. We review every organisation before its needs go public."], signin: ["Welcome back.", "Your organisation workspace: needs, applications, agreements and hours to review."], points: ["Free, always", "Approved before your needs go public", "Up to 3 needs at a time, including those in review or in progress", "A signed agreement before any access"] },
+  student: { join: ["Bring what you are learning.", "Put your studies to work on real needs from locally led organisations, a few focused hours at a time, and build an impact CV before you graduate."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Only take on work you have the knowledge, skills and time for", "Your profile stays private until approved", "Endorsements you can show future employers"] },
   professional: { join: ["Bring your skills.", "Give a few focused hours to the needs local organisations define, and build an impact CV from reviewed work."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Your profile stays private until approved", "Short, well-scoped contributions", "Endorsements in the organisation’s own words"] },
 };
-const roleTabs = (r, label) => `<div class="role-tabs" role="radiogroup" aria-label="${label}">
+const roleTabs = (r, label) => `<div class="role-tabs three" role="radiogroup" aria-label="${label}">
   <label class="role-card"><input type="radio" name="role" value="organisation" ${r === "organisation" ? "checked" : ""} required><span class="icon-tile">${icon("home", 22, "#0f6f63")}</span><span><strong>An organisation</strong><span class="small muted">with needs</span></span></label>
-  <label class="role-card"><input type="radio" name="role" value="professional" ${r === "professional" ? "checked" : ""}><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>A professional or student</strong><span class="small muted">with skills to give</span></span></label>
+  <label class="role-card"><input type="radio" name="role" value="professional" ${r === "professional" ? "checked" : ""}><span class="icon-tile">${icon("user", 22, "#0f6f63")}</span><span><strong>A professional</strong><span class="small muted">with skills to give</span></span></label>
+  <label class="role-card"><input type="radio" name="role" value="student" ${r === "student" ? "checked" : ""}><span class="icon-tile">${icon("doc", 22, "#0f6f63")}</span><span><strong>A student</strong><span class="small muted">at university or college</span></span></label>
 </div>`;
 const authShell = (mode, r, form) => `<div class="auth grid-2" data-role="${r}" style="gap:0;min-height:calc(100vh - 77px)">
   <div class="band-dark auth-side" style="padding:clamp(32px,5vw,72px)">
-    ${["organisation", "professional"].map((k) => `<div class="stack only-${k}" style="--gap:28px"><span class="eyebrow">${k === "organisation" ? "For organisations" : "For professionals and students"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${SIDES[k][mode][0]}</h1><p class="lead">${SIDES[k][mode][1]}</p><ul class="checks">${SIDES[k].points.map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul></div>`).join("")}
+    ${["organisation", "professional", "student"].map((k) => `<div class="stack only-${k}" style="--gap:28px"><span class="eyebrow">${k === "organisation" ? "For organisations" : k === "student" ? "For students" : "For professionals"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${SIDES[k][mode][0]}</h1><p class="lead">${SIDES[k][mode][1]}</p><ul class="checks">${SIDES[k].points.map((t) => `<li>${icon("check", 22, "#a9c9bf", 2.2)}${t}</li>`).join("")}</ul></div>`).join("")}
     <div class="stack only-none" style="--gap:28px"><span class="eyebrow">${mode === "join" ? "Join Handova" : "Sign in"}</span><h1 style="font-size:clamp(2.4rem,4.4vw,4rem)">${mode === "join" ? "Who are you joining as?" : "Welcome back."}</h1><p class="lead">${mode === "join" ? "Organisations bring needs. Professionals and students bring skills. Choose yours and we will only ask what matters to you." : "Organisations, professionals, students and the Handova team all sign in here. We take you straight to your workspace."}</p></div>
     <span class="small" style="color:var(--on-deep-quiet)">An initiative of Ethical Bridge</span>
   </div>
@@ -41,12 +43,60 @@ const bindRole = () => {
   const apply = () => {
     const r = box.querySelector('input[name="role"]:checked')?.value || "none";
     box.dataset.role = r;
-    box.querySelectorAll("fieldset[data-for]").forEach((f) => { f.disabled = !(f.dataset.for === r || (f.dataset.for === "any" && r !== "none")); });
+    box.querySelectorAll("fieldset[data-for]").forEach((f) => { f.disabled = !(f.dataset.for.split(" ").includes(r) || (f.dataset.for === "any" && r !== "none")); });
+    // Students describe themselves differently: the title placeholder follows the role.
+    const head = box.querySelector('input[name="headline"]');
+    if (head) head.placeholder = t(r === "student" ? "e.g. Law student" : "e.g. Finance consultant, UX researcher");
     const next = box.querySelector("form[data-form=signin]"); if (next && r !== "none") next.dataset.role = r;
   };
   box.addEventListener("change", (ev) => { if (ev.target.name === "role") apply(); });
   apply();
 };
+
+// ---------- students: university and studies ----------
+// Used at sign-up and in the profile. Universities with a signed agreement are suggested; any other name is accepted.
+const sameName = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+const STUDY_STAGES = EXPERIENCE_LEVELS.filter(([k]) => isStudentLevel(k));
+const END_YEARS = Array.from({ length: 9 }, (_, i) => String(new Date().getFullYear() + i));
+// Month names in the reader's language, from the browser.
+const monthNames = () => Array.from({ length: 12 }, (_, i) => { const n = new Date(2000, i, 15).toLocaleDateString(locale(), { month: "long" }); return [String(i + 1).padStart(2, "0"), n.charAt(0).toUpperCase() + n.slice(1)]; });
+export function studyFields(v = {}, unis = [], { locked = false, signup = false, required = true } = {}) {
+  const partner = unis.find((u) => u.id === v.university_id) || unis.find((u) => sameName(u.name, v.university));
+  const [ey, em] = String(v.end || "").split("-");
+  return `<div class="form-grid study-fields">
+    <label class="field full" for="f-university"><span id="f-university-l">University or college <span class="req" aria-hidden="true"${required ? "" : " hidden"}>*</span></span><input id="f-university" name="university" list="uni-list"${required ? " required" : ""} maxlength="200" autocomplete="off" value="${e(partner?.name || v.university || "")}" aria-labelledby="f-university-l" aria-describedby="f-university-h" placeholder="Start typing its name"${locked ? " readonly" : ""}><span class="hint" id="f-university-h">${locked ? "Filled in from your university’s link." : "If your university works with Handova, choose it from the list. Otherwise, type its full name."}</span></label>
+    <datalist id="uni-list">${unis.map((u) => `<option value="${e(u.name)}" data-id="${e(u.id)}"></option>`).join("")}</datalist>
+    <input type="hidden" name="university_id" value="${e(partner?.id || "")}">
+    ${signup ? dropdown("study_stage", "Where you are in your studies", STUDY_STAGES, v.experience_level || "", { required: true, empty: "Choose" }) : ""}
+    ${dropdown("study_level", "Level of study", STUDY_LEVELS, v.level || "", { required, empty: "Choose" })}
+    ${field("programme", "What you study", { value: v.programme || "", full: !signup, attrs: 'maxlength="160" placeholder="e.g. MA African Studies, Law, Computer science"', hint: "Optional." })}
+    <div class="field"><span>Expected end of studies</span><div class="date-pair">${`<select name="study_end_m" data-no-i18n aria-label="Expected end of studies: month"><option value="">Month</option>${monthNames().map(([k, n]) => `<option value="${k}" ${k === em ? "selected" : ""}>${n}</option>`).join("")}</select><select name="study_end_y" aria-label="Expected end of studies: year"><option value="">Year</option>${[...new Set([...(ey && !END_YEARS.includes(ey) ? [ey] : []), ...END_YEARS])].map((y) => `<option ${y === ey ? "selected" : ""}>${y}</option>`).join("")}</select>`}</div><span class="hint">Optional.</span></div>
+    <div class="full checkbox-box uni-partner"${partner ? "" : " hidden"}>${check("share_university", "Share my progress on Handova with my university: contributions, hours and reviews. Optional. You can stop sharing at any time in your profile.", !!v.share)}</div>
+    <div class="full">${check("show_university", "Show my university and what I study on my public profile.", !!v.show)}</div>
+  </div>`;
+}
+// Link the typed name to a partner university (from the list's options), and offer sharing only then. Also run on input (app.js).
+export function syncStudy(form) {
+  const input = form?.querySelector('input[name="university"]'); if (!input) return;
+  const opt = [...form.querySelectorAll("#uni-list option")].find((o) => sameName(o.value, input.value));
+  form.querySelector('input[name="university_id"]').value = opt?.dataset.id || "";
+  const box = form.querySelector(".uni-partner"); if (box) box.hidden = !opt;
+  if (!opt) { const c = form.querySelector('input[name="share_university"]'); if (c) c.checked = false; }
+  // Profile: the studies section shows for students and recent graduates; university and level are required for students.
+  const lvl = form.querySelector('select[name="experience_level"]');
+  const set = form.querySelector(".pf-study");
+  if (lvl && set) {
+    set.disabled = !/^(student_|graduate)/.test(lvl.value);
+    const student = isStudentLevel(lvl.value);
+    set.querySelectorAll('[name="university"], [name="study_level"]').forEach((el) => { el.required = student; });
+    set.querySelectorAll('[name="university"], [name="study_level"]').forEach((el) => el.closest(".field")?.querySelector(".req")?.toggleAttribute("hidden", !student));
+  }
+}
+// What the form holds about a student's studies, as save_experience and the sign-up details expect it.
+export function studyValues(fd) {
+  const m = val(fd, "study_end_m"), y = val(fd, "study_end_y");
+  return { university: val(fd, "university"), university_id: val(fd, "university_id"), programme: val(fd, "programme"), level: val(fd, "study_level"), end: m && y ? `${y}-${m}` : "", share: fd.has("share_university"), show: fd.has("show_university") };
+}
 
 // The newsletter tick box wording, saved with the consent (Brevo list shared by Ethical Bridge and Handova).
 const NEWSLETTER_WORDING = "Send me the Ethical Bridge and Handova newsletter: news, new needs and stories from the field. Optional, and you can unsubscribe at any time.";
@@ -68,7 +118,10 @@ function teamJoin() {
 export async function join(params) {
   if (state.user) return { redirect: homeFor() };
   if (params.get("team")) return teamJoin();
-  const r = params.get("role") === "organisation" ? "organisation" : params.get("role") === "professional" ? "professional" : "";
+  // Partner universities (signed agreement) for the student field; a university's own link fills it in and locks it.
+  const unis = await result(db.rpc("partner_universities")).catch(() => []) || [];
+  const linked = params.get("uni") ? unis.find((u) => u.code === params.get("uni")) : null;
+  const r = linked ? "student" : ["organisation", "professional", "student"].includes(params.get("role")) ? params.get("role") : "";
   const form = `<form class="form" data-form="signup" novalidate>${honeypot}
     <div class="row between"><h2 style="font-size:2.3rem">Create your account</h2><a href="#signin" style="font-weight:600">I already have one</a></div>
     <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
@@ -79,10 +132,11 @@ export async function join(params) {
       ${field("contact_name", "Your full name", { required: true, attrs: 'autocomplete="name" maxlength="120"' })}
       ${field("eb_url", "Your Ethical Bridge directory page", { type: "url", required: true, full: true, attrs: 'maxlength="300" placeholder="https://ethicalbridge.org/organisations/…"', hint: `Handova is extra support for non-profit organisations in the Ethical Bridge directory. Not listed yet? <a href="https://ethicalbridge.org/organisation-register.html" target="_blank" rel="noopener">Join the directory first <span class="visually-hidden">(opens in a new tab)</span></a>, it is free.` })}
     </div></fieldset>
-    <fieldset data-for="professional" class="only-professional"><legend class="visually-hidden">About you</legend><div class="form-grid">
+    <fieldset data-for="professional student" class="only-person"><legend class="visually-hidden">About you</legend><div class="form-grid">
       ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120" placeholder="First and last name"' })}
-      ${field("headline", "Your professional title", { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
+      ${field("headline", `<span class="only-professional">Your professional title</span><span class="only-student">Your title</span>`, { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
     </div></fieldset>
+    <fieldset data-for="student" class="only-student"><legend class="visually-hidden">Your studies</legend>${studyFields({ university: linked?.name || "", university_id: linked?.id || "" }, unis, { locked: !!linked, signup: true })}</fieldset>
     <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend>
       <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
       <div class="checkbox-box" style="margin-top:18px">
@@ -91,10 +145,10 @@ export async function join(params) {
         ${check("newsletter", NEWSLETTER_WORDING)}
       </div>
       <div style="margin-top:18px">${formEnd("Create account")}</div>
-      <p class="small muted" style="margin-top:12px"><span class="only-organisation">Next, we will email you a confirmation link. Then you complete your organisation details, and we review them before your needs go public.</span><span class="only-professional">Next, we will email you a confirmation link. Then you complete your profile, and we review it before it is public.</span></p>
+      <p class="small muted" style="margin-top:12px"><span class="only-organisation">Next, we will email you a confirmation link. Then you complete your organisation details, and we review them before your needs go public.</span><span class="only-person">Next, we will email you a confirmation link. Then you complete your profile, and we review it before it is public.</span></p>
     </fieldset>
   </form>`;
-  return { title: "Join", description: "Create a free Handova account as an organisation or a professional.", html: authShell("join", r, form), after: bindRole };
+  return { title: "Join", description: "Create a free Handova account as an organisation, a professional or a student.", html: authShell("join", r, form), after: () => { bindRole(); syncStudy(document.querySelector('form[data-form="signup"]')); } };
 }
 
 export async function signin(params) {
@@ -173,11 +227,14 @@ export async function onboarding() {
     return { title: "Join your organisation’s team", html: `<div class="wrap" style="max-width:720px;padding-block:var(--page-top) var(--section-gap)"><div class="card stack" style="--gap:18px"><span class="icon-tile lg">${icon("people", 28, "#0f6f63")}</span><h1 style="font-size:clamp(2rem,4vw,2.8rem)">We couldn’t find your invitation yet</h1><p class="lead">${tf("There is no team invitation for {email}.", { email: `<strong data-no-i18n>${e(state.user.email || "")}</strong>` })} Ask your colleague to add this exact email address under Organisation profile › Team, then reload this page.</p><div class="row"><button class="btn" type="button" data-action="reload">Check again</button><button class="btn secondary" type="button" data-team-new-org>Set up a new organisation instead</button></div></div></div>` };
   }
   await loadAgreementCopy();
+  // Students arrive with their studies from sign-up; the profile form starts from them.
+  const m = state.user.user_metadata || {};
+  const partnerUnis = r === "organisation" ? [] : await result(db.rpc("partner_universities")).catch(() => []) || [];
   const adminNote = state.isAdmin ? `<div class="banner">${icon("shield", 22, "#0f6f63")}<p><strong>You are an administrator.</strong> You don’t need a profile to run Handova. <a href="#admin">Go to Admin</a></p></div>` : "";
   if (r === "organisation") {
     return { title: "Set up your organisation", html: `<div class="wrap" style="max-width:820px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:24px">${eyebrow("Step 2 of 2")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Tell us about your organisation.</h1><p class="lead">We review every organisation before its needs go public, usually within two working days.</p>${orgForm({ name: state.user.user_metadata?.org_name || "", country: state.user.user_metadata?.org_country || "", ethical_bridge_url: state.user.user_metadata?.ethical_bridge_url || "" }, name, state.user.user_metadata?.org_role || "")}<p class="small muted">Joining as a professional instead? <button class="link-btn" type="button" data-action="switch-role" data-id="professional">Create a professional profile</button></p></div></div>` };
   }
-  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Last step")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Create your professional profile.</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: state.user.user_metadata?.headline || "" })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
+  return { title: "Create your profile", html: `<div class="wrap" style="max-width:820px;padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:24px">${adminNote}${eyebrow("Last step")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">${isStudentLevel(m.experience_level) ? "Create your profile." : "Create your professional profile."}</h1><p class="lead">Describe what you can offer. Your profile stays private until you publish it and we approve it.</p>${profileForm({ name, headline: m.headline || "", experience_level: m.experience_level || "", student: m.student || {}, partnerUnis })}<p class="small muted">Here for an organisation? <button class="link-btn" type="button" data-action="switch-role" data-id="organisation">Set up an organisation</button></p></div></div>` };
 }
 
 // "Set up a new organisation instead" on the team-invitation page: forget the team sign-up and show the organisation form.
@@ -246,7 +303,8 @@ export function profileForm(p = {}) {
           ${dropdown("location", "Time zone", TIMEZONES, p.location || "", { required: true, empty: "Choose a time zone" })}
           ${dropdown("hours_available", "Hours you commit each month", HOURS_MONTH, String(Math.max(Number(p.hours_available) || 4, 4)), { required: true, empty: "", hint: "At least 4. Organisations plan around it." })}
         </div>
-        <div class="pf-private">${select("career_stage", "Career stage", [["", "Choose…"], ...CAREER_STAGES], p.career_stage || "", { required: true })}<span class="small muted">${icon("lock", 14, "#0f6f63")} Private: only Handova sees this. We use it, without names, to report who contributes.</span></div>
+        ${dropdown("experience_level", "Experience", EXPERIENCE_LEVELS, p.experience_level || "", { required: true, empty: "Choose your experience level", hint: "Shown on your profile. Organisations can filter by it." })}
+        <fieldset class="pf-study"${/^(student_|graduate)/.test(p.experience_level || "") ? "" : " disabled"}><legend class="visually-hidden">Your studies</legend>${studyFields(p.student || {}, p.partnerUnis || [], { required: p.experience_level !== "graduate" })}<p class="small muted" style="margin:8px 0 0">${icon("lock", 14, "#0f6f63")} Your study details are private to you and Handova unless you choose to show them. We use them, without names, to report who contributes.</p></fieldset>
         ${languagePicker("languages", "Languages you can work in", p.languages || [], { hint: "Pick all that apply. Add local or sign languages with “Another language”." })}
         <p class="small muted" style="margin:0">${icon("globe", 16, "#0f6f63")} All contributions on Handova are remote.</p>
       </div>
@@ -671,14 +729,17 @@ export async function submitAccount(kind, form) {
     // Bot trap (B7): look exactly like success, create nothing.
     if (val(fd, "hv_check")) { await new Promise((r) => setTimeout(r, 600)); form.outerHTML = checkEmail(); return; }
     if (!form.checkValidity()) { form.reportValidity(); throw Error(invalidMessage(form, "Please complete the required fields.")); }
-    const role = val(fd, "role"), team = !!val(fd, "team");
-    if (!role) throw Error("Choose whether you are joining as an organisation or a professional.");
+    const picked = val(fd, "role"), team = !!val(fd, "team");
+    if (!picked) throw Error("Choose whether you are joining as an organisation, a professional or a student.");
+    // Students are professionals on Handova, with their studies attached.
+    const role = picked === "student" ? "professional" : picked;
+    const student = picked === "student" ? studyValues(fd) : null;
     if (String(fd.get("password")) !== String(fd.get("password2"))) throw fieldError(form.querySelector('[name="password2"]'), "The two passwords don’t match.");
     if (role === "organisation" && !team && !EB_URL.test(val(fd, "eb_url"))) throw Error("Add the address of your organisation’s page in the Ethical Bridge directory, starting with https://ethicalbridge.org/");
     // Proof of what was accepted at sign-up: the Terms and privacy notice versions, when, and the 18+ confirmation.
     const accepted = { terms_version: config.termsVersion, privacy_version: config.privacyVersion, terms_accepted_at: new Date().toISOString(), adult_confirmed: fd.has("adult"), ...(fd.has("newsletter") ? { newsletter: true, newsletter_consent_at: new Date().toISOString(), newsletter_wording: NEWSLETTER_WORDING } : {}) };
     const meta = team ? { role, full_name: val(fd, "contact_name"), team: true, lang: getLang(), ...accepted }
-      : role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...accepted };
+      : role === "organisation" ? { role, full_name: val(fd, "contact_name"), org_name: val(fd, "org_name"), org_country: val(fd, "org_country"), org_role: val(fd, "org_role"), ethical_bridge_url: val(fd, "eb_url"), lang: getLang(), ...accepted } : { role, full_name: val(fd, "name"), headline: val(fd, "headline"), lang: getLang(), ...(student ? { experience_level: val(fd, "study_stage"), student } : {}), ...accepted };
     const { data, error } = await db.auth.signUp({ email: val(fd, "email"), password: String(fd.get("password")), options: { emailRedirectTo: config.siteUrl + "#email-confirmed", data: meta } });
     if (error) throw error;
     if (data.session) { await loadSession(); go("#onboarding"); return; }
@@ -806,7 +867,7 @@ export async function submitAccount(kind, form) {
     if (xp && !xp.length) problems.push([form.querySelector('[data-entry-editor="experience"] button') || form.querySelector('[data-entry-editor="experience"]'), "Add at least one role under Experience."]);
     if (ed && !ed.length) problems.push([form.querySelector('[data-entry-editor="education"] button') || form.querySelector('[data-entry-editor="education"]'), "Add at least one qualification under Education."]);
     if (row.hours_available < 4) problems.push([q("hours_available"), "Choose at least 4 hours a month."]);
-    if (!val(fd, "career_stage")) problems.push([q("career_stage"), "Choose your career stage."]);
+    if (!val(fd, "experience_level")) problems.push([q("experience_level"), "Choose your experience level."]);
     if (needsResign() && fd.has("published") && !state.profile?.published) problems.push([q("published"), "Sign the new Handova agreement first: open “Read and sign the new version” above. Then publish your profile."]);
     if (!signedCurrent() && !needsResign()) {
       if (!fd.has("agree_rules") || !fd.has("age_confirmed") || !fd.has("unpaid_confirmed") || !fd.has("declare_conduct")) problems.push([["agree_rules", "age_confirmed", "unpaid_confirmed", "declare_conduct"].map(q).find((el) => el && !el.checked), "Read the agreement and tick all four boxes to sign it."]);
@@ -834,7 +895,8 @@ export async function submitAccount(kind, form) {
     if (exists) { const { user_id, ...upd } = row; await result(db.from("profiles").update(upd).eq("user_id", state.user.id)); }
     else await result(db.from("profiles").insert(row));
     if (!exists && state.user.user_metadata?.role !== "professional") await db.auth.updateUser({ data: { role: "professional" } });
-    await result(db.rpc("set_career_stage", { p_stage: val(fd, "career_stage") }));
+    // Experience level, studies and the private career stage are saved together.
+    await result(db.rpc("save_experience", { p_level: val(fd, "experience_level"), p_student: studyValues(fd) }));
     // Tidy up the previous photo once the new one is saved (best effort).
     const oldPath = oldPhoto && oldPhoto !== row.photo_url ? ownAvatarPath(oldPhoto) : null;
     if (oldPath) db.storage.from("avatars").remove([oldPath]).catch(() => {});

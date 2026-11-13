@@ -241,6 +241,7 @@ const actions = {
   "admin-org": (el) => adm.adminDecision("org", el.dataset.id, el.dataset.decision),
   "admin-profile": (el) => adm.adminDecision("profile", el.dataset.id, el.dataset.decision),
   "admin-org-delete": (el) => adl.deleteOrgDialog(el.dataset.id, el.dataset.name, !!el.dataset.blocked),
+  "admin-uni": (el) => adl.uniDialog(el.dataset.id),
   "admin-contrib-delete": (el) => adl.deleteContribDialog(el.dataset.id, el.dataset.title),
   "admin-org-suggest": (el) => ado.suggestDialog(el.dataset.id),
   "admin-org-withdraw": (el) => ado.withdrawSuggestion(el.dataset.id),
@@ -282,7 +283,7 @@ const forms = {
   apply: (f) => pub.submitApply(f), invite: (f) => ws.submitInvite(f), introduce: (f) => ws.submitIntroduce(f), report: (f) => ws.submitReport(f), need: (f) => ws.submitNeed(f), "need-revise": (f) => ws.submitRevise(f), "first-call": (f) => ws.submitFirstCall(f), complete: (f) => ws.submitComplete(f), "endorse-correction": (f) => ws.submitCorrection(f), "endorse-edit": (f) => ws.submitEditEndorsement(f),
   sign: (f) => eng.submitEngagement("sign", f), "log-hours": (f) => eng.submitEngagement("log-hours", f), message: (f) => eng.submitEngagement("message", f),
   survey: (f) => ws.submitSurvey(f), "hours-change": (f) => ws.submitHours(f), "extra-hours": (f) => ws.submitExtraHours(f), "staff-size": (f) => ws.submitStaffSize(f), "career-stage": (f) => ws.submitCareerStage(f), followup: (f) => ws.submitFollowup(f),
-  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-org-suggest": (f) => ado.submitSuggest(f), "org-suggestion-decline": (f) => ws.submitDeclineSuggestion(f), "need-deadline": (f) => ws.submitDeadline(f), "admin-need-deadline-decline": (f) => adm.submitDeadlineDecline(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
+  "admin-org": (f) => adm.submitAdmin("admin-org", f), "admin-case": (f) => adm.submitCase(f), "admin-org-delete": (f) => adl.submitDeleteOrg(f), "admin-uni": (f) => adl.submitUni(f), "rs-del": (f) => rsp.submitDeleteResponse(f), "admin-contrib-delete": (f) => adl.submitDeleteContrib(f), "admin-org-suggest": (f) => ado.submitSuggest(f), "org-suggestion-decline": (f) => ws.submitDeclineSuggestion(f), "need-deadline": (f) => ws.submitDeadline(f), "admin-need-deadline-decline": (f) => adm.submitDeadlineDecline(f), "admin-contrib-close": (f) => adl.submitCloseContrib(f), "org-changes-decline": async (f) => { const { withForm } = await import("./core.js"); return withForm(f, async (fd) => { await result(db.rpc("admin_review_org_changes", { p_id: f.dataset.id, p_approve: false, p_note: String(fd.get("note") || "") })); closeDialog(); toast("Declined. The organisation has been told."); render(); }); }, "admin-profile": (f) => adm.submitAdmin("admin-profile", f), "admin-need": (f) => adm.submitAdmin("admin-need", f),
 };
 const confirmRpc = {
   withdraw: ["withdraw_application", (id) => ({ p_id: id }), "Application withdrawn."],
@@ -332,6 +333,9 @@ document.addEventListener("click", async (ev) => {
 // Forms with several submit buttons (e.g. "Send for review" / "Save as draft") say which one was used.
 // Need safety questions: show the explanation box only when the answer needs one.
 document.addEventListener("change", (ev) => { const r = ev.target.closest(".sg-q input[type=radio]"); if (!r) return; const note = r.closest(".sg-q").querySelector(".sg-note"); if (note) note.hidden = r.value !== note.dataset.when; });
+// Students (13 Nov 2026): the studies section follows the experience level, and a typed university links to a partner.
+document.addEventListener("change", (ev) => { if (ev.target.matches('form[data-form="profile"] select[name="experience_level"]')) acc.syncStudy(ev.target.form); });
+document.addEventListener("input", (ev) => { if (ev.target.matches('form input[name="university"]')) acc.syncStudy(ev.target.form); });
 document.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-set-status]"); if (b?.form?.elements.status) b.form.elements.status.value = b.dataset.setStatus; });
 document.addEventListener("change", (ev) => { if (ev.target.matches("select[data-action]")) (actions[ev.target.dataset.action] || adminAction(ev.target.dataset.action))?.(ev.target); });
 document.addEventListener("submit", async (ev) => {
