@@ -30,6 +30,7 @@ const rsp = lazy(() => import("./pages/responses.js"));
 const adl = lazy(() => import("./pages/adminlists.js"));
 const ado = lazy(() => import("./pages/adminorg.js"));
 const adm = lazy(() => import("./pages/admin.js"));
+const prg = lazy(() => import("./pages/progress.js"));
 // Admin actions and forms live in admin.js (ACTIONS, FORMS) and run through its lazy chunk.
 const ADMIN_ACTIONS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-case-from-answer", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
 const ADMIN_FORMS = new Set(["admin-case", "admin-report-resolve", "admin-report-reopen", "admin-record-report", "admin-id-video-decline", "admin-signal-ok", "admin-lift", "admin-delete-account"]);
@@ -72,6 +73,7 @@ async function page(r) {
     case "notifications": return adm.notifications();
     case "admin": return adm.admin();
     case "admin-responses": return rsp.responses(r.params);
+    case "admin-progress": return prg.progress();
     case "admin-list": return adl.adminList(r.a, r.params);
     case "admin-org": return r.a ? ado.adminOrg(r.a) : { redirect: "#admin-list/organisations" };
     case "verify-done": return acc.verifyDone();
