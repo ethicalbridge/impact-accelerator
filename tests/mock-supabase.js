@@ -30,7 +30,7 @@ function seed() {
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "organisation_suggestions", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
+const LATER = ["universities", "need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "organisation_suggestions", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -131,7 +131,7 @@ function visible(table, r) {
     case "saved_needs": case "notifications": case "user_settings": case "user_private": return own(r.user_id) || (table === "user_private" && admin);
     case "agreement_signatures": case "id_verifications": return own(r.user_id) || admin;
     case "contribution_signatures": return own(r.user_id) || isMember(r.organisation_id) || admin || D.engagements.some((e) => e.id === r.engagement_id && own(e.user_id));
-    case "completion_private": case "admin_actions": case "survey_responses": return admin;
+    case "completion_private": case "admin_actions": case "survey_responses": case "universities": return admin;
     case "app_settings": return true;
     case "organisation_changes": return isMember(r.organisation_id) || admin;
     case "organisation_suggestions": return isMember(r.organisation_id) || admin;
@@ -688,6 +688,24 @@ const rpcs = {
     notifyOrg(e.organisation_id, "delivered", `${e.scope.talent ?? "The professional"} has delivered everything`, `${e.scope.need_title}: please check the work, then finish and write the endorsement.`, `#org/needs/${e.need_id}`);
   },
   set_career_stage: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.career_stage = a.p_stage; },
+  // 20261113000100_students_universities_experience.sql
+  partner_universities: () => D.universities.filter((x) => x.status === "partner" && (!x.ends_on || x.ends_on >= today())).map(({ id, name, country, code }) => ({ id, name, country, code })),
+  save_experience: (a) => {
+    const u = me(), s = a.p_student || {}, studying = /^(student_|graduate)/.test(a.p_level);
+    if (/^student_/.test(a.p_level) && !String(s.university || "").trim()) fail("Add your university.");
+    const uni = studying ? D.universities.find((x) => x.status === "partner" && (x.id === s.university_id || x.name.toLowerCase() === String(s.university || "").trim().toLowerCase())) : null;
+    const p = D.profiles.find((x) => x.user_id === u);
+    if (p) { p.experience_level = a.p_level; p.study_label = studying && s.show && s.university ? [s.programme, uni?.name || s.university].filter(Boolean).join(" · ") : ""; }
+    let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u });
+    const stage = { graduate: "early", y1_3: "early", y4_7: "mid", y8_12: "experienced", y13: "senior" }[a.p_level];
+    r.career_stage = /^student_/.test(a.p_level) ? "student" : ["retired", "break"].includes(r.career_stage) ? r.career_stage : stage;
+    Object.assign(r, { university_id: uni?.id || null, university_name: studying ? uni?.name || s.university || "" : "", study_programme: studying ? s.programme || "" : "", study_level: studying ? s.level || "" : "", study_end: studying && s.end ? `${s.end}-01` : null, share_with_university: !!(uni && s.share) });
+  },
+  admin_universities: () => { if (!isAdmin()) fail("Administrator access required."); return D.universities.map((x) => ({ ...x, students: D.user_private.filter((r) => r.university_id === x.id).length, awaiting: 0, typed: D.user_private.filter((r) => !r.university_id && (r.university_name || "").toLowerCase() === x.name.toLowerCase()).length })); },
+  admin_students: () => {
+    if (!isAdmin()) fail("Administrator access required.");
+    return D.user_private.filter((r) => r.career_stage === "student" || r.university_id || r.university_name).map((r) => { const p = D.profiles.find((x) => x.user_id === r.user_id); return { user_id: r.user_id, name: p?.name || "", email: "", signed_up_at: now(), email_confirmed: true, university_id: r.university_id || null, university_name: r.university_name || "", study_programme: r.study_programme || "", study_level: r.study_level || "", study_end: r.study_end || null, share_with_university: !!r.share_with_university, experience_level: p?.experience_level || "", profile_status: !p ? "no_profile" : p.published && p.review_status === "approved" ? "public" : p.published ? p.review_status : "draft", hours_approved: 0, contributions: 0 }; });
+  },
   set_research_contact: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.research_contact = a.p_yes; r.research_contact_at = now(); },
   submit_survey: (a) => {
     const e = D.engagements.find((x) => x.id === a.p_engagement);
@@ -1239,7 +1257,10 @@ const emit = (event) => listeners.forEach((cb) => cb(event, session()));
 const auth = {
   async getSession() { return { data: { session: session() }, error: null }; },
   onAuthStateChange(cb) { listeners.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
-  async signUp({ email, password, options }) { D = load(); if (D.users.some((x) => x.email === email)) return { data: {}, error: { message: "User already registered" } }; const user = { id: uid(), email, password, user_metadata: options?.data || {}, created_at: now() }; D.users.push(user); const m = user.user_metadata; if (m.terms_version) acceptTerms(user.id, String(m.terms_version), String(m.privacy_version || ""), "signup", { adult_confirmed: "adult_confirmed" in m ? m.adult_confirmed === true : null }); save(); return { data: { user, session: null }, error: null }; },
+  async signUp({ email, password, options }) { D = load(); if (D.users.some((x) => x.email === email)) return { data: {}, error: { message: "User already registered" } }; const user = { id: uid(), email, password, user_metadata: options?.data || {}, created_at: now() }; D.users.push(user); const m = user.user_metadata; if (m.terms_version) acceptTerms(user.id, String(m.terms_version), String(m.privacy_version || ""), "signup", { adult_confirmed: "adult_confirmed" in m ? m.adult_confirmed === true : null });
+    // link_student_on_signup: a student is linked to a partner university at sign-up.
+    if (m.student) { const st = m.student, uni = D.universities.find((x) => x.status === "partner" && (x.id === st.university_id || x.name.toLowerCase() === String(st.university || "").toLowerCase())); D.user_private.push({ user_id: user.id, career_stage: "student", university_id: uni?.id || null, university_name: uni?.name || st.university || "", study_programme: st.programme || "", study_level: st.level || "", study_end: st.end ? `${st.end}-01` : null, share_with_university: !!(uni && st.share) }); }
+    save(); return { data: { user, session: null }, error: null }; },
   async signInWithPassword({ email, password }) { D = load(); const user = D.users.find((x) => x.email === email && (x.password ? x.password === password : String(password).length > 0)); if (!user) return { data: {}, error: { message: "Invalid login credentials" } }; localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); emit("SIGNED_IN"); return { data: { user, session: session() }, error: null }; },
   async signOut() { localStorage.removeItem(SKEY); emit("SIGNED_OUT"); return { error: null }; },
   async updateUser({ data, password }) { D = load(); const user = D.users.find((x) => x.id === me()); if (data) user.user_metadata = { ...user.user_metadata, ...data }; if (password) user.password = password; save(); localStorage.setItem(SKEY, JSON.stringify({ user: { id: user.id, email: user.email, user_metadata: user.user_metadata } })); return { data: { user }, error: null }; },

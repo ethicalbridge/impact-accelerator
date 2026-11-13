@@ -147,3 +147,64 @@ test("inside another site's frame, Handova shows only a link to open it normally
   await expect(link).toHaveAttribute("target", "_top");
   await expect(frame.locator("#main")).toBeHidden();
 });
+
+test("a university with an agreement, and a student who signs up through its link", async ({ page }) => {
+  // Handova records the agreement: places and period.
+  await signIn(page, "admin@example.test");
+  await page.goto("/#admin-list/universities");
+  await page.locator("[data-action=admin-uni]").first().click();
+  const uni = page.locator("form[data-form=admin-uni]");
+  await uni.locator("[name=name]").fill("University of Nairobi");
+  await uni.locator("[name=country]").fill("Kenya");
+  await uni.locator("[name=status]").selectOption("partner");
+  await uni.locator("[name=agreement_signed_on]").fill("2026-11-01");
+  await uni.locator("[name=seats]").fill("5");
+  await uni.locator("[type=submit]").click();
+  await expect(page.locator(".al-row").filter({ hasText: "University of Nairobi" })).toContainText("0 of 5 places used");
+
+  // The student opens the university's link: the university is filled in and locked.
+  await signOut(page);
+  await page.goto("/#join?role=student&uni=university-of-nairobi");
+  const form = page.locator("form[data-form=signup]");
+  await expect(form.locator("[name=role][value=student]")).toBeChecked();
+  await expect(form.locator("[name=university]")).toHaveValue("University of Nairobi");
+  await expect(form.locator("[name=university]")).toHaveAttribute("readonly", "");
+  await expect(form.locator("[name=share_university]")).toBeVisible();
+  await form.locator("[name=name]").fill("Achieng Otieno");
+  await form.locator("[name=study_stage]").selectOption("student_final");
+  await form.locator("[name=study_level]").selectOption("master");
+  await form.locator("[name=programme]").fill("MA Development Studies");
+  await form.locator("[name=share_university]").check();
+  await form.locator("[name=email]").fill("achieng@example.test");
+  await form.locator("[name=password]").fill(PASSWORD);
+  await form.locator("[name=password2]").fill(PASSWORD);
+  await form.locator("[name=adult]").check();
+  await form.locator("[name=terms]").check();
+  await form.locator("[type=submit]").click();
+  await expect(page.getByText(/check your (email|inbox)/i).first()).toBeVisible();
+
+  // Her profile starts from what she gave at sign-up.
+  await signIn(page, "achieng@example.test");
+  await expect(page).toHaveURL(/#onboarding/);
+  const profile = page.locator("form[data-form=profile]");
+  await expect(profile.locator("[name=experience_level]")).toHaveValue("student_final");
+  await expect(profile.locator("[name=university]")).toHaveValue("University of Nairobi");
+  await expect(profile.locator("[name=study_level]")).toHaveValue("master");
+
+  // She is counted against the university's places.
+  await signOut(page);
+  await signIn(page, "admin@example.test");
+  await page.goto("/#admin-list/universities");
+  await expect(page.locator(".al-row").filter({ hasText: "University of Nairobi" })).toContainText("1 of 5 places used");
+  await page.goto("/#admin-list/students");
+  await expect(page.locator(".al-row").filter({ hasText: "MA Development Studies" })).toContainText("Shares progress");
+});
+
+test("the talent directory filters by experience", async ({ page }) => {
+  await page.goto("/#talent");
+  const f = page.locator("#filters");
+  if (await f.locator(".f-toggle").isVisible()) await f.locator(".f-toggle").click();
+  await expect(f.locator("[name=experience] option")).toHaveCount(9);
+  await f.locator("[name=experience]").selectOption("students");
+  await expect(page.locator("#count")).toContainText("0 professionals");
+});

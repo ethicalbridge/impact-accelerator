@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { e, safeURL, list, languages, filterRecords, plural, initials } from "../src/utils.js";
+import { e, safeURL, list, languages, filterRecords, plural, initials, EXPERIENCE_LEVELS, isStudentLevel, experienceLabel } from "../src/utils.js";
 
 test("untrusted text cannot become executable markup", () => {
   assert.equal(e(`<img onerror="x">&'`), "&lt;img onerror=&quot;x&quot;&gt;&amp;&#39;");
@@ -52,4 +52,17 @@ test("small formatting helpers", () => {
   assert.equal(plural(1, "place"), "1 place");
   assert.equal(plural(3, "place"), "3 places");
   assert.equal(initials("Amina Okoro Wanjiru"), "AO");
+});
+
+test("experience filter: one band, or all students", () => {
+  const rows = [{ id: 1, experience_level: "student_early" }, { id: 2, experience_level: "student_final" }, { id: 3, experience_level: "graduate" }, { id: 4, experience_level: "y13" }, { id: 5 }];
+  const ids = (f) => filterRecords(rows, f).map((r) => r.id);
+  assert.deepEqual(ids({ experience: "students" }), [1, 2]);
+  assert.deepEqual(ids({ experience: "graduate" }), [3]);
+  assert.deepEqual(ids({ experience: "y13" }), [4]);
+  assert.deepEqual(ids({ experience: "" }), [1, 2, 3, 4, 5]);
+  assert.equal(new Set(EXPERIENCE_LEVELS.map(([k]) => k)).size, 7);
+  assert.ok(isStudentLevel("student_final") && !isStudentLevel("graduate") && !isStudentLevel(undefined));
+  assert.equal(experienceLabel("y4_7"), "4–7 years of work experience");
+  assert.equal(experienceLabel("nope"), "");
 });

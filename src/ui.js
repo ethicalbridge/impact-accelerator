@@ -1,4 +1,4 @@
-import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS } from "./utils.js";
+import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS, experienceLabel } from "./utils.js";
 import { state } from "./core.js";
 import { langMenu, locale, t, tf } from "./i18n.js";
 
@@ -505,6 +505,8 @@ export function talentCard(p) {
       <span>${icon("map", 17)}${e([...new Set([p.location, p.country].filter(Boolean))].join(", ") || "Location not given")}</span>
       <span>${icon("language", 17)}${e((p.languages || []).map(t).join(" · ") || "Languages not given")}</span>
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
+      ${experienceLabel(p.experience_level) ? `<span>${icon("chart", 17)}${experienceLabel(p.experience_level)}</span>` : ""}
+      ${p.study_label ? `<span data-no-i18n>${icon("doc", 17)}${e(p.study_label)}</span>` : ""}
     </div>
     ${tags((p.skills || []).slice(0, 4))}
     <span class="row between small" style="padding-top:14px;border-top:1px solid var(--line)"><span>${p.founder && p.contributions ? `${icon("clock", 17)} ${plural(p.contributions, "contribution")} · awaiting review` : p.example && p.contributions ? `${icon("shield", 17)} ${plural(p.contributions || 0, "reviewed contribution")}` : [p.country, /^UTC/.test(p.location || "") ? p.location : ""].filter(Boolean).map(e).join(" · ") || "Remote"}</span><span style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px;align-items:center">View impact CV ${icon("arrow", 16)}</span></span>
