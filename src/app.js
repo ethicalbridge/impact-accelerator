@@ -107,7 +107,8 @@ async function renderPage() {
   const r = parse();
   if (LEGACY[location.hash.slice(1).split(/[/?]/)[0]]) { history.replaceState(null, "", "#" + [r.name, r.a, r.b].filter(Boolean).join("/")); }
   document.documentElement.classList.toggle("signed-in", !!state.user);
-  $("#site-header").innerHTML = header(r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || ["safety", "report"].includes(r.name) ? "#about/faq" : r.name === "contact" ? "#contact" : r.name === "policies" ? "#about" : ACTIVE[r.name]);
+  const headerFor = r.name === "organisations" && r.a ? "#needs" : (r.name === "about" && r.a === "faq") || ["safety", "report"].includes(r.name) ? "#about/faq" : r.name === "contact" ? "#contact" : r.name === "policies" ? "#about" : ACTIVE[r.name];
+  $("#site-header").innerHTML = header(headerFor);
   const main = $("#main");
   const staticHome = r.name === "home" && main.dataset.staticHome === "1";
   if (!staticHome) main.setAttribute("aria-busy", "true");
@@ -123,6 +124,10 @@ async function renderPage() {
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(out.description || "Skilled professionals and students contributing to the needs locally led organisations define. Free for everyone.");
     out.after?.();
+    // The bell follows the database: alerts can be marked read elsewhere (e.g. when a review is done), so recount
+    // on every page and redraw the header only if the number changed (13 Nov 2026).
+    if (state.user) db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", state.user.id).is("read_at", null)
+      .then(({ count }) => { if (v === version && typeof count === "number" && count !== state.unread) { state.unread = count; $("#site-header").innerHTML = header(headerFor); } }).catch(() => {});
     enhance(main, r.name);
     // A link can ask the next page to bring one element into view (e.g. the "publish" box at the end of a long form).
     try { const f = sessionStorage.getItem("hv-focus"); if (f) { sessionStorage.removeItem("hv-focus"); const el = document.getElementById(f); if (el) { el.scrollIntoView({ block: "center" }); el.focus?.({ preventScroll: true }); el.closest(".checkbox-box, section, .card")?.classList.add("flash"); } } } catch {}
