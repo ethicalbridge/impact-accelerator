@@ -16,7 +16,7 @@ const UPDATED = "2026-11-16";
 const STUDENT_LINK = "https://handova.org/#join?role=student";
 const MIN_NEEDS = 30;
 // Shown instead of live counts while Handova is small: what each pilot can rely on.
-const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student, or we tell you"], ["A report", "with real numbers at the end of every pilot"]];
+const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student. If we can’t, we tell you and offer them the next phase"], ["A report", "with real numbers at the end of every pilot"]];
 const NEED_COLS = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
 const FACTS = [
@@ -31,7 +31,21 @@ const GETS = [
   ["people", "Wider access", "For students who can’t afford to travel or work unpaid abroad."],
   ["doc", "Reporting you can use", "Evidence for work-integrated learning, community engagement and SDG reporting."],
 ];
-const PARTNER_GETS = ["Places reserved for your cohort, on the dates your course needs", "Projects matched to your courses, with a learning log", "Progress reports for students who agree to share them", "A named contact, onboarding for each cohort and a guest session", "Your university named on Handova as a partner, and a co-branded impact report"];
+// Free for every student, and what a partner university adds. true = included, false = not included, text = how it differs.
+const COMPARE = [
+  ["Free for the student", true, true],
+  ["Verified organisations and real projects", true, true],
+  ["An impact CV with logged hours and endorsements", true, true],
+  ["Their data, their choice: download or delete at any time", true, true],
+  ["When they start", "On the waiting list: places open in phases", "A reserved place, on your course dates"],
+  ["The “Partner university student” tag on their profile", false, true],
+  ["Projects matched to your courses, with a learning log", false, true],
+  ["Progress reports to your university, if the student agrees", false, true],
+  ["A named contact, onboarding for each cohort and a guest session", false, true],
+  ["Your university named as a partner, with a co-branded impact report", false, true],
+  ["Cost to your university", "Nothing", "The pilot is free; then an annual contribution, agreed with you"],
+];
+const mark = (v) => v === true ? `<span class="uni-yes">${icon("check", 18, "#0f6f63", 2.4)}<span class="visually-hidden">Included</span></span>` : v === false ? `<span class="uni-no">${icon("x", 16, "#9aa5a2", 2.2)}<span class="visually-hidden">Not included</span></span>` : `<span class="uni-cmp-text">${v}</span>`;
 const PATH = [
   ["Intro call and cohort", "20 minutes to see whether Handova fits. Then we agree the cohort (5 to 10 students) and the format: practicum, placement, service-learning or a volunteering award. A 30-minute online onboarding for your students."],
   ["Students deliver", "Your pilot starts with your term, from January 2027 (or February and March for southern-hemisphere terms) and runs 3 months. Each student chooses real projects that match their skills and completes them remotely, with check-ins."],
@@ -51,7 +65,7 @@ const SAFETY = [
 const LAUNCH = [
   ["Now", "Universities register their interest, and students join the waiting list. We review each student’s profile, which shows when they can start."],
   ["From January 2027", "Places open in phases. Founding Partner pilots start first, each with its university’s term."],
-  ["Each phase", "Up to 5 free places per university, and at least half for students in lower-income countries. Everyone else keeps their place in the queue."],
+  ["Each phase", "Up to 5 free places per university for students who join on their own, and at least half for students in lower-income countries. Everyone else keeps their place in the queue."],
   ["Meanwhile", "Organisations see who is waiting and post projects, so there is real work ready when each student starts."],
 ];
 const INTEREST = [["", "Choose one…"], ["pilot", "A Founding Partner pilot from January 2027"], ["share", "Sharing Handova with our students"], ["other", "Something else"]];
@@ -74,7 +88,7 @@ async function today() {
 // Rough guess at the language a need is written in, from common short words, so the page shows needs in its own language first.
 const WORDS = { en: /\b(the|and|to|of|for|with|our|a)\b/gi, es: /\b(el|la|los|las|de|con|para|y|un|una|del)\b/gi, pt: /\b(o|os|as|de|com|para|e|um|uma|do|da)\b/gi, fr: /\b(le|la|les|des|de|avec|pour|et|un|une|du)\b/gi };
 const textLang = (s) => Object.entries(WORDS).map(([l, re]) => [l, (String(s).match(re) || []).length]).sort((a, b) => b[1] - a[1])[0][0];
-const firstItem = (s) => { const x = String(s || "").split(/\n+/).map((y) => y.trim()).find(Boolean) || ""; return x.length > 140 ? x.slice(0, 137).replace(/\s+\S*$/, "") + "…" : x; };
+const firstItem = (s) => { const x = String(s || "").split(/\n+/).map((y) => y.trim()).find(Boolean) || ""; if (x.length <= 140) return x; let y = x.slice(0, 137).replace(/\s+\S*$/, ""); while (/[\s,;:]+(and|or|with|for|to|of|the|a|an|y|e|o|et|de|con|para|com|pour|avec)$/i.test(y) || /[,;:]$/.test(y)) y = y.replace(/[\s,;:]*(\b(and|or|with|for|to|of|the|a|an|y|e|o|et|de|con|para|com|pour|avec))?$/i, ""); return y + "…"; };
 async function openNeeds() {
   const all = await result(db.from("needs").select(NEED_COLS).eq("status", "open").order("created_at", { ascending: false }).limit(12)).catch(() => []);
   const l = getLang();
@@ -92,7 +106,7 @@ export async function universities() {
     <div class="how-hero">
       <div class="stack" style="--gap:16px"><p class="lead">Handova gives your students short, remote projects for small, locally led organisations verified by Ethical Bridge, the global directory of ethical organisations behind Handova. Free for students, with no travel costs.</p>
         <p class="uni-status">${icon("calendar", 18, "#0f6f63")}<span><strong>A free 3-month Founding Partner pilot from January 2027:</strong> 5 to 10 students, nothing to pay, no obligation. We are taking up to 3 universities, invited in the order they register.</span></p>
-        <div class="row">${toForm("Register your interest")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
+        <div class="row">${toForm("Register interest")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
         <p class="uni-trust small"><a href="#about/ethical-bridge">${icon("shield", 15)}<span>Run by Ethical Bridge LLC</span></a><a href="#privacy">${icon("lock", 15)}<span>EU and UK GDPR representatives</span></a><a href="#policies">${icon("doc", 15)}<span>Public policies</span></a></p>
       </div>
       <div class="how-facts">${FACTS.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
@@ -101,31 +115,36 @@ export async function universities() {
 
     <section class="stack" style="--gap:20px">
       <div class="stack" style="--gap:8px">${eyebrow("What your university gets")}<h2>Real experience for your students, evidence for you.</h2></div>
-      <div class="uni-value">
-        <div class="uni-gets">${GETS.map(([ic, t, d]) => `<div class="card stack" style="--gap:8px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
-        <div class="card stack uni-hl" style="--gap:12px"><span class="uni-hl-label">Partner benefits</span><h3 class="h3">As a partner university, you also get</h3>
-          <div class="uni-tag-demo"><span class="small muted">Your students’ profiles show:</span>${partnerBadge({ partner_student: true })}<span class="small muted">Organisations see the student comes through a university programme.</span></div>
-          <ul class="bullets">${PARTNER_GETS.map((x) => `<li>${x}</li>`).join("")}</ul>
-          <p class="small"><strong>Your students’ free access never depends on whether you partner.</strong></p></div>
+      <div class="uni-gets">${GETS.map(([ic, t, d]) => `<div class="card stack" style="--gap:8px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
+      <div class="uni-compare card">
+        <table>
+          <caption class="visually-hidden">Free for every student, and what a partner university adds</caption>
+          <thead><tr><th scope="col"><span class="uni-hl-label">Compare</span></th>
+            <th scope="col"><strong>Every student</strong><span>Free, on their own</span></th>
+            <th scope="col" class="uni-cmp-partner"><strong>Through a partner university</strong><span>Founding Partner pilots and partnerships</span>${partnerBadge({ partner_student: true })}</th></tr></thead>
+          <tbody>${COMPARE.map(([what, free, partner]) => `<tr><th scope="row">${what}</th><td>${mark(free)}</td><td class="uni-cmp-partner">${mark(partner)}</td></tr>`).join("")}</tbody>
+        </table>
+        <p class="small"><strong>Your students’ free access never depends on whether you partner.</strong> Pilot and partner students have their own places, outside the waiting list.</p>
       </div>
+      <div class="row">${toForm("Register interest")}</div>
     </section>
 
     <section class="stack" style="--gap:20px" id="uni-path">
       <div class="stack" style="--gap:8px">${eyebrow("From pilot to partnership")}<h2>Try it first. Decide with real results.</h2></div>
       <ol class="uni-steps">${PATH.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
-      <div class="uni-cost"><p><strong>The pilot is free, with no obligation, and you can stop at any time.</strong> If you continue, partner universities make an annual contribution that keeps Handova free for students and organisations. We share an indicative range on the first call, agree the amount after the pilot in line with your country’s income level and the scope of the partnership, and invoice nothing before the review meeting. Founding Partners keep a reduced rate in their first year.</p>${toForm("Register for a pilot", "")}</div>
+      <div class="uni-cost"><p><strong>The pilot is free, with no obligation, and you can stop at any time.</strong> If you continue, partner universities make an annual contribution that keeps Handova free for students and organisations. We share an indicative range on the first call, agree the amount after the pilot in line with your country’s income level and the scope of the partnership, and invoice nothing before the review meeting. Founding Partners keep a reduced rate in their first year.</p>${toForm("Register interest", "")}</div>
     </section>
 
     <section class="uni-today">
-      <div class="stack" style="--gap:10px">${eyebrow("Where we are today")}<h2>We are early. That is why the pilot is free.</h2>
-        <p class="muted">Handova opened in November 2026. We keep the first pilots small, so every student has a real project behind them.</p></div>
+      <div class="stack" style="--gap:10px">${eyebrow("Where we are today")}<h2>We are early, so we start small.</h2>
+        <p class="muted">Handova opened in November 2026. Small first pilots mean every student has a real project behind them.</p></div>
       ${nums.length ? `<ul class="uni-nums">${nums.map(([n, what]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span></li>`).join("")}</ul>` : `<ul class="uni-nums uni-promises">${PROMISES.map(([n, what]) => `<li><strong>${n}</strong><span>${what}</span></li>`).join("")}</ul>`}
     </section>
-    ${needs?.length ? `<section class="stack" style="--gap:16px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Open right now")}<h2 class="h3">Projects your students could take on.</h2></div><a href="#needs" style="font-weight:700">See all needs ${icon("arrow", 14)}</a></div><div class="grid uni-needs">${needs.map(needCard).join("")}</div></section>` : ""}
+    ${needs?.length ? `<section class="stack uni-needs" style="--gap:16px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Open right now")}<h2 class="h3">Projects your students could take on.</h2></div><a href="#needs" style="font-weight:700">See all needs ${icon("arrow", 14)}</a></div><div class="grid uni-needs">${needs.map(needCard).join("")}</div></section>` : ""}
 
     <section class="stack" style="--gap:20px">
       <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
-      <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<div class="card stack" style="--gap:10px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
+      <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<details class="card uni-q" open><summary><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong>${icon("chevron", 18)}</summary><p class="muted small">${d}</p></details>`).join("")}</div>
       <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a></p>
     </section>
 
@@ -133,7 +152,7 @@ export async function universities() {
       <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>Free for students, always. Places are limited.</h2>
         <p class="lead">Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.</p>
         <div class="uni-share"><strong>Share with your students</strong><p class="small muted">Copy a ready-made message, or just the link, for your newsletter, course page or careers board.</p>
-          <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(studentNote())}">${icon("doc", 16)}<span>Copy the message</span></button><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_LINK)}">${icon("link", 16)}<span>Copy the link</span></button></div></div></div>
+          <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(studentNote())}" data-copied="Message copied.">${icon("doc", 16)}<span>Copy the message</span></button><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_LINK)}">${icon("link", 16)}<span>Copy the link</span></button></div></div></div>
       <ol class="how-checks uni-timeline">${LAUNCH.map(([when, d]) => `<li><span class="uni-when">${when}</span><span>${d}</span></li>`).join("")}</ol>
     </section>
 
@@ -151,7 +170,7 @@ export async function universities() {
     </section>
 
     <section class="uni-contact" id="uni-contact">
-      <div class="stack" style="--gap:12px">${eyebrow("Register your interest")}<h2>Let’s talk about your students.</h2>
+      <div class="stack" style="--gap:12px">${eyebrow("Register interest")}<h2>Let’s talk about your students.</h2>
         <p class="lead">Tell us a little about your university and your students. We reply within two working days.</p>
         <p>Prefer email? Write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p>
         <a class="small" href="${PDF}" download style="font-weight:700">${icon("download", 16)} Download the 2-page summary (PDF)</a></div>
@@ -174,7 +193,12 @@ export async function universities() {
   </div>`;
   const to = new URLSearchParams(location.hash.split("?")[1] || "").get("to");
   return { title: "For universities", description: "A free 3-month pilot from January 2027: remote projects for your students with verified organisations worldwide.", html,
-    after: to ? () => setTimeout(() => document.getElementById(to)?.scrollIntoView({ block: "start" }), 60) : undefined };
+    after: () => {
+      // On phones the safety answers start closed (tap a question to open it), so the form is nearer.
+      const phone = matchMedia("(max-width: 640px)").matches;
+      document.querySelectorAll(".uni-q").forEach((d) => { if (phone) d.removeAttribute("open"); else d.addEventListener("toggle", () => { if (!d.open && !matchMedia("(max-width: 640px)").matches) d.open = true; }); });
+      if (to) setTimeout(() => document.getElementById(to)?.scrollIntoView({ block: "start" }), 60);
+    } };
 }
 
 export async function submitInterest(form) {
