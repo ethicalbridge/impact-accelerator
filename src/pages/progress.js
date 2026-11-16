@@ -62,22 +62,28 @@ function waits(d) {
   return out.sort((a, b) => rank[a.sev] - rank[b.sev] || (b.days ?? -1) - (a.days ?? -1));
 }
 
-// Average days between steps, to show where the journey slows down.
+// Average time between steps, to show where the journey slows down. Steps still waiting count up to now (16 Nov 2026),
+// so the bars move every day while something is stuck, not only when a step finishes.
 function speeds(d) {
-  const avg = (pairs) => { const v = pairs.filter(([a, b]) => a && b).map(([a, b]) => (new Date(b) - new Date(a)) / DAY); return v.length ? { avg: v.reduce((s, x) => s + x, 0) / v.length, n: v.length } : { avg: null, n: 0 }; };
+  const now = Date.now();
+  // [from, to, stillWaiting]: a finished step counts its real time; one still waiting counts from `from` until now.
+  const avg = (rows) => { const v = rows.filter(([a, b, w]) => a && (b || w)).map(([a, b]) => ((b ? new Date(b) : now) - new Date(a)) / DAY); return v.length ? { avg: v.reduce((s, x) => s + x, 0) / v.length, n: v.length } : { avg: null, n: 0 }; };
   const signedBoth = (c) => (c.org_signed_at && c.talent_signed_at ? [c.org_signed_at, c.talent_signed_at].sort().pop() : null);
+  const live = (c) => c.status === "active" || c.status === "awaiting_signatures";
   return [
-    ["Organisation signs up → approved", "handova", avg(d.orgs.map((o) => [o.created_at, o.approved_at]))],
-    ["Profile sent → approved", "handova", avg(d.pros.map((p) => [p.sent_at || p.profile_at, p.approved_at]))],
-    ["Need sent → live", "handova", avg(d.needs.map((n) => [n.created_at, n.approved_at]))],
-    ["Need live → first application", "pros", avg(d.needs.map((n) => [n.published_at || n.approved_at, n.first_app_at]))],
-    ["First application → professional chosen", "org", avg(d.needs.map((n) => [n.first_app_at, n.chosen_at]))],
-    ["Chosen → agreement signed by both", "both", avg(d.contribs.map((c) => [c.created_at, signedBoth(c)]))],
-    ["Signed → first call", "both", avg(d.contribs.map((c) => [signedBoth(c), c.first_call_at]))],
-    ["First call → work delivered", "pro", avg(d.contribs.map((c) => [c.first_call_at, c.delivered_at]))],
-    ["Delivered → finished and endorsed", "org", avg(d.contribs.map((c) => [c.delivered_at, c.completed_at]))],
+    ["Organisation signs up → approved", "handova", avg(d.orgs.map((o) => [o.created_at, o.approved_at, o.status === "pending"]))],
+    ["Profile sent → approved", "handova", avg(d.pros.map((p) => [p.sent_at || p.profile_at, p.approved_at, p.review_status === "pending"]))],
+    ["Need sent → live", "handova", avg(d.needs.map((n) => [n.created_at, n.approved_at, n.status === "pending"]))],
+    ["Need live → first application", "pros", avg(d.needs.map((n) => [n.published_at || n.approved_at, n.first_app_at, n.status === "open"]))],
+    ["First application → professional chosen", "org", avg(d.needs.map((n) => [n.first_app_at, n.chosen_at, n.status === "open"]))],
+    ["Chosen → agreement signed by both", "both", avg(d.contribs.map((c) => [c.created_at, signedBoth(c), live(c)]))],
+    ["Signed → first call", "both", avg(d.contribs.map((c) => [signedBoth(c), c.first_call_at, live(c)]))],
+    ["First call → work delivered", "pro", avg(d.contribs.map((c) => [c.first_call_at, c.delivered_at, live(c)]))],
+    ["Delivered → finished and endorsed", "org", avg(d.contribs.map((c) => [c.delivered_at, c.completed_at, live(c)]))],
   ];
 }
+// "under 1 hour", "5 hours", "2.5 days", "12 days".
+const howLong = (dd) => { if (dd * 24 < 1) return "<span>under 1 hour</span>"; if (dd < 1) { const h = Math.round(dd * 24); return `${h} ${h === 1 ? "<span>hour</span>" : "<span>hours</span>"}`; } const v = dd < 10 ? Math.round(dd * 10) / 10 : Math.round(dd); return `${v} ${v === 1 ? "<span>day</span>" : "<span>days</span>"}`; };
 
 const remChips = (all = []) => { const list = all.filter((r) => r.kind !== "id_check"); return list.length
   ? `<div class="pg-rem"><span class="small muted">${list.length === 1 ? "1 reminder sent" : `${list.length} <span>reminders sent</span>`}:</span> ${list.map((r) => `<span class="pg-chip" title="${e(r.title || "")}">${icon(r.emailed ? "mail" : "bell", 13)} ${short(r.at)}</span>`).join("")}</div>`
@@ -165,8 +171,8 @@ export async function progress() {
     ${back("Back to admin", "#admin")}
     <div class="stack" style="--gap:10px">${eyebrow("Admin")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Progress and bottlenecks</h1><p class="lead" style="max-width:none">Where every organisation, need, professional and contribution is, how long each step has been waiting and on whom, and the reminders already sent. Amber means slower than usual, red means overdue.</p><p class="small muted"><span>Updated</span> ${date(d.generated_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p></div>
     <div class="pg-tiles">${tile("handova", "waiting on Handova")}${tile("org", "waiting on organisations")}${tile("pro", "waiting on professionals")}${tile("setup", "unfinished sign-ups")}<button type="button" class="pg-tile" data-pg-goto="contribs"><strong>${active.length}</strong><span>contributions in progress</span><span class="small">${d.contribs.filter((c) => c.status === "completed").length} <span>handed over so far</span></span><span class="pg-tile-go small">${d.contribs.length ? "See their timelines" : ""}</span></button></div>
-    <section class="card stack" style="--gap:14px"><h2 style="font-size:1.6rem">Where the journey slows down</h2><p class="small muted">Average days between steps, from everything so far. The longest bar is the bottleneck.</p>
-      <div class="pg-bars">${sp.map(([label, who, s]) => `<div class="pg-bar${s === slowest[2] && s.avg ? " slow" : ""}"><span class="pg-bar-label">${label} <span class="pg-who">${WHO[who]}</span></span><span class="pg-bar-track"><span style="width:${s.avg == null ? 0 : Math.max(3, (s.avg / max) * 100)}%"></span></span><span class="pg-bar-val">${s.avg == null ? "<span>no data yet</span>" : `${s.avg < 1 ? "<1 <span>day</span>" : `${Math.round(s.avg)} ${Math.round(s.avg) === 1 ? "<span>day</span>" : "<span>days</span>"}`} <span class="small muted">(${s.n})</span>`}</span></div>`).join("")}</div></section>
+    <section class="card stack" style="--gap:14px"><h2 style="font-size:1.6rem">Where the journey slows down</h2><p class="small muted">Average time between steps, in brackets. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.</p>
+      <div class="pg-bars">${sp.map(([label, who, s]) => `<div class="pg-bar${s === slowest[2] && s.avg ? " slow" : ""}"><span class="pg-bar-label">${label} <span class="pg-bar-avg">(${s.avg == null ? "<span>no data yet</span>" : howLong(s.avg)})</span> <span class="pg-who">${WHO[who]}</span></span><span class="pg-bar-track"><span style="width:${s.avg == null ? 0 : Math.max(3, (s.avg / max) * 100)}%"></span></span></div>`).join("")}</div></section>
     <section class="card stack" style="--gap:12px" id="pg-waiting"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:8px"><h2 style="font-size:1.6rem">Waiting right now</h2><span class="small muted"><span data-pg-count>${list.length}</span> <span>shown</span></span></div>
       <div class="pg-filters" role="group" aria-label="Filter">${[["all", "Everyone"], ["handova", "On Handova"], ["org", "On organisations"], ["pro", "On professionals"], ["setup", "Unfinished sign-ups"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-filter="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}<span class="pg-sep" aria-hidden="true"></span>${[["any", "Any wait"], ["late", "Slow or overdue"], ["red", "Overdue only"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-sev="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div>
       <p class="small muted">Oldest and most overdue first.</p>
