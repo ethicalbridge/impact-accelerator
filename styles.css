@@ -2128,3 +2128,10 @@ a.pg-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(18, 6
 .uni-after-steps li { display: flex; gap: 12px; align-items: flex-start; }
 .uni-after-steps li > div { display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 640px) { .uni-promises { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Admin, registered universities: what each one sent through the form. */
+.al-interest { margin-top: 2px; }
+.al-interest > summary { cursor: pointer; font-weight: 700; color: var(--teal); width: fit-content; }
+.al-interest ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.al-interest li { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.al-interest-msg { margin: 4px 0 0; white-space: pre-wrap; }
