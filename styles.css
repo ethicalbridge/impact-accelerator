@@ -1726,7 +1726,6 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .org-facts dt { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .org-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
 .org-review-logo { width: 48px; height: 48px; border-radius: 12px; object-fit: contain; background: #fff; box-shadow: 0 0 0 1px var(--line); flex-shrink: 0; }
-.admin-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -8px; } .admin-shortcuts .btn { gap: 6px; }
 .deliver-box p { margin: 0; }
 .notice.deliver-box { align-items: flex-start; }
 
@@ -1921,6 +1920,10 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .al-switch nav a { padding: 6px 12px; border-radius: 8px; background: var(--sand); color: var(--ink); font-weight: 700; font-size: .9rem; text-decoration: none; border: 1px solid transparent; }
 .al-switch nav a:hover { border-color: var(--line); }
 .al-switch nav a[aria-current] { background: var(--deep); color: var(--paper); }
+.al-switch nav a.al-report, .al-switch nav a.al-quest { display: inline-flex; align-items: center; gap: 6px; }
+.al-switch nav a.al-report svg { color: var(--clay); }
+.al-switch nav a.al-quest { background: var(--ochre-bg); border-color: var(--ochre-line); color: var(--ochre-ink); }
+.al-switch nav a.al-quest:hover { border-color: var(--ochre); }
 /* Fact cards lift slightly under the pointer or a tap (For universities and How it works). */
 .how-fact { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
 .how-fact:hover, .how-fact:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
@@ -1929,3 +1932,4 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .uni-steps li, .uni-grid .card, .uni-two .card, .uni-nums li { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
 .uni-steps li:hover, .uni-steps li:active, .uni-grid .card:hover, .uni-grid .card:active, .uni-two .card:hover, .uni-two .card:active, .uni-nums li:hover, .uni-nums li:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
 @media (prefers-reduced-motion: reduce) { .uni-steps li:hover, .uni-steps li:active, .uni-grid .card:hover, .uni-grid .card:active, .uni-two .card:hover, .uni-two .card:active, .uni-nums li:hover, .uni-nums li:active { transform: none; } }
+.al-switch nav a.al-report[aria-current] svg { color: #f2b49c; }
