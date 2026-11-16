@@ -30,7 +30,7 @@ function seed() {
   };
 }
 // Tables added after the first mock: older saved mock databases get them empty.
-const LATER = ["universities", "need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "organisation_suggestions", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
+const LATER = ["universities", "university_interests", "need_safety_notes", "id_consents", "id_video_requests", "user_suspensions", "removed_identities", "report_cases", "user_settings", "user_private", "survey_responses", "agreement_signatures", "id_verifications", "contribution_signatures", "completion_private", "admin_actions", "account_deletion_authorizations", "organisation_changes", "organisation_suggestions", "terms_acceptances", "client_errors", "report_case_versions", "integrity_signal_checks", "org_member_invites"];
 const load = () => { let d; try { d = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { d = seed(); } for (const t of LATER) d[t] ||= []; return d; };
 let D = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(D));
@@ -131,7 +131,7 @@ function visible(table, r) {
     case "saved_needs": case "notifications": case "user_settings": case "user_private": return own(r.user_id) || (table === "user_private" && admin);
     case "agreement_signatures": case "id_verifications": return own(r.user_id) || admin;
     case "contribution_signatures": return own(r.user_id) || isMember(r.organisation_id) || admin || D.engagements.some((e) => e.id === r.engagement_id && own(e.user_id));
-    case "completion_private": case "admin_actions": case "survey_responses": case "universities": return admin;
+    case "completion_private": case "admin_actions": case "survey_responses": case "universities": case "university_interests": return admin;
     case "app_settings": return true;
     case "organisation_changes": return isMember(r.organisation_id) || admin;
     case "organisation_suggestions": return isMember(r.organisation_id) || admin;
@@ -701,12 +701,17 @@ const rpcs = {
     r.career_stage = /^student_/.test(a.p_level) ? "student" : ["retired", "break"].includes(r.career_stage) ? r.career_stage : stage;
     Object.assign(r, { university_id: uni?.id || null, university_name: studying ? uni?.name || s.university || "" : "", study_programme: studying ? s.programme || "" : "", study_level: studying ? s.level || "" : "", study_end: studying && s.end ? `${s.end}-01` : null, share_with_university: !!(uni && s.share) });
   },
-  admin_universities: () => { if (!isAdmin()) fail("Administrator access required."); return D.universities.map((x) => ({ ...x, students: D.user_private.filter((r) => r.university_id === x.id).length, awaiting: 0, typed: D.user_private.filter((r) => !r.university_id && (r.university_name || "").toLowerCase() === x.name.toLowerCase()).length })); },
+  admin_universities: () => { if (!isAdmin()) fail("Administrator access required."); const ints = (x) => (D.university_interests || []).filter((i) => i.university_id === x.id); return D.universities.map((x) => ({ ...x, interests: ints(x).length, interest_at: ints(x)[0]?.created_at || null, students: D.user_private.filter((r) => r.university_id === x.id).length, awaiting: 0, typed: D.user_private.filter((r) => !r.university_id && (r.university_name || "").toLowerCase() === x.name.toLowerCase()).length })); },
   admin_students: () => {
     if (!isAdmin()) fail("Administrator access required.");
     return D.user_private.filter((r) => r.career_stage === "student" || r.university_id || r.university_name).map((r) => { const p = D.profiles.find((x) => x.user_id === r.user_id); return { user_id: r.user_id, name: p?.name || "", email: "", signed_up_at: now(), email_confirmed: true, university_id: r.university_id || null, university_name: r.university_name || "", study_programme: r.study_programme || "", study_level: r.study_level || "", study_end: r.study_end || null, share_with_university: !!r.share_with_university, experience_level: p?.experience_level || "", profile_status: !p ? "no_profile" : p.published && p.review_status === "approved" ? "public" : p.published ? p.review_status : "draft", hours_approved: 0, contributions: 0 }; });
   },
-  register_university_interest: () => null,
+  register_university_interest: (a) => {
+    D.universities ||= []; D.university_interests ||= [];
+    let uni = D.universities.find((x) => x.name.toLowerCase() === String(a.p_university).trim().toLowerCase());
+    if (!uni) D.universities.push(uni = { id: "uni-" + (D.universities.length + 1), name: String(a.p_university).trim(), country: a.p_country, code: "u" + (D.universities.length + 1), status: "prospect", created_at: now() });
+    D.university_interests.push({ id: "ui-" + (D.university_interests.length + 1), created_at: now(), name: a.p_name, role: a.p_role || "", university: a.p_university, country: a.p_country || "", email: a.p_email, interest: a.p_interest, message: a.p_message || "", university_id: uni.id });
+  },
   set_research_contact: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.research_contact = a.p_yes; r.research_contact_at = now(); },
   submit_survey: (a) => {
     const e = D.engagements.find((x) => x.id === a.p_engagement);

@@ -87,11 +87,15 @@ export async function adminList(kind, params) {
 
   if (kind === "universities") {
     // Partner universities (13 Nov 2026): places agreed and the period, and the students linked to each one.
-    const unis = await result(db.rpc("admin_universities")).catch(() => []);
+    // What each university sent through the For universities form (16 Nov 2026), newest first.
+    const [unis, sent] = await Promise.all([result(db.rpc("admin_universities")).catch(() => []),
+      result(db.from("university_interests").select("id,created_at,name,role,university,country,email,interest,message,university_id").order("created_at", { ascending: false })).catch(() => [])]);
     const by = (st) => unis.filter((u) => u.status === st).length;
-    filters = [["", "All", unis.length], ["partner", "Agreement signed", by("partner")], ["prospect", "No agreement yet", by("prospect")], ["ended", "Ended", by("ended")]];
-    rows = unis.filter((u) => (!show || u.status === show) && match(u.name, u.country, u.contact_name));
-    body = `<p class="small muted">A student who picks a university with a signed agreement, or signs up through its link, is linked to it and uses one place.</p>` + rows.map(uniRow).join("");
+    const interested = unis.filter((u) => u.interests > 0).sort((a, b) => String(a.interest_at).localeCompare(String(b.interest_at)));
+    filters = [["", "All", unis.length], ["interest", "Expressed interest", interested.length], ["partner", "Agreement signed", by("partner")], ["prospect", "No agreement yet", by("prospect")], ["ended", "Ended", by("ended")]];
+    rows = (show === "interest" ? interested : unis.filter((u) => !show || u.status === show)).filter((u) => match(u.name, u.country, u.contact_name, ...sent.filter((x) => x.university_id === u.id).flatMap((x) => [x.name, x.email])));
+    const note = show === "interest" ? "In the order they first registered, which is the order we invite them to the pilot. Open a university to see everything they sent." : "A student who picks a university with a signed agreement, or signs up through its link, is linked to it and uses one place.";
+    body = `<p class="small muted">${note}</p>` + rows.map((u) => uniRow(u, sent.filter((x) => x.university_id === u.id), show === "interest" ? interested.indexOf(u) + 1 : 0)).join("");
   }
 
   if (kind === "students") {
@@ -266,16 +270,29 @@ export async function submitDeleteContrib(form) {
 const UNI_STATUS = { partner: ["Agreement signed", ""], prospect: ["No agreement yet", "grey"], ended: ["Ended", "grey"] };
 const STUDENT_STATUS = { no_profile: ["No profile yet", "grey"], draft: ["Private draft", "grey"], pending: ["Under review", "clay"], changes_requested: ["Changes requested", "clay"], public: ["Public", ""], closed: ["Closed", "grey"], rejected: ["Not approved", "grey"] };
 const signupLink = (code) => `${config.siteUrl}#join?role=student&uni=${encodeURIComponent(code)}`;
-function uniRow(u) {
+const INTEREST_LABEL = { pilot: "A Founding Partner pilot from January 2027", share: "Sharing Handova with our students", other: "Something else" };
+// Every registration a university sent, in a fold-out list: who, how to reach them, what they want and their message.
+function interestList(u, sent) {
+  if (!u.interests) return "";
+  const head = `<span>Expressed interest</span> <span data-no-i18n>${date(u.interest_at)}</span>${u.interests > 1 ? ` · <span data-no-i18n>${u.interests}</span> <span>times</span>` : ""}`;
+  if (!sent.length) return `<span class="small">${head}: <span data-no-i18n>${e(u.last_interest || "")}</span></span>`;
+  return `<details class="al-interest"><summary class="small">${head}</summary><ul>${sent.map((x) => `<li>
+    <span class="small muted" data-no-i18n>${date(x.created_at)}</span>
+    <strong data-no-i18n>${e(x.name)}${x.role ? ` · ${e(x.role)}` : ""}</strong>
+    <span class="small"><a href="mailto:${e(x.email)}" data-no-i18n>${e(x.email)}</a>${x.country ? ` · <span data-no-i18n>${e(x.country)}</span>` : ""}${x.university && x.university !== u.name ? ` · <span data-no-i18n>${e(x.university)}</span>` : ""}</span>
+    <span class="small"><span>Interested in:</span> ${INTEREST_LABEL[x.interest] || `<span data-no-i18n>${e(x.interest)}</span>`}</span>
+    ${x.message ? `<p class="small al-interest-msg" data-no-i18n>${e(x.message)}</p>` : ""}</li>`).join("")}</ul></details>`;
+}
+function uniRow(u, sent = [], queue = 0) {
   const used = u.students || 0, left = u.seats ? u.seats - used : null;
   const places = u.seats ? `<strong>${used} of ${u.seats} places used</strong> · ${left >= 0 ? `${left} left` : `<span style="color:var(--clay)">${-left} over the agreed number</span>`}` : `<strong>${used} ${used === 1 ? "student" : "students"}</strong>`;
   const period = u.starts_on || u.ends_on ? `${u.starts_on ? date(u.starts_on) : "…"} – ${u.ends_on ? date(u.ends_on) : "…"}` : "";
   return `<div class="al-row"><div class="stack" style="--gap:4px;min-width:0">
-    <div class="row" style="--gap:8px"><a href="#admin-list/students?q=${encodeURIComponent(u.name)}" style="font-weight:700" data-no-i18n>${e(u.name)}</a>${pill(...UNI_STATUS[u.status] || [u.status, "grey"])}</div>
+    <div class="row" style="--gap:8px">${queue ? `<strong data-no-i18n>#${queue}</strong>` : ""}<a href="#admin-list/students?q=${encodeURIComponent(u.name)}" style="font-weight:700" data-no-i18n>${e(u.name)}</a>${pill(...UNI_STATUS[u.status] || [u.status, "grey"])}</div>
     <span class="small muted">${[u.country ? `<span data-no-i18n>${e(u.country)}</span>` : "", u.agreement_signed_on ? `agreement signed ${date(u.agreement_signed_on)}` : "", period].filter(Boolean).join(" · ")}</span>
     <span class="small">${places}${u.awaiting ? ` · ${u.awaiting} <span>still confirming their email</span>` : ""}${u.typed ? ` · ${u.typed} <span>typed this name but not linked</span>` : ""}</span>
     ${u.contact_name || u.contact_email ? `<span class="small muted" data-no-i18n>${e([u.contact_name, u.contact_email].filter(Boolean).join(" · "))}</span>` : ""}
-    ${u.interests ? `<span class="small"><span>Registered interest</span> <span data-no-i18n>${date(u.interest_at)}${u.interests > 1 ? ` (×${u.interests})` : ""}: ${e(u.last_interest || "")}</span></span>` : ""}
+    ${interestList(u, sent)}
     ${u.status === "partner" ? `<span class="small muted"><span>Sign-up link:</span> <span data-no-i18n>${e(signupLink(u.code))}</span></span>` : ""}
   </div><div class="al-actions">${u.status === "partner" ? `<button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(signupLink(u.code))}">${icon("link", 16)}<span>Copy sign-up link</span></button>` : ""}${btn("Students", `#admin-list/students?q=${encodeURIComponent(u.name)}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-uni" data-id="${e(u.id)}">Edit</button></div></div>`;
 }

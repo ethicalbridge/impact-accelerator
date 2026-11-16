@@ -223,6 +223,14 @@ test("the For universities page: found from How it works, and a university regis
   await f.locator("[name=interest]").selectOption("pilot");
   await f.locator("[type=submit]").click();
   await expect(page.getByText("Thank you. Your interest is registered.")).toBeVisible();
+  // Handova sees it in Admin, under Expressed interest, with everything they sent.
+  await signIn(page, "admin@example.test");
+  await page.goto("/#admin-list/universities?show=interest");
+  const row = page.locator(".al-row", { hasText: "University of Cape Coast" });
+  await expect(row).toContainText("#1");
+  await row.locator(".al-interest summary").click();
+  await expect(row.locator(".al-interest")).toContainText("ama@example.test");
+  await expect(row.locator(".al-interest")).toContainText("A Founding Partner pilot from January 2027");
 });
 
 test("a student on the waiting list sees when they can apply", async ({ page }) => {
