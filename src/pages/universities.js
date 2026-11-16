@@ -71,13 +71,15 @@ const toForm = (label, cls = "lg") => `<button class="btn ${cls}" type="button" 
 export async function universities() {
   const [nums, needs] = await Promise.all([today(), openNeeds()]);
   const html = `<div class="wrap uni stack" style="--gap:var(--section-gap);padding-bottom:var(--section-gap)">
+    <div class="uni-hero">
+      <div class="stack" style="--gap:16px">${eyebrow("For universities")}<h1>Real projects for your students, with verified organisations worldwide.</h1></div>
     <div class="how-hero">
-      <div class="stack" style="--gap:16px">${eyebrow("For universities")}<h1>Real projects for your students, with verified organisations worldwide.</h1>
-        <p class="lead">Handova gives your students short, remote projects for small, locally led organisations verified by Ethical Bridge, the global directory of ethical organisations behind Handova. Free for students, with no travel costs.</p>
+      <div class="stack" style="--gap:16px"><p class="lead">Handova gives your students short, remote projects for small, locally led organisations verified by Ethical Bridge, the global directory of ethical organisations behind Handova. Free for students, with no travel costs.</p>
         <p class="uni-status">${icon("calendar", 18, "#0f6f63")}<span><strong>A free 3-month Founding Partner pilot from January 2027:</strong> 5 to 10 students, nothing to pay, no obligation. We are taking up to 3 universities, invited in the order they register.</span></p>
         <div class="row">${toForm("Register your interest")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
       </div>
       <div class="how-facts">${FACTS.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
+    </div>
     </div>
 
     <section class="stack" style="--gap:20px">
