@@ -1913,3 +1913,7 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
   .uni-who img { width: 88px; height: 88px; }
 }
 .wait-pill { display: inline-flex; align-items: center; gap: 5px; }
+/* Fact cards lift slightly under the pointer or a tap (For universities and How it works). */
+.how-fact { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+.how-fact:hover, .how-fact:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
+@media (prefers-reduced-motion: reduce) { .how-fact:hover, .how-fact:active { transform: none; } }
