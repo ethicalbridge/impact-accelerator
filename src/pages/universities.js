@@ -29,23 +29,20 @@ const GETS = [
   ["chart", "Employability evidence", "Logged hours, real deliverables and an endorsement from the organisation on each student’s impact CV."],
   ["globe", "International experience at home", "Work with organisations abroad, with no travel budget and no travel risk."],
   ["people", "Wider access", "For students who can’t afford to travel or work unpaid abroad."],
-  ["doc", "Reporting you can use", "Evidence for work-integrated learning, community engagement and SDG reporting."],
+  ["doc", "Reporting you can use", "With a pilot or partnership: evidence for work-integrated learning, community engagement and SDG reporting."],
 ];
 // Free for every student, and what a partner university adds. true = included, false = not included, text = how it differs.
 const COMPARE = [
-  ["Free for the student", true, true],
-  ["Verified organisations and real projects", true, true],
-  ["An impact CV with logged hours and endorsements", true, true],
-  ["Their data, their choice: download or delete at any time", true, true],
-  ["When they start", "On the waiting list: places open in phases", "A reserved place, on your course dates"],
+  ["Free, with verified organisations, real projects, an impact CV and control of their data", true, true],
+  ["When they start", "On the waiting list, with places opening in phases from January 2027", "A reserved place, on your course dates"],
   ["The “Partner university student” tag on their profile", false, true],
   ["Projects matched to your courses, with a learning log", false, true],
   ["Progress reports to your university, if the student agrees", false, true],
   ["A named contact, onboarding for each cohort and a guest session", false, true],
   ["Your university named as a partner, with a co-branded impact report", false, true],
-  ["Cost to your university", "Nothing", "The pilot is free; then an annual contribution, agreed with you"],
+  ["Cost to your university", "Nothing", "Pilot free, then agreed with you"],
 ];
-const mark = (v) => v === true ? `<span class="uni-yes">${icon("check", 18, "#0f6f63", 2.4)}<span class="visually-hidden">Included</span></span>` : v === false ? `<span class="uni-no">${icon("x", 16, "#9aa5a2", 2.2)}<span class="visually-hidden">Not included</span></span>` : `<span class="uni-cmp-text">${v}</span>`;
+const mark = (v) => v === true ? `<span class="uni-yes">${icon("check", 18, "#0f6f63", 2.4)}<span class="visually-hidden">Included</span></span>` : v === false ? `<span class="uni-no">${icon("x", 16, "#5f6b68", 2.2)}<span class="visually-hidden">Not included</span></span>` : `<span class="uni-cmp-text">${v}</span>`;
 const PATH = [
   ["Intro call and cohort", "20 minutes to see whether Handova fits. Then we agree the cohort (5 to 10 students) and the format: practicum, placement, service-learning or a volunteering award. A 30-minute online onboarding for your students."],
   ["Students deliver", "Your pilot starts with your term, from January 2027 (or February and March for southern-hemisphere terms) and runs 3 months. Each student chooses real projects that match their skills and completes them remotely, with check-ins."],
@@ -117,11 +114,12 @@ export async function universities() {
       <div class="stack" style="--gap:8px">${eyebrow("What your university gets")}<h2>Real experience for your students, evidence for you.</h2></div>
       <div class="uni-gets">${GETS.map(([ic, t, d]) => `<div class="card stack" style="--gap:8px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
       <div class="uni-compare card">
+        <h3 class="h3">Free for every student. More with your university.</h3>
         <table>
           <caption class="visually-hidden">Free for every student, and what a partner university adds</caption>
-          <thead><tr><th scope="col"><span class="uni-hl-label">Compare</span></th>
-            <th scope="col"><strong>Every student</strong><span>Free, on their own</span></th>
-            <th scope="col" class="uni-cmp-partner"><strong>Through a partner university</strong><span>Founding Partner pilots and partnerships</span>${partnerBadge({ partner_student: true })}</th></tr></thead>
+          <thead><tr><th scope="col"><span class="visually-hidden">What’s included</span></th>
+            <th scope="col"><strong>Students on their own</strong><span>Free</span></th>
+            <th scope="col" class="uni-cmp-partner"><strong>Students through your university</strong><span>Founding Partner pilot or partnership</span>${partnerBadge({ partner_student: true })}</th></tr></thead>
           <tbody>${COMPARE.map(([what, free, partner]) => `<tr><th scope="row">${what}</th><td>${mark(free)}</td><td class="uni-cmp-partner">${mark(partner)}</td></tr>`).join("")}</tbody>
         </table>
         <p class="small"><strong>Your students’ free access never depends on whether you partner.</strong> Pilot and partner students have their own places, outside the waiting list.</p>
