@@ -1,8 +1,9 @@
-// For universities (16 Nov 2026): what Handova offers universities, how the launch works (a waiting list in
-// registration order, places opened in phases from January 2027), the pilot-to-partnership path, and a form to
-// register interest. Same content as the 2-page summary PDF linked from the page; the page is the master version.
+// For universities (16 Nov 2026; reordered after the conversion review the same day): the pilot offer first, what the
+// university gets, the pilot-to-partnership path, real projects and where we are today, the questions a partnerships
+// office asks, free places and the student waiting list, why now, who we are, and the form to register interest.
+// Same content as the 2-page summary PDF linked from the page; the page is the master version.
 import { db, e, result, withForm, val, fieldError } from "../core.js";
-import { icon, eyebrow, btn, field, select, formEnd, partnerBadge } from "../ui.js";
+import { icon, eyebrow, field, select, formEnd, partnerBadge, needCard } from "../ui.js";
 import { config } from "../config.js";
 import { MS_STATS } from "./public.js";
 import { exampleProfile } from "../examples.js";
@@ -11,41 +12,46 @@ import { date } from "../utils.js";
 const PDF = "assets/handova-for-universities.pdf";
 const UPDATED = "2026-11-16";
 
+const STUDENT_LINK = "https://handova.org/#join?role=student";
+const NEED_COLS = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
+
 const FACTS = [
   ["gift", "Free", "for students and organisations, always"],
   ["clock", "1 to 16 hours", "per project, remote, around classes"],
   ["shield", "Verified", "every organisation, by Ethical Bridge"],
   ["doc", "Credit-ready", "hour logs and evidence; you decide the credit"],
 ];
-const STEPS = [
-  ["Intro call", "20 minutes to see whether Handova fits your programme."],
-  ["Agree a cohort", "How many students, and the format: practicum, placement, service-learning or a volunteering award."],
-  ["Onboarding", "A 30-minute online session for your students on safeguarding, conduct and working with organisations."],
-  ["Students deliver", "Each chooses projects that match their skills and completes them remotely, with check-ins and a deadline."],
-  ["Results", "Feedback from both sides, an endorsement on each student’s impact CV, and a report for your records."],
+const GETS = [
+  ["chart", "Employability evidence", "Logged hours, real deliverables and an endorsement from the organisation on each student’s impact CV."],
+  ["globe", "International experience at home", "Work with organisations abroad, with no travel budget and no travel risk."],
+  ["people", "Wider access", "For students who can’t afford to travel or work unpaid abroad."],
+  ["doc", "Reporting you can use", "Evidence for work-integrated learning, community engagement and SDG reporting."],
+];
+const PARTNER_GETS = ["Places reserved for your cohort, on the dates your course needs", "Projects matched to your courses, with a learning log", "Progress reports for students who agree to share them", "A named contact, onboarding for each cohort and a guest session", "Your university named on Handova as a partner, and a co-branded impact report"];
+const PATH = [
+  ["Intro call and cohort", "20 minutes to see whether Handova fits. Then we agree the cohort (5 to 10 students) and the format: practicum, placement, service-learning or a volunteering award. A 30-minute online onboarding for your students."],
+  ["Students deliver", "Your pilot starts with your term, from January 2027 (or February and March for southern-hemisphere terms) and runs 3 months. Each student chooses real projects that match their skills and completes them remotely, with check-ins."],
+  ["Real results", "A report with real numbers: projects completed, hours, organisations and countries reached, ratings, outcomes, and what your students and the organisations say."],
+  ["A meeting to review", "We go through the results and the benefits together, and decide whether a partnership makes sense for you."],
+  ["A partnership, if it fits", "We agree its scope together: how many places, which programmes, the credit format and the reporting you need."],
 ];
 const SAFETY = [
-  ["shield", "Verified organisations", "Every organisation meets Ethical Bridge’s published criteria and is checked through personal contact and field missions."],
+  ["shield", "Verified organisations", "Every organisation meets Ethical Bridge’s published criteria and is checked through personal contact, document checks and, where possible, field visits."],
   ["doc", "Public policies", "Safeguarding, data protection, conduct, anti-harassment, fraud and whistleblowing policies, open to anyone to read."],
   ["eye", "Remote and supported", "All work is remote, messages stay on Handova, and both sides give feedback at the end."],
   ["people", "Who supervises", "The organisation briefs and reviews the work and Handova checks in. Academic supervision and grading stay with you."],
-  ["check", "Academic credit", "Projects can be bundled to about 20, 40 or 80 hours, with a learning log and logged hours as evidence. Your university decides the credit."],
-  ["lock", "Data and consent", "Students choose whether to share their progress with their university. A data processing agreement is available on request."],
+  ["check", "Academic credit", "Projects of 1 to 16 hours can be bundled to about 20, 40 or 80 hours, with a learning log and logged hours as evidence. They complement longer placements rather than replace them. Your university decides the credit."],
+  ["lock", "Data and consent", "Students choose whether to share their progress with their university, and can download or delete their data at any time. Data is stored in the European Union (Frankfurt)."],
+  ["pen", "Contracts and compliance", "We follow the EU and UK GDPR where they apply, with representatives in the EU and the UK. Before a pilot starts, we agree the terms with your university in writing, including data processing. Each project has its own signed agreement covering who owns the work."],
 ];
 const LAUNCH = [
-  ["Now", "Universities register their interest, and students join the waiting list. We review each student’s profile; it shows the date they can start."],
-  ["From January 2027", "We open places in phases, in the order people registered. Founding Partner pilots start first, each in its own university term."],
-  ["Each phase", "Up to 5 free places per university, and at least half for students in lower-income countries. Everyone else keeps their place in the queue for the next phase."],
-  ["Meanwhile", "Organisations see who is waiting and post projects, so there is real work ready on the day each student starts."],
+  ["Now", "Universities register their interest, and students join the waiting list. We review each student’s profile, which shows when they can start."],
+  ["From January 2027", "We open places in phases, in the order people registered. Founding Partner pilots start first, each with its university’s term."],
+  ["Each phase", "Up to 5 free places per university, and at least half for students in lower-income countries. Everyone else keeps their place in the queue."],
+  ["Meanwhile", "Organisations see who is waiting and post projects, so there is real work ready when each student starts."],
 ];
-const PATH = [
-  ["A free 3-month pilot", "From January 2027, with 5 to 10 of your students and one named contact on your side. Nothing to pay, no obligation, and you can stop at any time."],
-  ["Real results", "A report with real numbers: projects completed, hours, organisations and countries reached, ratings, outcomes, and what your students and the organisations say."],
-  ["A meeting to review", "We go through the results and the benefits together, and decide whether a partnership makes sense for you."],
-  ["A partnership", "If it does, we agree its scope together: how many places, which programmes, the credit format and the reporting you need."],
-];
-const INCLUDES = ["Places reserved for your students, with no waiting list", "Projects matched to your courses, with a learning log", "Progress reports for students who agree to share them", "A named contact, onboarding for each cohort and a guest session", "Your university named on Handova as a partner, and a co-branded impact report"];
 const INTEREST = [["", "Choose one…"], ["pilot", "A Founding Partner pilot from January 2027"], ["share", "Sharing Handova with our students"], ["other", "Something else"]];
+const STUDENT_NOTE = `Handova offers free, remote projects with verified organisations around the world: real work for your CV, from wherever you are. Places open in phases from January 2027, in the order students register. Join the waiting list: ${STUDENT_LINK}`;
 
 // Where Handova stands today, counted live. If a count fails, the line is left out rather than showing a wrong number.
 async function today() {
@@ -57,63 +63,65 @@ async function today() {
   ]);
   return [[orgs, "organisations approved"], [needs, "open needs"], [pros, "professionals and students approved"]].filter(([n]) => typeof n === "number");
 }
+// Three real projects open right now, so staff can picture what their students would do.
+const openNeeds = () => result(db.from("needs").select(NEED_COLS).eq("status", "open").order("created_at", { ascending: false }).limit(3)).catch(() => []);
+
+const toForm = (label, cls = "lg") => `<button class="btn ${cls}" type="button" data-action="scroll-to" data-id="uni-contact">${label}</button>`;
 
 export async function universities() {
-  const nums = await today();
+  const [nums, needs] = await Promise.all([today(), openNeeds()]);
   const html = `<div class="wrap uni stack" style="--gap:var(--section-gap);padding-bottom:var(--section-gap)">
     <div class="how-hero">
       <div class="stack" style="--gap:16px">${eyebrow("For universities")}<h1>Real projects for your students, with verified organisations worldwide.</h1>
-        <p class="lead">Handova gives your students short, remote projects for small, locally led organisations that Ethical Bridge has verified. Free for students, with no travel and no unpaid months.</p>
-        <p class="uni-status">${icon("calendar", 18, "#0f6f63")}<span><strong>Founding Partner pilots start from January 2027.</strong> Universities are invited in the order they register.</span></p>
-        <div class="row">${btn("Register your interest", "#universities?to=uni-contact", "lg")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
+        <p class="lead">Handova gives your students short, remote projects for small, locally led organisations verified by Ethical Bridge, the global directory of ethical organisations behind Handova. Free for students, with no travel costs.</p>
+        <p class="uni-status">${icon("calendar", 18, "#0f6f63")}<span><strong>A free 3-month Founding Partner pilot from January 2027:</strong> 5 to 10 students, nothing to pay, no obligation. We are taking up to 3 universities, invited in the order they register.</span></p>
+        <div class="row">${toForm("Register your interest")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
       </div>
       <div class="how-facts">${FACTS.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
     </div>
 
-    <section class="ms-why uni-why" aria-labelledby="uni-why-title">
-      <div class="ms-why-head"><span class="eyebrow">Why now</span><h2 id="uni-why-title">A first step into work in the age of AI.</h2>
-        <p>AI is taking over the tasks that used to give graduates their first job, and employers hire fewer juniors. Few students can afford to travel or work unpaid abroad to make up for it. Handova gives them real, verified experience with organisations around the world, from wherever they are, with no flight needed.</p></div>
-      <ul class="ms-stats">${MS_STATS.map(([n, what, src]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span><cite>${src}</cite></li>`).join("")}</ul>
-    </section>
-
     <section class="stack" style="--gap:20px">
-      <div class="stack" style="--gap:8px">${eyebrow("How a cohort works")}<h2>Five steps, with little admin on your side.</h2></div>
-      <ol class="uni-steps">${STEPS.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
-    </section>
-
-    <section class="stack" style="--gap:20px">
-      <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
-      <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<div class="card stack" style="--gap:10px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
-      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a></p>
-    </section>
-
-    <section class="how-agree uni-launch" id="uni-launch">
-      <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>Free for students, always. Places are limited.</h2>
-        <p class="lead">Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.</p>
-        <div class="uni-routes">
-          <div class="uni-route"><strong>Free places</strong><ul class="bullets"><li>Join the waiting list</li><li>Places open in phases, in registration order</li><li>Up to 5 per university in each phase</li></ul></div>
-          <div class="uni-route uni-hl"><span class="uni-hl-label">Partner benefit</span><strong>Through a partner university</strong><ul class="bullets"><li>Reserved places, with no waiting list</li><li>A tag on each student’s profile that organisations can trust</li><li>Progress reports for students who agree</li></ul></div>
-        </div>
-        <p class="small muted">Partner universities’ contributions keep the free places open for everyone else.</p>
-        <div class="row">${btn("Students: join the waiting list", "#join?role=student", "")}</div></div>
-      <ol class="how-checks uni-timeline">${LAUNCH.map(([when, d]) => `<li><span class="uni-when">${when}</span><span>${d}</span></li>`).join("")}</ol>
-    </section>
-
-    <section class="stack" style="--gap:20px">
-      <div class="stack" style="--gap:8px">${eyebrow("From pilot to partnership")}<h2>Try it first. Decide with real results.</h2></div>
-      <ol class="uni-steps four">${PATH.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
-      <div class="uni-two">
-        <div class="card stack uni-hl" style="--gap:12px"><span class="uni-hl-label">Partner benefits</span><h3 class="h3">What a partnership can include</h3>
-          <div class="uni-tag-demo"><span class="small muted">Your students’ profiles show:</span>${partnerBadge({ partner_student: true })}<span class="small muted">Organisations see they come through a university programme, which builds trust when they choose who to work with.</span></div>
-          <ul class="bullets">${INCLUDES.map((x) => `<li>${x}</li>`).join("")}</ul></div>
-        <div class="card stack uni-free" style="--gap:12px"><h3 class="h3">How Handova stays free</h3><p>Students and organisations never pay. Verifying organisations, matching projects and supporting every student has a real cost, so partner universities make an annual contribution that keeps Handova running and free for everyone else.</p><p class="muted">We agree the contribution with each partner after the pilot, in line with their country’s income level and the scope of the partnership. Founding Partners keep a reduced rate in their first year.</p></div>
+      <div class="stack" style="--gap:8px">${eyebrow("What your university gets")}<h2>Real experience for your students, evidence for you.</h2></div>
+      <div class="uni-value">
+        <div class="uni-gets">${GETS.map(([ic, t, d]) => `<div class="card stack" style="--gap:8px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
+        <div class="card stack uni-hl" style="--gap:12px"><span class="uni-hl-label">Partner benefits</span><h3 class="h3">As a partner university, you also get</h3>
+          <div class="uni-tag-demo"><span class="small muted">Your students’ profiles show:</span>${partnerBadge({ partner_student: true })}<span class="small muted">Organisations see the student comes through a university programme.</span></div>
+          <ul class="bullets">${PARTNER_GETS.map((x) => `<li>${x}</li>`).join("")}</ul>
+          <p class="small"><strong>Your students’ free access never depends on whether you partner.</strong></p></div>
       </div>
+    </section>
+
+    <section class="stack" style="--gap:20px" id="uni-path">
+      <div class="stack" style="--gap:8px">${eyebrow("From pilot to partnership")}<h2>Try it first. Decide with real results.</h2></div>
+      <ol class="uni-steps">${PATH.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
+      <div class="uni-cost"><p><strong>The pilot is free, with no obligation, and you can stop at any time.</strong> If you continue, partner universities make an annual contribution that keeps Handova free for students and organisations. We share an indicative range on the first call, agree the amount after the pilot in line with your country’s income level and the scope of the partnership, and invoice nothing before the review meeting. Founding Partners keep a reduced rate in their first year.</p>${toForm("Register for a pilot", "")}</div>
     </section>
 
     <section class="uni-today">
       <div class="stack" style="--gap:10px">${eyebrow("Where we are today")}<h2>We are early. That is why the pilot is free.</h2>
-        <p class="muted">Handova opened in November 2026. Every match is made by hand, and Founding Partners help shape what we build next.</p></div>
+        <p class="muted">Handova opened in November 2026, and every match is made by hand. We are taking up to 3 Founding Partners for January 2027, so every student has a real project. If we can’t match a student within three weeks, we tell you.</p></div>
       ${nums.length ? `<ul class="uni-nums">${nums.map(([n, what]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span></li>`).join("")}</ul>` : ""}
+    </section>
+    ${needs?.length ? `<section class="stack" style="--gap:16px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Open right now")}<h2 class="h3">Projects your students could take on.</h2></div><a href="#needs" style="font-weight:700">See all needs ${icon("arrow", 14)}</a></div><div class="grid uni-needs">${needs.map(needCard).join("")}</div></section>` : ""}
+
+    <section class="stack" style="--gap:20px">
+      <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
+      <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<div class="card stack" style="--gap:10px"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong><p class="muted small">${d}</p></div>`).join("")}</div>
+      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a></p>
+    </section>
+
+    <section class="uni-launch" id="uni-launch">
+      <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>Free for students, always. Places are limited.</h2>
+        <p class="lead">Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.</p>
+        <div class="uni-share"><strong>Share with your students</strong><p class="small muted">Copy a ready-made message, or just the link, for your newsletter, course page or careers board.</p>
+          <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_NOTE)}">${icon("doc", 16)}<span>Copy the message</span></button><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_LINK)}">${icon("link", 16)}<span>Copy the link</span></button></div></div></div>
+      <ol class="how-checks uni-timeline">${LAUNCH.map(([when, d]) => `<li><span class="uni-when">${when}</span><span>${d}</span></li>`).join("")}</ol>
+    </section>
+
+    <section class="ms-why uni-why" aria-labelledby="uni-why-title">
+      <div class="ms-why-head"><span class="eyebrow">Why now</span><h2 id="uni-why-title">A first step into work in the age of AI.</h2>
+        <p>AI is taking over the tasks that used to give graduates their first job, and employers hire fewer juniors. Few students can afford to travel or work unpaid abroad to make up for it. Handova gives them real, verified experience with organisations around the world, from wherever they are.</p></div>
+      <ul class="ms-stats uni-stats">${MS_STATS.slice(0, 2).map(([n, what, src]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span><cite>${src}</cite></li>`).join("")}</ul>
     </section>
 
     <section class="uni-who">
@@ -140,16 +148,16 @@ export async function universities() {
         </div>
         <div class="hp-field" aria-hidden="true"><label>Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
         ${formEnd("Register interest")}
+        <p class="small muted uni-next">Next: we email you within two working days to book a 20-minute call. We use your details only to reply to you: see our <a href="#privacy">privacy notice</a>.</p>
       </form>
     </section>
     <p class="small muted"><span>Last updated</span> <span data-no-i18n>${date(UPDATED)}</span></p>
   </div>`;
   const to = new URLSearchParams(location.hash.split("?")[1] || "").get("to");
-  return { title: "For universities", description: "Free, remote projects for your students with verified organisations worldwide. Founding Partner pilots from January 2027.", html,
+  return { title: "For universities", description: "A free 3-month pilot from January 2027: remote projects for your students with verified organisations worldwide.", html,
     after: to ? () => setTimeout(() => document.getElementById(to)?.scrollIntoView({ block: "start" }), 60) : undefined };
 }
 
-// Register interest: saved for Handova's team, and the university is added to the list in the order it registered.
 export async function submitInterest(form) {
   await withForm(form, async (fd) => {
     if (!form.checkValidity()) { form.reportValidity(); throw Error("Please complete the form."); }

@@ -1941,16 +1941,9 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .stat-link:hover > svg, .stat-link:focus-visible > svg { opacity: 1; transform: translateX(3px); }
 /* Partner university students and partner benefits (16 Nov 2026). */
 .pill.partner-pill { display: inline-flex; align-items: center; gap: 5px; background: #0f6f63; color: #fff; }
-.uni-routes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.uni-route { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; transition: transform 0.25s, box-shadow 0.25s; }
-.uni-route ul.bullets { font-size: 0.92rem; }
 .uni-hl { position: relative; border: 2px solid #0f6f63 !important; box-shadow: 0 10px 28px rgba(15, 111, 99, 0.14); }
 .uni-hl-label { align-self: flex-start; display: inline-block; padding: 3px 10px; border-radius: 999px; background: #0f6f63; color: #fff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .uni-tag-demo { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; background: var(--mint); border-radius: 12px; }
-.uni-route:hover, .uni-route:active { transform: translateY(-3px); box-shadow: var(--shadow); }
-@media (prefers-reduced-motion: reduce) { .uni-route:hover, .uni-route:active { transform: none; } }
-@media (max-width: 640px) { .uni-routes { grid-template-columns: minmax(0, 1fr); } }
-
 /* Progress: the journey step by step, with whose turn each step is (16 Nov 2026). */
 .pg-bars-h { font: 800 .78rem/1.2 var(--sans, inherit); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
 .pg-bar-label { display: flex; align-items: center; gap: 10px; }
@@ -1961,3 +1954,31 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .pg-letter-P { background: #4c5aa8; }
 .pg-legend { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pg-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* For universities, conversion review (16 Nov 2026): value first, one path, calmer highlights, shorter on phones. */
+.uni-value { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.uni-gets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uni-gets .card { padding: 18px; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+.uni-gets .card:hover, .uni-gets .card:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
+.uni-gets p, .uni-value .uni-hl p { margin: 0; }
+.uni-cost { display: flex; gap: 20px; align-items: center; justify-content: space-between; padding: 18px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
+.uni-cost p { margin: 0; max-width: 820px; }
+.uni-cost .btn { flex-shrink: 0; }
+.uni-launch { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: start; padding: clamp(24px, 4vw, 40px); background: var(--paper); border: 1px solid var(--line); border-radius: 24px; scroll-margin-top: 96px; }
+.uni-launch h2, .uni-launch p { margin: 0; }
+.uni-share { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px dashed #bcd6cd; border-radius: 14px; }
+.uni-nums li { background: var(--paper); border: 1px solid var(--line); }
+.uni-next { margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .uni-gets .card:hover, .uni-gets .card:active { transform: none; } }
+@media (max-width: 1000px) { .uni-value, .uni-launch { grid-template-columns: minmax(0, 1fr); } .uni-cost { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 640px) {
+  .uni-gets { grid-template-columns: minmax(0, 1fr); }
+  .uni-nums { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .uni-nums li { padding: 12px 10px; }
+  .uni-nums strong { font-size: 1.6rem; }
+  .uni-nums span { font-size: 0.75rem; }
+  .uni-grid .card, .uni-gets .card { padding: 14px 16px; }
+  .uni-grid .icon-tile, .uni-gets .icon-tile { display: none; }
+  .uni-steps li { padding: 14px 16px; }
+  .uni-contact form .btn[type=submit] { width: 100%; }
+}
