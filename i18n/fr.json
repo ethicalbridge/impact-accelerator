@@ -260,7 +260,6 @@
 "Added back to your impact CV.":"Remise sur votre CV d’impact.",
 "Two minutes: how did it go?":"Deux minutes : comment ça s’est passé ?",
 "Your answers are never shown to {name} and don’t affect the endorsement.":"Vos réponses ne sont jamais montrées à {name} et n’ont aucun effet sur la recommandation.",
-"Handova only reports totals. Every question is optional.":"Handova ne publie que des totaux. Toutes les questions sont facultatives.",
 "How much practical value did this work create for your organisation?":"Quelle valeur concrète ce travail a-t-il apportée à votre organisation ?",
 "None":"Aucune",
 "A little":"Un peu",
@@ -305,7 +304,6 @@
 "Finishing and endorsing":"Terminer et recommander",
 "Did anything make you uncomfortable or concerned?":"Quelque chose vous a-t-il mis mal à l’aise ou inquiété ?",
 "What can your organisation do now that it could not do before? One example.":"Que peut faire votre organisation aujourd’hui qu’elle ne pouvait pas faire avant ? Un exemple.",
-"Optional. Write in any language you prefer.":"Facultatif. Écrivez dans la langue de votre choix.",
 "Most contributions have something that could work better. What one thing would have made this more useful?":"La plupart des contributions ont quelque chose qui pourrait mieux fonctionner. Quelle chose aurait rendu ceci plus utile ?",
 "How well did the need description match the real work?":"Dans quelle mesure la description du besoin correspondait-elle au travail réel ?",
 "Not at all":"Pas du tout",
@@ -4559,4 +4557,7 @@
 "What Handova admins did, and when.":"Ce que les administrateurs de Handova ont fait, et quand.",
 "Universities":"Universités",
 "Follow-ups":"Suivis",
-"Switch list":"Changer de liste"}
+"Switch list":"Changer de liste",
+"Required. Write in any language you prefer.":"Obligatoire. Écrivez dans la langue de votre choix.",
+"Handova only reports totals. Please answer the written questions; the others are optional.":"Handova ne publie que des totaux. Merci de répondre aux questions écrites ; les autres sont facultatives.",
+"Please answer this question. A short sentence is enough.":"Merci de répondre à cette question. Une courte phrase suffit."}

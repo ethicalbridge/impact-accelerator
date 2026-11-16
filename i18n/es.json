@@ -260,7 +260,6 @@
 "Added back to your impact CV.":"Añadida de nuevo a tu CV de impacto.",
 "Two minutes: how did it go?":"Dos minutos: ¿cómo fue?",
 "Your answers are never shown to {name} and don’t affect the endorsement.":"Tus respuestas nunca se muestran a {name} y no afectan a la recomendación.",
-"Handova only reports totals. Every question is optional.":"Handova solo informa totales. Todas las preguntas son opcionales.",
 "How much practical value did this work create for your organisation?":"¿Cuánto valor práctico aportó este trabajo a tu organización?",
 "None":"Ninguno",
 "A little":"Poco",
@@ -305,7 +304,6 @@
 "Finishing and endorsing":"Finalizar y recomendar",
 "Did anything make you uncomfortable or concerned?":"¿Hubo algo que te incomodara o preocupara?",
 "What can your organisation do now that it could not do before? One example.":"¿Qué puede hacer ahora tu organización que antes no podía? Un ejemplo.",
-"Optional. Write in any language you prefer.":"Opcional. Escribe en el idioma que prefieras.",
 "Most contributions have something that could work better. What one thing would have made this more useful?":"Casi todas las contribuciones tienen algo que podría funcionar mejor. ¿Qué cosa habría hecho esto más útil?",
 "How well did the need description match the real work?":"¿En qué medida la descripción de la necesidad coincidió con el trabajo real?",
 "Not at all":"Nada",
@@ -4571,4 +4569,7 @@
 "What Handova admins did, and when.":"Qué hicieron los administradores de Handova y cuándo.",
 "Universities":"Universidades",
 "Follow-ups":"Seguimientos",
-"Switch list":"Cambiar de lista"}
+"Switch list":"Cambiar de lista",
+"Required. Write in any language you prefer.":"Obligatoria. Escribe en el idioma que prefieras.",
+"Handova only reports totals. Please answer the written questions; the others are optional.":"Handova solo informa totales. Responde las preguntas escritas; las demás son opcionales.",
+"Please answer this question. A short sentence is enough.":"Responde esta pregunta. Basta con una frase corta."}
