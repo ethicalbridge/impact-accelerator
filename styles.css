@@ -2068,3 +2068,52 @@ details.jc-past[open] summary { margin-bottom: 6px; }
 .pg-tile-who .pg-letter { margin-top: 1px; }
 a.pg-tile { text-decoration: none; color: inherit; transition: transform .2s, box-shadow .2s; }
 a.pg-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(18, 62, 58, .08); }
+/* For universities: free vs through a partner university (16 Nov 2026). */
+.uni .uni-gets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.uni-compare { padding: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 14px; }
+.uni-compare table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.uni-compare th, .uni-compare td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-weight: 400; }
+.uni-compare tbody tr:last-child > * { border-bottom: 0; }
+.uni-compare thead th { vertical-align: bottom; border-bottom: 2px solid var(--line); }
+.uni-compare thead th strong { display: block; font-size: 1.02rem; }
+.uni-compare thead th > span:not(.uni-hl-label):not(.pill) { display: block; font-size: 0.8rem; color: var(--muted); margin: 2px 0 6px; }
+.uni-compare thead th:first-child { width: 44%; }
+.uni-compare td { width: 28%; }
+.uni-compare td, .uni-compare thead th:not(:first-child) { text-align: center; }
+.uni-compare .uni-cmp-partner { background: var(--mint); }
+.uni-compare thead .uni-cmp-partner { border-radius: 14px 14px 0 0; border-bottom-color: #0f6f63; }
+.uni-compare tbody tr:last-child .uni-cmp-partner { border-radius: 0 0 14px 14px; }
+.uni-compare tbody th { font-size: 0.95rem; }
+.uni-yes, .uni-no { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+.uni-yes { background: #d5eae3; }
+.uni-cmp-partner .uni-yes { background: #fff; }
+.uni-cmp-text { font-size: 0.88rem; }
+.uni-cmp-partner .uni-cmp-text { font-weight: 600; }
+.uni-compare > p { margin: 0; }
+@media (max-width: 1000px) { .uni .uni-gets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .uni .uni-gets { grid-template-columns: minmax(0, 1fr); }
+  .uni-compare { padding: 12px; }
+  .uni-compare th, .uni-compare td { padding: 10px 8px; }
+  .uni-compare thead th:first-child { display: none; }
+  .uni-compare thead tr, .uni-compare tbody tr { display: grid; grid-template-columns: 1fr 1fr; }
+  .uni-compare tbody th { grid-column: 1 / -1; border-bottom: 0; padding: 12px 4px 4px; font-weight: 600; font-size: 0.9rem; }
+  .uni-compare td { width: auto; }
+  .uni-compare thead th { width: auto; }
+  .uni-compare thead .pill { font-size: 0.68rem; }
+  .uni-compare .uni-cmp-partner { border-radius: 10px; }
+}
+
+/* Needs on the universities page: no progress label; safety questions open and close on phones. */
+.uni-needs .card-body > .row .pill { display: none; }
+.uni-q > summary { list-style: none; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; cursor: default; }
+.uni-q > summary::-webkit-details-marker { display: none; }
+.uni-q > summary > svg:last-child { display: none; }
+.uni-q > p { margin: 10px 0 0; }
+@media (min-width: 641px) { .uni-q > summary { pointer-events: none; } }
+@media (max-width: 640px) {
+  .uni-q > summary { flex-direction: row; align-items: center; justify-content: space-between; cursor: pointer; }
+  .uni-q > summary > svg:last-child { display: block; flex: none; color: var(--teal); transition: transform 0.2s; }
+  .uni-q[open] > summary > svg:last-child { transform: rotate(180deg); }
+  .uni-grid { gap: 8px; }
+}
