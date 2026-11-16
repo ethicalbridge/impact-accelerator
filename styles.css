@@ -2117,3 +2117,4 @@ a.pg-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(18, 6
   .uni-q[open] > summary > svg:last-child { transform: rotate(180deg); }
   .uni-grid { gap: 8px; }
 }
+.uni-compare > h3 { margin: 0; }
