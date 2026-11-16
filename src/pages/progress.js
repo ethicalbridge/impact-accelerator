@@ -62,26 +62,60 @@ function waits(d) {
   return out.sort((a, b) => rank[a.sev] - rank[b.sev] || (b.days ?? -1) - (a.days ?? -1));
 }
 
-// Average time between steps, to show where the journey slows down. Steps still waiting count up to now (16 Nov 2026),
-// so the bars move every day while something is stuck, not only when a step finishes.
+// The journey, step by step (16 Nov 2026): the average time each step takes, grouped in the order things happen, with
+// whose turn it is (H Handova, O organisation, P professional). Steps still waiting count up to now, so the bars move
+// every day while something is stuck. "Sent for review" times come from the admin review alerts; "reviewed" is the
+// first admin decision after each send (approved or asked for changes).
 function speeds(d) {
-  const now = Date.now();
-  // [from, to, stillWaiting]: a finished step counts its real time; one still waiting counts from `from` until now.
-  const avg = (rows) => { const v = rows.filter(([a, b, w]) => a && (b || w)).map(([a, b]) => ((b ? new Date(b) : now) - new Date(a)) / DAY); return v.length ? { avg: v.reduce((s, x) => s + x, 0) / v.length, n: v.length } : { avg: null, n: 0 }; };
+  const now = Date.now(), t = (x) => (x ? new Date(String(x).replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime() : null);
+  // rows: [from, to, stillWaiting]. A finished step counts its real time; one still waiting counts from `from` until now.
+  const avg = (rows) => { const v = rows.filter(([a, b, w]) => a && (b || w)).map(([a, b]) => Math.max(0, ((b ? t(b) : now) - t(a)) / DAY)); return v.length ? { avg: v.reduce((s, x) => s + x, 0) / v.length, n: v.length } : { avg: null, n: 0 }; };
+  const after = (list, at) => (list || []).find((x) => t(x.at ?? x) > t(at));
+  const sends = (x) => (x.sent || []).map(String);
+  // Each time something was sent → the first admin decision after it (or the approval date, for older records).
+  const reviews = (x, pending) => { const ss = sends(x); if (!ss.length) return [[x.created_at, x.approved_at, pending]];
+    return ss.map((s, i) => { const dcs = after(x.decisions, s); const end = dcs?.at || (x.approved_at && t(x.approved_at) > t(s) ? x.approved_at : null); return [s, end, !end && pending && i === ss.length - 1]; }); };
+  // Each "asked for changes" → the next time it was sent again.
+  const resends = (x, action, waiting) => (x.decisions || []).filter((a) => a.a === action).map((a) => { const nx = after(sends(x), a.at); return [a.at, nx || null, !nx && waiting]; });
+  const firstSent = (x) => sends(x)[0] || x.created_at;
+  const needsOf = (o) => d.needs.filter((n) => n.org_id === o.id);
   const signedBoth = (c) => (c.org_signed_at && c.talent_signed_at ? [c.org_signed_at, c.talent_signed_at].sort().pop() : null);
-  const live = (c) => c.status === "active" || c.status === "awaiting_signatures";
+  const signing = (c) => c.status === "awaiting_signatures", live = (c) => c.status === "active" || signing(c);
+  const survey = (v) => (v ? String(v).split("|")[1] : null);
+  const proLive = (p) => !p.closed_at;
   return [
-    ["Organisation signs up → approved", "handova", avg(d.orgs.map((o) => [o.created_at, o.approved_at, o.status === "pending"]))],
-    ["Profile sent → approved", "handova", avg(d.pros.map((p) => [p.sent_at || p.profile_at, p.approved_at, p.review_status === "pending"]))],
-    ["Need sent → live", "handova", avg(d.needs.map((n) => [n.created_at, n.approved_at, n.status === "pending"]))],
-    ["Need live → first application", "pros", avg(d.needs.map((n) => [n.published_at || n.approved_at, n.first_app_at, n.status === "open"]))],
-    ["First application → professional chosen", "org", avg(d.needs.map((n) => [n.first_app_at, n.chosen_at, n.status === "open"]))],
-    ["Chosen → agreement signed by both", "both", avg(d.contribs.map((c) => [c.created_at, signedBoth(c), live(c)]))],
-    ["Signed → first call", "both", avg(d.contribs.map((c) => [signedBoth(c), c.first_call_at, live(c)]))],
-    ["First call → work delivered", "pro", avg(d.contribs.map((c) => [c.first_call_at, c.delivered_at, live(c)]))],
-    ["Delivered → finished and endorsed", "org", avg(d.contribs.map((c) => [c.delivered_at, c.completed_at, live(c)]))],
+    ["Organisations join", [
+      ["Signs up → sends the organisation for review", "O", avg(d.orgs.map((o) => [o.account_at, firstSent(o), false]))],
+      ["Organisation sent → reviewed by Handova", "H", avg(d.orgs.flatMap((o) => reviews(o, o.status === "pending")))],
+      ["Asked for changes → sends the organisation again", "O", avg(d.orgs.flatMap((o) => resends(o, "org_changes_requested", o.status === "changes_requested")))],
+      ["Organisation approved → sends its first need", "O", avg(d.orgs.map((o) => { const ns = needsOf(o).map(firstSent).sort(); return [o.approved_at, ns[0] || null, o.status === "approved" && !ns.length]; }))],
+    ]],
+    ["Needs", [
+      ["Need sent → reviewed by Handova", "H", avg(d.needs.flatMap((n) => reviews(n, n.status === "pending")))],
+      ["Need sent back for changes → sent again", "O", avg(d.needs.flatMap((n) => resends(n, "need_draft", n.status === "draft")))],
+      ["Need live → first application", "P", avg(d.needs.map((n) => [n.published_at || n.approved_at, n.first_app_at, n.status === "open"]))],
+      ["First application → professional chosen", "O", avg(d.needs.map((n) => [n.first_app_at, n.chosen_at, n.status === "open"]))],
+    ]],
+    ["Professionals join", [
+      ["Signs up → sends the profile for review", "P", avg(d.pros.map((p) => { const s0 = sends(p)[0] || p.sent_at; return [p.signed_up_at, s0 || null, !s0 && !p.approved_at && proLive(p)]; }))],
+      ["Profile sent → reviewed by Handova", "H", avg(d.pros.flatMap((p) => { const ss = sends(p); return ss.length ? reviews(p, p.review_status === "pending") : p.sent_at ? [[p.sent_at, p.approved_at, p.review_status === "pending"]] : []; }))],
+      ["Asked for changes → sends the profile again", "P", avg(d.pros.flatMap((p) => resends(p, "profile_changes_requested", p.review_status === "changes_requested" && proLive(p))))],
+      ["Signs up → identity checked", "P", avg(d.pros.map((p) => [p.signed_up_at, p.id_verified_at, p.id_status !== "approved" && proLive(p)]))],
+      ["Profile approved → first application", "P", avg(d.pros.map((p) => [p.approved_at, p.first_app_at, !p.first_app_at && p.published && proLive(p)]))],
+    ]],
+    ["Working together", [
+      ["Professional chosen → professional signs the agreement", "P", avg(d.contribs.map((c) => [c.created_at, c.talent_signed_at, signing(c)]))],
+      ["Professional chosen → organisation signs the agreement", "O", avg(d.contribs.map((c) => [c.created_at, c.org_signed_at, signing(c)]))],
+      ["Agreement signed → first call", "OP", avg(d.contribs.map((c) => [signedBoth(c), c.first_call_at, live(c)]))],
+      ["First call → work delivered", "P", avg(d.contribs.map((c) => [c.first_call_at, c.delivered_at, live(c)]))],
+      ["Work delivered → finished and endorsed", "O", avg(d.contribs.map((c) => [c.delivered_at, c.completed_at, live(c)]))],
+      ["Finished → organisation answers the questionnaire", "O", avg(d.contribs.map((c) => [c.completed_at, survey(c.survey_org), c.status === "completed"]))],
+      ["Finished → professional answers the questionnaire", "P", avg(d.contribs.map((c) => [c.completed_at, survey(c.survey_pro), c.status === "completed"]))],
+    ]],
   ];
 }
+const WHO_LETTER = { H: "Handova", O: "Organisation", P: "Professional" };
+const whoDots = (who) => [...who].map((k) => `<span class="pg-letter pg-letter-${k}" title="${WHO_LETTER[k]}"><span aria-hidden="true">${k}</span><span class="visually-hidden">${WHO_LETTER[k]}</span></span>`).join("");
 // "under 1 hour", "5 hours", "2.5 days", "12 days".
 const howLong = (dd) => { if (dd * 24 < 1) return "<span>under 1 hour</span>"; if (dd < 1) { const h = Math.round(dd * 24); return `${h} ${h === 1 ? "<span>hour</span>" : "<span>hours</span>"}`; } const v = dd < 10 ? Math.round(dd * 10) / 10 : Math.round(dd); return `${v} ${v === 1 ? "<span>day</span>" : "<span>days</span>"}`; };
 
@@ -165,14 +199,14 @@ export async function progress() {
   const groupsOf = (x) => x.who === "both" ? ["org", "pro"] : x.who === "pros" ? ["pro"] : [x.who];
   const by = (w) => list.filter((x) => groupsOf(x).includes(w));
   const tile = (w, label) => { const l = by(w), red = l.filter((x) => x.sev === "red").length, oldest = Math.max(0, ...l.map((x) => x.days || 0)); return `<button type="button" class="pg-tile ${w === "setup" ? "" : red ? "red" : l.some((x) => x.sev === "amber") ? "amber" : ""}" data-pg-filter="${w}" aria-pressed="false"><strong>${l.length}</strong><span>${label}</span><span class="small">${l.length ? `${red && w !== "setup" ? `${red} <span>overdue</span> · ` : ""}<span>oldest</span> ${oldest} ${oldest === 1 ? "<span>day</span>" : "<span>days</span>"}` : "<span>Nothing waiting</span>"}</span><span class="pg-tile-go small">${l.length ? "Show them" : ""}</span></button>`; };
-  const sp = speeds(d), max = Math.max(1, ...sp.map(([, , s]) => s.avg || 0)), slowest = sp.reduce((m, x) => ((x[2].avg || 0) > (m[2].avg || 0) ? x : m), sp[0]);
+  const sp = speeds(d), rowsAll = sp.flatMap(([, r]) => r), max = Math.max(1, ...rowsAll.map(([, , x]) => x.avg || 0)), slowest = rowsAll.reduce((m, x) => ((x[2].avg || 0) > (m[2].avg || 0) ? x : m), rowsAll[0]);
   const active = d.contribs.filter((c) => ["awaiting_signatures", "active"].includes(c.status));
   const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:28px">
     ${back("Back to admin", "#admin")}
     <div class="stack" style="--gap:10px">${eyebrow("Admin")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Progress and bottlenecks</h1><p class="lead" style="max-width:none">Where every organisation, need, professional and contribution is, how long each step has been waiting and on whom, and the reminders already sent. Amber means slower than usual, red means overdue.</p><p class="small muted"><span>Updated</span> ${date(d.generated_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p></div>
     <div class="pg-tiles">${tile("handova", "waiting on Handova")}${tile("org", "waiting on organisations")}${tile("pro", "waiting on professionals")}${tile("setup", "unfinished sign-ups")}<button type="button" class="pg-tile" data-pg-goto="contribs"><strong>${active.length}</strong><span>contributions in progress</span><span class="small">${d.contribs.filter((c) => c.status === "completed").length} <span>handed over so far</span></span><span class="pg-tile-go small">${d.contribs.length ? "See their timelines" : ""}</span></button></div>
-    <section class="card stack" style="--gap:14px"><h2 style="font-size:1.6rem">Where the journey slows down</h2><p class="small muted">Average time between steps; in brackets, how many were counted. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.</p>
-      <div class="pg-bars">${sp.map(([label, who, s]) => `<div class="pg-bar${s === slowest[2] && s.avg ? " slow" : ""}"><span class="pg-bar-label">${label} <span class="pg-who">${WHO[who]}</span></span><span class="pg-bar-track"><span style="width:${s.avg == null ? 0 : Math.max(3, (s.avg / max) * 100)}%"></span></span><span class="pg-bar-val">${s.avg == null ? `<span class="small muted" style="font-weight:400">no data yet</span>` : `${howLong(s.avg)} <span class="small muted" style="font-weight:400">(${s.n})</span>`}</span></div>`).join("")}</div></section>
+    <section class="card stack" style="--gap:14px"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:10px"><h2 style="font-size:1.6rem">Where the journey slows down</h2><span class="pg-legend"><span class="small muted">Whose turn:</span>${Object.keys(WHO_LETTER).map((k) => `<span class="pg-legend-item">${whoDots(k)}<span class="small">${WHO_LETTER[k]}</span></span>`).join("")}</span></div><p class="small muted">Average time each step takes, in the order things happen; in brackets, how many were counted. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.</p>
+      ${sp.map(([group, rows]) => `<div class="pg-bars"><h3 class="pg-bars-h">${group}</h3>${rows.map(([label, who, x]) => `<div class="pg-bar${x === slowest[2] && x.avg ? " slow" : ""}"><span class="pg-bar-label"><span class="pg-letters">${whoDots(who)}</span><span>${label}</span></span><span class="pg-bar-track"><span style="width:${x.avg == null ? 0 : Math.max(3, (x.avg / max) * 100)}%"></span></span><span class="pg-bar-val">${x.avg == null ? `<span class="small muted" style="font-weight:400">no data yet</span>` : `${howLong(x.avg)} <span class="small muted" style="font-weight:400">(${x.n})</span>`}</span></div>`).join("")}</div>`).join("")}</section>
     <section class="card stack" style="--gap:12px" id="pg-waiting"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:8px"><h2 style="font-size:1.6rem">Waiting right now</h2><span class="small muted"><span data-pg-count>${list.length}</span> <span>shown</span></span></div>
       <div class="pg-filters" role="group" aria-label="Filter">${[["all", "Everyone"], ["handova", "On Handova"], ["org", "On organisations"], ["pro", "On professionals"], ["setup", "Unfinished sign-ups"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-filter="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}<span class="pg-sep" aria-hidden="true"></span>${[["any", "Any wait"], ["late", "Slow or overdue"], ["red", "Overdue only"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-sev="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div>
       <p class="small muted">Oldest and most overdue first.</p>
