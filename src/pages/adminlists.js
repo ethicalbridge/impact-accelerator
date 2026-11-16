@@ -19,6 +19,23 @@ export const LISTS = {
   activity: "Activity log",
 };
 
+// Each list page is about one topic only (16 Nov 2026): its own title, a line saying what it shows, its own filters and
+// search. A separate "Switch list" bar at the very top moves between the lists, kept apart from the filters below so it
+// never reads as part of the selection.
+const SHORT = { people: "People", organisations: "Organisations", professionals: "Professionals", students: "Students", universities: "Universities", needs: "Needs", contributions: "Contributions", followups: "Follow-ups", reports: "Reports", activity: "Activity log" };
+const INTRO = {
+  people: ["Every account, from sign-up to contributing, with what each person still needs to do.", "Search people by name, email or organisation"],
+  organisations: ["Every organisation that registered, with its review status, needs and contributions.", "Search organisations by name or country"],
+  professionals: ["Every professional profile, with its review and identity status.", "Search professionals by name, skill or country"],
+  students: ["Students who registered, with their study details.", "Search students by name, email or university"],
+  universities: ["Universities and colleges that asked to partner with Handova.", "Search universities by name, country or contact"],
+  needs: ["Every need organisations sent, with its status and applications.", "Search needs by title or organisation"],
+  contributions: ["Every contribution, from the agreement to the handover.", "Search contributions by need, organisation or professional"],
+  followups: ["Six-month follow-ups after a contribution was handed over.", "Search follow-ups by need, organisation or professional"],
+  reports: ["Every concern reported, with its reference and status.", "Search reports by reference or words"],
+  activity: ["What Handova admins did, and when.", "Search the activity log"],
+};
+
 export async function adminList(kind, params) {
   if (!state.user) return { redirect: "#signin?next=%23admin" };
   if (!state.isAdmin) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1></div>` };
@@ -166,11 +183,10 @@ export async function adminList(kind, params) {
   }
 
   const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
-    ${back("Admin", "#admin")}
-    <div>${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1></div>
-    <nav class="rs-tabs" aria-label="Lists">${Object.entries(LISTS).map(([k, t]) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
+    <div class="al-switch">${back("Back to admin", "#admin")}<nav aria-label="Switch list"><span class="al-switch-label">Switch list</span>${Object.keys(LISTS).map((k) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${SHORT[k]}</a>`).join("")}</nav></div>
+    <div class="stack" style="--gap:8px">${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1><p class="lead" style="max-width:none">${INTRO[kind]?.[0] || ""}</p></div>
     ${kind === "reports" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn secondary sm" type="button" data-action="admin-record-report">Record an emailed report</button></div>` : kind === "universities" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn sm" type="button" data-action="admin-uni">${icon("plus", 16)}<span>Add a university</span></button></div>` : chips(filters)}
-    <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="${kind === "reports" ? "Search by reference or words" : "Search by name, country…"}"></form>
+    <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="${INTRO[kind]?.[1] || "Search"}"></form>
     <section class="card">${rows.length ? `<p class="small muted">${rows.length} ${rows.length === 1 ? "record" : "records"}</p>${body}` : empty("Nothing here", "No records match this view.")}</section>
   </div></div>`;
   return {
