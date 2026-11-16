@@ -1873,7 +1873,9 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .pg-need-name { display: block; font-weight: 500; color: var(--muted); font-size: .76rem; max-width: 16ch; margin-inline: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- For universities (16 Nov 2026) ---------- */
-.uni .how-hero h1 { font-size: clamp(2.3rem, 4.4vw, 3.8rem); }
+.uni-hero { display: flex; flex-direction: column; gap: clamp(20px, 3vw, 32px); padding-top: var(--page-top); }
+.uni-hero > .stack h1 { font-size: clamp(2.3rem, 4.4vw, 3.8rem); max-width: none; text-wrap: balance; }
+.uni-hero .how-hero { padding-top: 0; align-items: start; }
 .uni-status { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 12px 16px; background: var(--mint); border: 1px solid #bcd6cd; border-radius: 14px; }
 .uni-status svg { flex-shrink: 0; margin-top: 2px; }
 .uni-why .ms-why-head h2 { font: 500 clamp(1.6rem, 3vw, 2.3rem)/1.2 var(--serif); margin: 0; }
