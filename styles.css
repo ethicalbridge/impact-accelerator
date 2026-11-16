@@ -1921,3 +1921,7 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .al-switch nav a { padding: 6px 12px; border-radius: 8px; background: var(--sand); color: var(--ink); font-weight: 700; font-size: .9rem; text-decoration: none; border: 1px solid transparent; }
 .al-switch nav a:hover { border-color: var(--line); }
 .al-switch nav a[aria-current] { background: var(--deep); color: var(--paper); }
+/* Fact cards lift slightly under the pointer or a tap (For universities and How it works). */
+.how-fact { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+.how-fact:hover, .how-fact:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
+@media (prefers-reduced-motion: reduce) { .how-fact:hover, .how-fact:active { transform: none; } }
