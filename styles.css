@@ -1925,3 +1925,7 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .how-fact { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
 .how-fact:hover, .how-fact:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
 @media (prefers-reduced-motion: reduce) { .how-fact:hover, .how-fact:active { transform: none; } }
+/* For universities: every card-sized box lifts slightly under the pointer or a tap, like the fact cards. */
+.uni-steps li, .uni-grid .card, .uni-two .card, .uni-nums li { transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+.uni-steps li:hover, .uni-steps li:active, .uni-grid .card:hover, .uni-grid .card:active, .uni-two .card:hover, .uni-two .card:active, .uni-nums li:hover, .uni-nums li:active { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
+@media (prefers-reduced-motion: reduce) { .uni-steps li:hover, .uni-steps li:active, .uni-grid .card:hover, .uni-grid .card:active, .uni-two .card:hover, .uni-two .card:active, .uni-nums li:hover, .uni-nums li:active { transform: none; } }
