@@ -22,7 +22,7 @@ export const LISTS = {
 // Each list page is about one topic only (16 Nov 2026): its own title, a line saying what it shows, its own filters and
 // search. A separate "Switch list" bar at the very top moves between the lists, kept apart from the filters below so it
 // never reads as part of the selection.
-const SHORT = { people: "People", organisations: "Organisations", professionals: "Professionals", students: "Students", universities: "Universities", needs: "Needs", contributions: "Contributions", followups: "Follow-ups", reports: "Reports", activity: "Activity log" };
+const SHORT = { people: "All", organisations: "Organisations", professionals: "Professionals", students: "Students", universities: "Universities", needs: "Needs", contributions: "Contributions", followups: "Follow-ups", reports: "Reports", activity: "Activity log" };
 const INTRO = {
   people: ["Every account, from sign-up to contributing, with what each person still needs to do.", "Search people by name, email or organisation"],
   organisations: ["Every organisation that registered, with its review status, needs and contributions.", "Search organisations by name or country"],
