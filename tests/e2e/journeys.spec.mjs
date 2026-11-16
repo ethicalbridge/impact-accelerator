@@ -218,7 +218,7 @@ test("the For universities page: found from How it works, and a university regis
   const f = page.locator("form[data-form=uni-interest]");
   await f.locator("[name=name]").fill("Ama Mensah");
   await f.locator("[name=university]").fill("University of Cape Coast");
-  await f.locator("[name=country]").fill("Ghana");
+  await f.locator("[name=country]").selectOption("Ghana");
   await f.locator("[name=email]").fill("ama@example.test");
   await f.locator("[name=interest]").selectOption("pilot");
   await f.locator("[type=submit]").click();

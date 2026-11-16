@@ -1984,3 +1984,12 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
   .uni-steps li { padding: 14px 16px; }
   .uni-contact form .btn[type=submit] { width: 100%; }
 }
+
+/* For universities, audit fixes (16 Nov 2026): trust line, pilot promises, a lone last safety card spans the row. */
+.uni-trust { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; }
+.uni-trust a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 600; text-decoration: none; }
+.uni-trust a:hover { color: var(--teal); text-decoration: underline; }
+.uni-trust svg { color: var(--teal); flex: none; }
+.uni-promises strong { font-size: 1.45rem; }
+@media (min-width: 1001px) { .uni-grid > .card:last-child:nth-child(3n+1) { grid-column: 1 / -1; } }
+@media (max-width: 1000px) and (min-width: 641px) { .uni-grid > .card:last-child:nth-child(odd) { grid-column: 1 / -1; } }
