@@ -706,6 +706,7 @@ const rpcs = {
     if (!isAdmin()) fail("Administrator access required.");
     return D.user_private.filter((r) => r.career_stage === "student" || r.university_id || r.university_name).map((r) => { const p = D.profiles.find((x) => x.user_id === r.user_id); return { user_id: r.user_id, name: p?.name || "", email: "", signed_up_at: now(), email_confirmed: true, university_id: r.university_id || null, university_name: r.university_name || "", study_programme: r.study_programme || "", study_level: r.study_level || "", study_end: r.study_end || null, share_with_university: !!r.share_with_university, experience_level: p?.experience_level || "", profile_status: !p ? "no_profile" : p.published && p.review_status === "approved" ? "public" : p.published ? p.review_status : "draft", hours_approved: 0, contributions: 0 }; });
   },
+  register_university_interest: () => null,
   set_research_contact: (a) => { const u = me(); let r = D.user_private.find((x) => x.user_id === u); if (!r) D.user_private.push(r = { user_id: u }); r.research_contact = a.p_yes; r.research_contact_at = now(); },
   submit_survey: (a) => {
     const e = D.engagements.find((x) => x.id === a.p_engagement);

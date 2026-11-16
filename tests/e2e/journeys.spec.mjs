@@ -208,3 +208,25 @@ test("the talent directory filters by experience", async ({ page }) => {
   await f.locator("[name=experience]").selectOption("students");
   await expect(page.locator("#count")).toContainText("0 professionals");
 });
+
+test("the For universities page: found from How it works, and a university registers its interest", async ({ page }) => {
+  await page.goto("/#how");
+  await page.locator(".path-switch a[href='#universities']").click();
+  await expect(page.locator("h1")).toContainText("Real projects for your students");
+  await expect(page.locator(".uni-status")).toContainText("January 2027");
+  await expect(page.locator("a[download][href$='handova-for-universities.pdf']").first()).toBeVisible();
+  const f = page.locator("form[data-form=uni-interest]");
+  await f.locator("[name=name]").fill("Ama Mensah");
+  await f.locator("[name=university]").fill("University of Cape Coast");
+  await f.locator("[name=country]").fill("Ghana");
+  await f.locator("[name=email]").fill("ama@example.test");
+  await f.locator("[name=interest]").selectOption("pilot");
+  await f.locator("[type=submit]").click();
+  await expect(page.getByText("Thank you. Your interest is registered.")).toBeVisible();
+});
+
+test("a student on the waiting list sees when they can apply", async ({ page }) => {
+  await page.goto("/#join?role=student");
+  await expect(page.locator("form[data-form=signup] .uni-status")).toContainText("waiting list");
+  await expect(page.locator("a[href='#universities']").first()).toBeAttached();
+});

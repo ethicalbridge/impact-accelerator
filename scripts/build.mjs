@@ -77,7 +77,7 @@ indexHtml = indexHtml.replace(/script-src 'self'( 'sha256-[^']+')*/, `script-src
 if (!process.env.OUT) await writeFile("index.html", indexHtml);
 await writeFile(`${out}/index.html`, indexHtml);
 for (const f of ["styles.css", "favicon.svg", "og-image.png", "apple-touch-icon.png", "404.html", "robots.txt", "sitemap.xml", "CNAME"]) await cp(f, `${out}/${f}`);
-for (const d of ["fonts", "assets", "i18n"]) await cp(d, `${out}/${d}`, { recursive: true });
+for (const d of ["fonts", "assets", "i18n", "universities"]) await cp(d, `${out}/${d}`, { recursive: true });
 if (!process.env.OUT) {
   await rm(`${out}/chunks`, { recursive: true, force: true });
   for (const f of ["app.js", "consent-boot.js", "chunks"]) await cp(f, `${out}/${f}`, { recursive: true });
