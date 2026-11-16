@@ -2,7 +2,7 @@
 // registration order, places opened in phases from January 2027), the pilot-to-partnership path, and a form to
 // register interest. Same content as the 2-page summary PDF linked from the page; the page is the master version.
 import { db, e, result, withForm, val, fieldError } from "../core.js";
-import { icon, eyebrow, btn, field, select, formEnd } from "../ui.js";
+import { icon, eyebrow, btn, field, select, formEnd, partnerBadge } from "../ui.js";
 import { config } from "../config.js";
 import { MS_STATS } from "./public.js";
 import { exampleProfile } from "../examples.js";
@@ -44,7 +44,7 @@ const PATH = [
   ["A meeting to review", "We go through the results and the benefits together, and decide whether a partnership makes sense for you."],
   ["A partnership", "If it does, we agree its scope together: how many places, which programmes, the credit format and the reporting you need."],
 ];
-const INCLUDES = ["Places reserved for your students, outside the waiting list", "Projects matched to your courses, with a learning log", "Progress reports for students who agree to share them", "A named contact, onboarding for each cohort and a guest session", "Your university named on Handova as a partner, and a co-branded impact report"];
+const INCLUDES = ["Places reserved for your students, with no waiting list", "Projects matched to your courses, with a learning log", "Progress reports for students who agree to share them", "A named contact, onboarding for each cohort and a guest session", "Your university named on Handova as a partner, and a co-branded impact report"];
 const INTEREST = [["", "Choose one…"], ["pilot", "A Founding Partner pilot from January 2027"], ["share", "Sharing Handova with our students"], ["other", "Something else"]];
 
 // Where Handova stands today, counted live. If a count fails, the line is left out rather than showing a wrong number.
@@ -89,8 +89,12 @@ export async function universities() {
 
     <section class="how-agree uni-launch" id="uni-launch">
       <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>Free for students, always. Places are limited.</h2>
-        <p class="lead">Each place needs a real project behind it, so we open places in phases and keep projects and students in balance. The earlier your students register, the sooner they start.</p>
-        <p>Partner universities reserve places for their own students, and their contributions keep the free places open for everyone else.</p>
+        <p class="lead">Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.</p>
+        <div class="uni-routes">
+          <div class="uni-route"><strong>Free places</strong><ul class="bullets"><li>Join the waiting list</li><li>Places open in phases, in registration order</li><li>Up to 5 per university in each phase</li></ul></div>
+          <div class="uni-route uni-hl"><span class="uni-hl-label">Partner benefit</span><strong>Through a partner university</strong><ul class="bullets"><li>Reserved places, with no waiting list</li><li>A tag on each student’s profile that organisations can trust</li><li>Progress reports for students who agree</li></ul></div>
+        </div>
+        <p class="small muted">Partner universities’ contributions keep the free places open for everyone else.</p>
         <div class="row">${btn("Students: join the waiting list", "#join?role=student", "")}</div></div>
       <ol class="how-checks uni-timeline">${LAUNCH.map(([when, d]) => `<li><span class="uni-when">${when}</span><span>${d}</span></li>`).join("")}</ol>
     </section>
@@ -99,7 +103,9 @@ export async function universities() {
       <div class="stack" style="--gap:8px">${eyebrow("From pilot to partnership")}<h2>Try it first. Decide with real results.</h2></div>
       <ol class="uni-steps four">${PATH.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
       <div class="uni-two">
-        <div class="card stack" style="--gap:12px"><h3 class="h3">What a partnership can include</h3><ul class="bullets">${INCLUDES.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+        <div class="card stack uni-hl" style="--gap:12px"><span class="uni-hl-label">Partner benefits</span><h3 class="h3">What a partnership can include</h3>
+          <div class="uni-tag-demo"><span class="small muted">Your students’ profiles show:</span>${partnerBadge({ partner_student: true })}<span class="small muted">Organisations see they come through a university programme, which builds trust when they choose who to work with.</span></div>
+          <ul class="bullets">${INCLUDES.map((x) => `<li>${x}</li>`).join("")}</ul></div>
         <div class="card stack uni-free" style="--gap:12px"><h3 class="h3">How Handova stays free</h3><p>Students and organisations never pay. Verifying organisations, matching projects and supporting every student has a real cost, so partner universities make an annual contribution that keeps Handova running and free for everyone else.</p><p class="muted">We agree the contribution with each partner after the pilot, in line with their country’s income level and the scope of the partnership. Founding Partners keep a reduced rate in their first year.</p></div>
       </div>
     </section>
