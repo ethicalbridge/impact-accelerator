@@ -183,7 +183,7 @@ export async function adminList(kind, params) {
   }
 
   const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:20px">
-    <div class="al-switch">${back("Back to admin", "#admin")}<nav aria-label="Switch list"><span class="al-switch-label">Switch list</span>${Object.keys(LISTS).map((k) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}>${SHORT[k]}</a>`).join("")}</nav></div>
+    <div class="al-switch">${back("Back to admin", "#admin")}<nav aria-label="Switch list"><span class="al-switch-label">Switch list</span>${Object.keys(LISTS).map((k) => `<a href="#admin-list/${k}" ${k === kind ? 'aria-current="page"' : ""}${k === "reports" ? ' class="al-report"' : ""}>${k === "reports" ? `${icon("flag", 15)}<span>${SHORT[k]}</span>` : SHORT[k]}</a>`).join("")}</nav></div>
     <div class="stack" style="--gap:8px">${eyebrow("Admin")}<h1 style="font-size:clamp(2rem,3.6vw,3rem)">${LISTS[kind]}</h1><p class="lead" style="max-width:none">${INTRO[kind]?.[0] || ""}</p></div>
     ${kind === "reports" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn secondary sm" type="button" data-action="admin-record-report">Record an emailed report</button></div>` : kind === "universities" ? `<div class="row between" style="align-items:center">${chips(filters)}<button class="btn sm" type="button" data-action="admin-uni">${icon("plus", 16)}<span>Add a university</span></button></div>` : chips(filters)}
     <form class="al-search" data-al-search><label class="visually-hidden" for="al-q">Search</label><input id="al-q" type="search" name="q" value="${e(params.get("q") || "")}" placeholder="${INTRO[kind]?.[1] || "Search"}"></form>
