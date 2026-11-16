@@ -4571,4 +4571,21 @@
 "What Handova admins did, and when.":"Qué hicieron los administradores de Handova y cuándo.",
 "Universities":"Universidades",
 "Follow-ups":"Seguimientos",
-"Switch list":"Cambiar de lista"}
+"Switch list":"Cambiar de lista",
+  "Places reserved for your students, with no waiting list": "Plazas reservadas para tus estudiantes, sin lista de espera",
+  "Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.": "Estudiantes y profesionales se unen a Handova gratis. Las plazas para estudiantes son limitadas, porque cada una necesita un proyecto real detrás, así que las abrimos por etapas, por orden de inscripción.",
+  "Free places": "Plazas gratuitas",
+  "Join the waiting list": "Entrar en la lista de espera",
+  "Places open in phases, in registration order": "Las plazas se abren por etapas, por orden de inscripción",
+  "Up to 5 per university in each phase": "Hasta 5 por universidad en cada etapa",
+  "Partner benefit": "Beneficio para aliadas",
+  "Through a partner university": "A través de una universidad aliada",
+  "Reserved places, with no waiting list": "Plazas reservadas, sin lista de espera",
+  "A tag on each student’s profile that organisations can trust": "Una etiqueta en el perfil de cada estudiante que da confianza a las organizaciones",
+  "Progress reports for students who agree": "Informes de avance de los estudiantes que lo acepten",
+  "Partner universities’ contributions keep the free places open for everyone else.": "Las contribuciones de las universidades aliadas mantienen abiertas las plazas gratuitas para todos los demás.",
+  "Partner benefits": "Beneficios para aliadas",
+  "Your students’ profiles show:": "Los perfiles de tus estudiantes muestran:",
+  "Organisations see they come through a university programme, which builds trust when they choose who to work with.": "Las organizaciones ven que llegan a través de un programa universitario, lo que genera confianza al elegir con quién trabajar.",
+  "Partner university student": "Estudiante de universidad aliada"
+}
