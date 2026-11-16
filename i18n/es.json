@@ -4347,7 +4347,6 @@
 "Asked for more details":"Se pidieron más detalles",
 "Asked to update":"Se pidió actualizar",
 "Asked to update the profile":"Se pidió actualizar el perfil",
-"Average days between steps, from everything so far. The longest bar is the bottleneck.":"Días promedio entre pasos, con todo lo registrado hasta ahora. La barra más larga es el cuello de botella.",
 "Back to admin":"Volver a administración",
 "Both sides":"Ambas partes",
 "Changes to approve":"Cambios por aprobar",
@@ -4588,5 +4587,6 @@
   "Partner benefits": "Beneficios para aliadas",
   "Your students’ profiles show:": "Los perfiles de tus estudiantes muestran:",
   "Organisations see they come through a university programme, which builds trust when they choose who to work with.": "Las organizaciones ven que llegan a través de un programa universitario, lo que genera confianza al elegir con quién trabajar.",
-  "Partner university student": "Estudiante de universidad aliada"
-}
+  "Partner university student": "Estudiante de universidad aliada",
+"under 1 hour":"menos de 1 hora",
+"Average time between steps, in brackets. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.":"Tiempo promedio entre pasos, entre paréntesis. Los pasos que siguen esperando cuentan hasta hoy, así que esto se actualiza cada día. La barra más larga es el cuello de botella."}
