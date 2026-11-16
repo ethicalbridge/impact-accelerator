@@ -16,7 +16,7 @@ const UPDATED = "2026-11-16";
 const STUDENT_LINK = "https://handova.org/#join?role=student";
 const MIN_NEEDS = 30;
 // Shown instead of live counts while Handova is small: what each pilot can rely on.
-const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student. If we can’t, we tell you and offer them the next phase"]];
+const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student, or a place in the next phase"]];
 const NEED_COLS = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
 const FACTS = [
@@ -122,6 +122,12 @@ export async function universities() {
       <div class="row">${toForm("Register interest")}</div>
     </section>
 
+    <section class="ms-why uni-why" aria-labelledby="uni-why-title">
+      <div class="ms-why-head"><span class="eyebrow">Why now</span><h2 id="uni-why-title">A first step into work in the age of AI.</h2>
+        <p>AI is taking over the tasks that used to give graduates their first job, and employers hire fewer juniors. Few students can afford to travel or work unpaid abroad to make up for it. Handova gives them real, verified experience with organisations around the world, from wherever they are.</p></div>
+      <ul class="ms-stats uni-stats">${[MS_STATS[2], MS_STATS[0], MS_STATS[1]].map(([n, what, src]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span><cite>${src}</cite></li>`).join("")}</ul>
+    </section>
+
     <section class="stack" style="--gap:20px" id="uni-path">
       <div class="stack" style="--gap:8px">${eyebrow("From pilot to partnership")}<h2>Try it first. Decide with real results.</h2></div>
       <ol class="uni-steps">${PATH.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><strong>${t}</strong><p>${d}</p></li>`).join("")}</ol>
@@ -143,12 +149,6 @@ export async function universities() {
       <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
       <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<details class="card uni-q" open><summary><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong>${icon("chevron", 18)}</summary><p class="muted small">${d}</p></details>`).join("")}</div>
       <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a></p>
-    </section>
-
-    <section class="ms-why uni-why" aria-labelledby="uni-why-title">
-      <div class="ms-why-head"><span class="eyebrow">Why now</span><h2 id="uni-why-title">A first step into work in the age of AI.</h2>
-        <p>AI is taking over the tasks that used to give graduates their first job, and employers hire fewer juniors. Few students can afford to travel or work unpaid abroad to make up for it. Handova gives them real, verified experience with organisations around the world, from wherever they are.</p></div>
-      <ul class="ms-stats uni-stats">${[MS_STATS[2], MS_STATS[0], MS_STATS[1]].map(([n, what, src]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span><cite>${src}</cite></li>`).join("")}</ul>
     </section>
 
     <section class="uni-who">
@@ -193,7 +193,7 @@ export async function universities() {
     } };
 }
 
-// The hero title fills the full width in two lines on wider screens: the largest size (up to 72px) that still fits in two.
+// The hero title fills the full width in two lines on wider screens: the largest size (up to 64px) that still fits in two.
 let fitBound = false;
 function fitTitle() {
   const h = document.querySelector(".uni-hero h1");
@@ -201,7 +201,7 @@ function fitTitle() {
   h.style.fontSize = "";
   if (!matchMedia("(min-width: 900px)").matches) return;
   const lines = () => Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight));
-  let lo = 32, hi = 72;
+  let lo = 32, hi = 64;
   while (hi - lo > 0.5) { const mid = (lo + hi) / 2; h.style.fontSize = mid + "px"; if (lines() <= 2) lo = mid; else hi = mid; }
   h.style.fontSize = lo + "px";
   if (!fitBound) { fitBound = true; let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(fitTitle, 120); }); document.fonts?.ready.then(fitTitle); }

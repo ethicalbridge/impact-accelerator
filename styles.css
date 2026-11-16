@@ -1873,7 +1873,7 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .pg-need-name { display: block; font-weight: 500; color: var(--muted); font-size: .76rem; max-width: 16ch; margin-inline: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- For universities (16 Nov 2026) ---------- */
-.uni-hero { display: flex; flex-direction: column; gap: clamp(20px, 3vw, 32px); padding-top: var(--page-top); }
+.uni-hero { display: flex; flex-direction: column; gap: clamp(16px, 2vw, 24px); padding-top: clamp(28px, 4vw, 48px); }
 .uni-hero > .stack h1 { font-size: clamp(2.3rem, 4.4vw, 3.8rem); max-width: none; text-wrap: wrap; }
 @media (max-width: 899px) { .uni-hero > .stack h1 { text-wrap: balance; } }
 .uni-hero .how-hero { padding-top: 0; align-items: start; }
