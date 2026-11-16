@@ -123,6 +123,8 @@ export const exampleNotice = (text = "Design preview. People, organisations and 
   `<div class="notice" role="note">${exampleBadge()}<span>${text}</span></div>`;
 export const tags = (arr = []) => (arr.length ? `<div class="tags">${arr.map((t) => `<span class="tag">${e(t)}</span>`).join("")}</div>` : "");
 export const pill = (text, tone = "") => `<span class="pill ${tone}">${e(text)}</span>`;
+// Students who come through a partner university (16 Nov 2026): a trust tag on cards and profiles.
+export const partnerBadge = (p) => p?.partner_student ? `<span class="pill partner-pill">${icon("shield", 14)}<span>Partner university student</span></span>` : "";
 // Waiting list badge for students who can't start yet (16 Nov 2026).
 export const waitingBadge = (p) => { const w = waitingState(p); return !w ? "" : `<span class="pill clay wait-pill">${icon("clock", 14)}${w === "list" ? "<span>On the waiting list</span>" : `<span>Starts</span> <span data-no-i18n>${date(w)}</span>`}</span>`; };
 export const eyebrow = (text) => `<span class="eyebrow">${text}</span>`;
@@ -508,7 +510,7 @@ export function talentCard(p) {
       <span>${icon("language", 17)}${e((p.languages || []).map(t).join(" · ") || "Languages not given")}</span>
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
       ${experienceLabel(p.experience_level) ? `<span>${icon("chart", 17)}${experienceLabel(p.experience_level)}</span>` : ""}
-      ${waitingBadge(p)}
+      ${partnerBadge(p)}${waitingBadge(p)}
       ${p.study_label ? `<span data-no-i18n>${icon("doc", 17)}${e(p.study_label)}</span>` : ""}
     </div>
     ${tags((p.skills || []).slice(0, 4))}
