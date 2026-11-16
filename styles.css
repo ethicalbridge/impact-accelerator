@@ -1801,7 +1801,7 @@ body:has(.consent:not([hidden])) { padding-bottom: 72px; }
 .pg-tile.red { background: var(--clay-bg); border-color: var(--clay); }
 .pg-tile.red strong { color: var(--clay-ink); }
 .pg-bars { display: grid; gap: 10px; }
-.pg-bar { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 3fr) 150px; gap: 14px; align-items: center; }
+.pg-bar { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) 150px; gap: 14px; align-items: center; }
 .pg-bar-val { font-weight: 700; color: var(--deep); text-align: right; white-space: nowrap; }
 .pg-bar-label { font-size: .95rem; }
 .pg-bar-track { height: 14px; border-radius: 99px; background: var(--paper-2, #efe9de); overflow: hidden; }
@@ -1950,3 +1950,14 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .uni-route:hover, .uni-route:active { transform: translateY(-3px); box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) { .uni-route:hover, .uni-route:active { transform: none; } }
 @media (max-width: 640px) { .uni-routes { grid-template-columns: minmax(0, 1fr); } }
+
+/* Progress: the journey step by step, with whose turn each step is (16 Nov 2026). */
+.pg-bars-h { font: 800 .78rem/1.2 var(--sans, inherit); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.pg-bar-label { display: flex; align-items: center; gap: 10px; }
+.pg-letters { display: inline-flex; gap: 3px; flex: none; }
+.pg-letter { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: .72rem; font-weight: 800; line-height: 1; flex: none; }
+.pg-letter-H { background: var(--teal); }
+.pg-letter-O { background: #9a6212; }
+.pg-letter-P { background: #4c5aa8; }
+.pg-legend { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pg-legend-item { display: inline-flex; align-items: center; gap: 6px; }
