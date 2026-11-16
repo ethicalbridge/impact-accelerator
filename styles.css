@@ -1939,3 +1939,14 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .stat-link > svg { position: absolute; top: 22px; right: 20px; color: var(--teal); opacity: 0.55; transition: opacity 0.2s, transform 0.2s; }
 .stat-link:hover, .stat-link:focus-visible { border-color: var(--teal); box-shadow: var(--shadow); }
 .stat-link:hover > svg, .stat-link:focus-visible > svg { opacity: 1; transform: translateX(3px); }
+/* Partner university students and partner benefits (16 Nov 2026). */
+.pill.partner-pill { display: inline-flex; align-items: center; gap: 5px; background: #0f6f63; color: #fff; }
+.uni-routes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uni-route { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; transition: transform 0.25s, box-shadow 0.25s; }
+.uni-route ul.bullets { font-size: 0.92rem; }
+.uni-hl { position: relative; border: 2px solid #0f6f63 !important; box-shadow: 0 10px 28px rgba(15, 111, 99, 0.14); }
+.uni-hl-label { align-self: flex-start; display: inline-block; padding: 3px 10px; border-radius: 999px; background: #0f6f63; color: #fff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.uni-tag-demo { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; background: var(--mint); border-radius: 12px; }
+.uni-route:hover, .uni-route:active { transform: translateY(-3px); box-shadow: var(--shadow); }
+@media (prefers-reduced-motion: reduce) { .uni-route:hover, .uni-route:active { transform: none; } }
+@media (max-width: 640px) { .uni-routes { grid-template-columns: minmax(0, 1fr); } }
