@@ -943,7 +943,7 @@ export async function surveyDialog(id, kind, short = false) {
   if (kind === "professional" && !priv?.career_stage) extra.push(questionHtml({ id: "x_stage", type: "single", q: "Which best describes you now?", hint: "Asked once. Private: only Handova sees it.", options: CAREER_STAGES }));
   if (priv?.research_contact == null) extra.push(questionHtml({ id: "x_contact", type: "single", q: "May someone independent of Handova contact you later about your experience?", hint: "Asked once. It helps us check our results honestly. You can say no.", options: [["yes", "Yes"], ["no", "No"]] }));
   openDialog("Two minutes: how did it go?", `<form class="form survey-form" data-form="survey" data-id="${e(id)}" data-kind="${e(kind)}" data-short="${short ? 1 : ""}" novalidate>
-    <p class="muted"><span>Your answers are never shown to ${other} and don’t affect the endorsement.</span> <span>Handova only reports totals. Every question is optional.</span></p>
+    <p class="muted"><span>Your answers are never shown to ${other} and don’t affect the endorsement.</span> <span>Handova only reports totals. Please answer the written questions; the others are optional.</span></p>
     ${surveyQs(kind, short).map(questionHtml).join("")}
     <div class="banner warn sv-concern" hidden>${icon("shield", 22, "#7a4f0e")}<p><span>Thank you for telling us.</span> <span>If you’d like Handova to follow up, report it now. Only Handova’s team sees reports, never the person or organisation you report.</span> <button class="link-btn" type="button" data-action="report" data-type="contribution" data-id="${e(id)}">Report a concern</button></p></div>
     ${extra.join("")}
@@ -957,6 +957,9 @@ export async function submitSurvey(form) {
   await withForm(form, async (fd) => {
     const kind = form.dataset.kind, short = !!form.dataset.short;
     const answers = readAnswers(form, surveyQs(kind, short));
+    // The written questions are required (16 Nov 2026).
+    const missing = surveyQs(kind, short).filter((q) => q.type === "open" && String(answers[q.id] || "").length < 3).map((q) => [form.querySelector(`[name="${q.id}"]`), "Please answer this question. A short sentence is enough."]);
+    if (missing.length) throw fieldErrors(missing);
     const staff = fd.get("x_staff"), stage = fd.get("x_stage"), contact = fd.get("x_contact");
     await result(db.rpc("submit_survey", { p_engagement: form.dataset.id, p_kind: kind, p_status: "submitted", p_answers: answers, p_short: short, p_version: SURVEY_VERSION, p_lang: getLang() }));
     if (stage) await result(db.rpc("set_career_stage", { p_stage: String(stage) })).catch(() => {});

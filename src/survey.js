@@ -1,7 +1,8 @@
 // Post-contribution questionnaires (designed with MEAL, evaluation, qualitative and quantitative specialists).
-// Short, optional, one page. Answers are stored against the contribution, never shown to the other party, and only
+// Short, one page; the written questions are required (16 Nov 2026), the rest optional. Answers are stored against the contribution, never shown to the other party, and only
 // reported in totals. Wording is frozen per version: change SURVEY_VERSION whenever a question or option changes.
-export const SURVEY_VERSION = "2026-10-v1";
+// 2026-11-v2 (16 Nov 2026): the written questions became required; wording unchanged.
+export const SURVEY_VERSION = "2026-11-v2";
 
 const SCALE_HARDEST = [["none", "None"], ["need", "Writing the need"], ["choosing", "Choosing a professional"], ["agreement", "The agreement"], ["first_call", "The first call"], ["working", "Working together"], ["hours", "Approving hours"], ["finishing", "Finishing and endorsing"]];
 
@@ -17,8 +18,8 @@ export const QUESTIONS = {
     { id: "o_worth", type: "scale", core: true, q: "Compared with the time your team gave, what you received was…", options: ["Much less", "A bit less", "About the same", "A bit more", "Much more"] },
     { id: "o_hardest", type: "single", q: "Which step, if any, was hardest?", options: SCALE_HARDEST },
     { id: "o_concern", type: "single", core: true, q: "Did anything make you uncomfortable or concerned?", options: [["no", "No"], ["yes", "Yes"]] },
-    { id: "o_can_now", type: "open", q: "What can your organisation do now that it could not do before? One example.", hint: "Optional. Write in any language you prefer." },
-    { id: "o_improve", type: "open", core: true, q: "Most contributions have something that could work better. What one thing would have made this more useful?", hint: "Optional. Write in any language you prefer." },
+    { id: "o_can_now", type: "open", q: "What can your organisation do now that it could not do before? One example.", hint: "Required. Write in any language you prefer." },
+    { id: "o_improve", type: "open", core: true, q: "Most contributions have something that could work better. What one thing would have made this more useful?", hint: "Required. Write in any language you prefer." },
   ],
   professional: [
     { id: "p_match", type: "scale", q: "How well did the need description match the real work?", options: ["Not at all", "A little", "Somewhat", "Mostly", "Completely"] },
@@ -29,7 +30,7 @@ export const QUESTIONS = {
     { id: "p_again", type: "single", q: "Would you take on another need on Handova?", options: [["soon", "Yes, in the next 3 months"], ["later", "Yes, later"], ["not_sure", "Not sure"], ["no", "No"]] },
     { id: "p_hardest", type: "single", q: "Which step, if any, was hardest?", options: SCALE_HARDEST },
     { id: "p_concern", type: "single", q: "Did anything make you uncomfortable or concerned?", options: [["no", "No"], ["yes", "Yes"]] },
-    { id: "p_hard_moment", type: "open", q: "Think of the hardest moment in this contribution. What would have helped?", hint: "Optional. Write in any language you prefer." },
+    { id: "p_hard_moment", type: "open", q: "Think of the hardest moment in this contribution. What would have helped?", hint: "Required. Write in any language you prefer." },
   ],
   // Added to the six-month "still in use?" check; one of the two is shown depending on the answer.
   six_months: [
@@ -48,7 +49,7 @@ export const optionsOf = (q) => q.type === "scale" ? q.options.map((label, i) =>
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 export function questionHtml(q) {
-  if (q.type === "open") return `<div class="field full sv-q"><label for="sv-${q.id}"><span class="sv-title">${esc(q.q)}</span></label><textarea id="sv-${q.id}" name="${q.id}" rows="3" maxlength="1000"></textarea>${q.hint ? `<span class="hint">${esc(q.hint)}</span>` : ""}</div>`;
+  if (q.type === "open") return `<div class="field full sv-q"><label for="sv-${q.id}"><span class="sv-title">${esc(q.q)}</span></label><textarea id="sv-${q.id}" name="${q.id}" rows="3" maxlength="1000" required aria-required="true"></textarea>${q.hint ? `<span class="hint">${esc(q.hint)}</span>` : ""}</div>`;
   const multi = q.type === "multi";
   return `<fieldset class="field full sv-q${q.type === "scale" ? " sv-scale" : ""}"><legend class="sv-title">${esc(q.q)}</legend>${q.hint ? `<span class="hint">${esc(q.hint)}</span>` : ""}<div class="sv-opts">${optionsOf(q).map(([v, label]) => `<label class="sv-opt"><input type="${multi ? "checkbox" : "radio"}" name="${q.id}" value="${esc(v)}" ${multi && (q.exclusive || []).includes(v) ? 'data-exclusive="1"' : ""}><span>${esc(label)}</span></label>`).join("")}</div></fieldset>`;
 }

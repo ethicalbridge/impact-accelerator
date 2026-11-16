@@ -260,7 +260,6 @@
 "Added back to your impact CV.":"Adicionada novamente ao seu CV de impacto.",
 "Two minutes: how did it go?":"Dois minutos: como correu?",
 "Your answers are never shown to {name} and don’t affect the endorsement.":"As suas respostas nunca são mostradas a {name} e não afetam a recomendação.",
-"Handova only reports totals. Every question is optional.":"A Handova só divulga totais. Todas as perguntas são opcionais.",
 "How much practical value did this work create for your organisation?":"Quanto valor prático este trabalho trouxe para a sua organização?",
 "None":"Nenhum",
 "A little":"Pouco",
@@ -305,7 +304,6 @@
 "Finishing and endorsing":"Concluir e recomendar",
 "Did anything make you uncomfortable or concerned?":"Algo o deixou desconfortável ou preocupado?",
 "What can your organisation do now that it could not do before? One example.":"O que a sua organização consegue fazer agora que antes não conseguia? Um exemplo.",
-"Optional. Write in any language you prefer.":"Opcional. Escreva no idioma que preferir.",
 "Most contributions have something that could work better. What one thing would have made this more useful?":"Quase todas as contribuições têm algo que poderia funcionar melhor. Que coisa teria tornado isto mais útil?",
 "How well did the need description match the real work?":"Quanto a descrição da necessidade correspondeu ao trabalho real?",
 "Not at all":"Nada",
@@ -4572,4 +4570,7 @@
 "What Handova admins did, and when.":"O que os administradores do Handova fizeram e quando.",
 "Universities":"Universidades",
 "Follow-ups":"Acompanhamentos",
-"Switch list":"Trocar de lista"}
+"Switch list":"Trocar de lista",
+"Required. Write in any language you prefer.":"Obrigatória. Escreva no idioma que preferir.",
+"Handova only reports totals. Please answer the written questions; the others are optional.":"O Handova só informa totais. Responda às perguntas escritas; as demais são opcionais.",
+"Please answer this question. A short sentence is enough.":"Responda a esta pergunta. Uma frase curta basta."}
