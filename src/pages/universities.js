@@ -16,7 +16,7 @@ const UPDATED = "2026-11-16";
 const STUDENT_LINK = "https://handova.org/#join?role=student";
 const MIN_NEEDS = 30;
 // Shown instead of live counts while Handova is small: what each pilot can rely on.
-const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student. If we can’t, we tell you and offer them the next phase"], ["A report", "with real numbers at the end of every pilot"]];
+const PROMISES = [["By hand", "every match, made personally"], ["3 weeks", "to match each student. If we can’t, we tell you and offer them the next phase"]];
 const NEED_COLS = "*, organisation:organisations(id,name,city,country,website,summary,org_type,ethical_bridge_url,logo_url,status)";
 
 const FACTS = [
@@ -59,12 +59,7 @@ const SAFETY = [
   ["lock", "Data and consent", "Students choose whether to share their progress with their university, and can download or delete their data at any time. Data is stored in the European Union (Frankfurt)."],
   ["pen", "Contracts and compliance", "We follow the EU and UK GDPR where they apply, with representatives in the EU and the UK. Before a pilot starts, we agree the terms with your university in writing, including data processing. Each project has its own signed agreement covering who owns the work."],
 ];
-const LAUNCH = [
-  ["Now", "Universities register their interest, and students join the waiting list. We review each student’s profile, which shows when they can start."],
-  ["From January 2027", "Places open in phases. Founding Partner pilots start first, each with its university’s term."],
-  ["Each phase", "Up to 5 free places per university for students who join on their own, and at least half for students in lower-income countries. Everyone else keeps their place in the queue."],
-  ["Meanwhile", "Organisations see who is waiting and post projects, so there is real work ready when each student starts."],
-];
+const AFTER = [["A 20-minute call", "to see whether Handova fits your programmes"], ["Cohort and dates", "5 to 10 students, on your term dates"], ["Your pilot starts", "from January 2027, free for 3 months"]];
 const INTEREST = [["", "Choose one…"], ["pilot", "A Founding Partner pilot from January 2027"], ["share", "Sharing Handova with our students"], ["other", "Something else"]];
 const STUDENT_NOTE_TEXT = "Handova offers free, remote projects with verified organisations around the world: real work for your CV, from wherever you are. Places open in phases from January 2027, in the order students register. Join the waiting list:";
 const studentNote = () => `${t(STUDENT_NOTE_TEXT)} ${STUDENT_LINK}`;
@@ -133,25 +128,21 @@ export async function universities() {
       <div class="uni-cost"><p><strong>The pilot is free, with no obligation, and you can stop at any time.</strong> If you continue, partner universities make an annual contribution that keeps Handova free for students and organisations. We share an indicative range on the first call, agree the amount after the pilot in line with your country’s income level and the scope of the partnership, and invoice nothing before the review meeting. Founding Partners keep a reduced rate in their first year.</p>${toForm("Register interest", "")}</div>
     </section>
 
-    <section class="uni-today">
-      <div class="stack" style="--gap:10px">${eyebrow("Where we are today")}<h2>We are early, so we start small.</h2>
-        <p class="muted">Handova opened in November 2026. Small first pilots mean every student has a real project behind them.</p></div>
-      ${nums.length ? `<ul class="uni-nums">${nums.map(([n, what]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span></li>`).join("")}</ul>` : `<ul class="uni-nums uni-promises">${PROMISES.map(([n, what]) => `<li><strong>${n}</strong><span>${what}</span></li>`).join("")}</ul>`}
+    <section class="uni-launch" id="uni-launch">
+      <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>We are early, so we start small.</h2>
+        <p class="lead">Handova opened in November 2026. Students join for free, and their places open in phases from January 2027, in the order they registered, because each one needs a real project behind it.</p>
+        <p class="muted">Up to 5 free places per university in each phase for students who join on their own, and at least half for students in lower-income countries.</p></div>
+      <div class="stack" style="--gap:14px">
+        ${nums.length ? `<ul class="uni-nums">${nums.map(([n, what]) => `<li><strong data-no-i18n>${n}</strong><span>${what}</span></li>`).join("")}</ul>` : `<ul class="uni-nums uni-promises">${PROMISES.map(([n, what]) => `<li><strong>${n}</strong><span>${what}</span></li>`).join("")}</ul>`}
+        <div class="uni-share"><strong>Share with your students</strong><p class="small muted">Copy a ready-made message, or just the link, for your newsletter, course page or careers board.</p>
+          <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(studentNote())}" data-copied="Message copied.">${icon("doc", 16)}<span>Copy the message</span></button><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_LINK)}">${icon("link", 16)}<span>Copy the link</span></button></div></div></div>
     </section>
-    ${needs?.length ? `<section class="stack uni-needs" style="--gap:16px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Open right now")}<h2 class="h3">Projects your students could take on.</h2></div><a href="#needs" style="font-weight:700">See all needs ${icon("arrow", 14)}</a></div><div class="grid uni-needs">${needs.map(needCard).join("")}</div></section>` : ""}
+    ${needs?.length ? `<section class="stack uni-needs" style="--gap:16px"><div class="row between" style="align-items:flex-end"><div class="stack" style="--gap:8px">${eyebrow("Open right now")}<h2>Projects your students could take on.</h2></div><a href="#needs" style="font-weight:700">See all needs ${icon("arrow", 14)}</a></div><div class="grid uni-needs">${needs.map(needCard).join("")}</div></section>` : ""}
 
     <section class="stack" style="--gap:20px">
       <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
       <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<details class="card uni-q" open><summary><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong>${icon("chevron", 18)}</summary><p class="muted small">${d}</p></details>`).join("")}</div>
       <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a></p>
-    </section>
-
-    <section class="uni-launch" id="uni-launch">
-      <div class="stack" style="--gap:14px">${eyebrow("Free places and the waiting list")}<h2>Free for students, always. Places are limited.</h2>
-        <p class="lead">Students and professionals join Handova for free. Places for students are limited, because each one needs a real project behind it, so we open them in phases, in the order students registered.</p>
-        <div class="uni-share"><strong>Share with your students</strong><p class="small muted">Copy a ready-made message, or just the link, for your newsletter, course page or careers board.</p>
-          <div class="row" style="--gap:8px"><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(studentNote())}" data-copied="Message copied.">${icon("doc", 16)}<span>Copy the message</span></button><button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(STUDENT_LINK)}">${icon("link", 16)}<span>Copy the link</span></button></div></div></div>
-      <ol class="how-checks uni-timeline">${LAUNCH.map(([when, d]) => `<li><span class="uni-when">${when}</span><span>${d}</span></li>`).join("")}</ol>
     </section>
 
     <section class="ms-why uni-why" aria-labelledby="uni-why-title">
@@ -171,7 +162,9 @@ export async function universities() {
       <div class="stack" style="--gap:12px">${eyebrow("Register interest")}<h2>Let’s talk about your students.</h2>
         <p class="lead">Tell us a little about your university and your students. We reply within two working days.</p>
         <p>Prefer email? Write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p>
-        <a class="small" href="${PDF}" download style="font-weight:700">${icon("download", 16)} Download the 2-page summary (PDF)</a></div>
+        <a class="small" href="${PDF}" download style="font-weight:700">${icon("download", 16)} Download the 2-page summary (PDF)</a>
+        <div class="stack uni-after" style="--gap:10px">${eyebrow("What happens next")}
+          <ol class="uni-after-steps">${AFTER.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><div><strong>${t}</strong><span class="muted small">${d}</span></div></li>`).join("")}</ol></div></div>
       <form class="form card" data-form="uni-interest">
         <div class="form-grid">
           ${field("name", "Your name", { required: true, attrs: 'maxlength="120" autocomplete="name"' })}
@@ -200,7 +193,7 @@ export async function universities() {
     } };
 }
 
-// The hero title fills the full width in two lines on wider screens: the largest size (up to 80px) that still fits in two.
+// The hero title fills the full width in two lines on wider screens: the largest size (up to 72px) that still fits in two.
 let fitBound = false;
 function fitTitle() {
   const h = document.querySelector(".uni-hero h1");
@@ -208,7 +201,7 @@ function fitTitle() {
   h.style.fontSize = "";
   if (!matchMedia("(min-width: 900px)").matches) return;
   const lines = () => Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight));
-  let lo = 32, hi = 80;
+  let lo = 32, hi = 72;
   while (hi - lo > 0.5) { const mid = (lo + hi) / 2; h.style.fontSize = mid + "px"; if (lines() <= 2) lo = mid; else hi = mid; }
   h.style.fontSize = lo + "px";
   if (!fitBound) { fitBound = true; let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(fitTitle, 120); }); document.fonts?.ready.then(fitTitle); }
