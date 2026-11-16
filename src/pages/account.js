@@ -22,7 +22,7 @@ const shell = (title, lead, form) => `<div class="grid-2" style="gap:0;min-heigh
 // Join and sign in, split by who you are: an organisation with needs, or a professional with skills.
 const SIDES = {
   organisation: { join: ["Bring your needs.", "Publish the specific help your team needs and work with skilled professionals, free. We review every organisation before its needs go public."], signin: ["Welcome back.", "Your organisation workspace: needs, applications, agreements and hours to review."], points: ["Free, always", "Approved before your needs go public", "Up to 3 needs at a time, including those in review or in progress", "A signed agreement before any access"] },
-  student: { join: ["Bring what you are learning.", "Put your studies to work on real needs from locally led organisations, a few focused hours at a time, and build an impact CV before you graduate."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Only take on work you have the knowledge, skills and time for", "Your profile stays private until approved", "Endorsements you can show future employers"] },
+  student: { join: ["Bring what you are learning.", "Put your studies to work on real needs from locally led organisations, a few focused hours at a time, and build an impact CV before you graduate."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free for students, always", "Places open in phases from January 2027, in the order you register", "Only take on work you have the knowledge, skills and time for", "Endorsements you can show future employers"] },
   professional: { join: ["Bring your skills.", "Give a few focused hours to the needs local organisations define, and build an impact CV from reviewed work."], signin: ["Welcome back.", "Your workspace: applications, agreements, hours and your impact CV."], points: ["Free, always", "Your profile stays private until approved", "Short, well-scoped contributions", "Endorsements in the organisation’s own words"] },
 };
 const roleTabs = (r, label) => `<div class="role-tabs three" role="radiogroup" aria-label="${label}">
@@ -77,9 +77,10 @@ export function studyFields(v = {}, unis = [], { locked = false, signup = false,
 }
 // Link the typed name to a partner university (from the list's options), and offer sharing only then. Also run on input (app.js).
 export function syncStudy(form) {
-  const input = form?.querySelector('input[name="university"]'); if (!input) return;
+  const input = form?.querySelector('input[name="university"]'), hid = form?.querySelector('input[name="university_id"]');
+  if (!input || !hid) return;
   const opt = [...form.querySelectorAll("#uni-list option")].find((o) => sameName(o.value, input.value));
-  form.querySelector('input[name="university_id"]').value = opt?.dataset.id || "";
+  hid.value = opt?.dataset.id || "";
   const box = form.querySelector(".uni-partner"); if (box) box.hidden = !opt;
   if (!opt) { const c = form.querySelector('input[name="share_university"]'); if (c) c.checked = false; }
   // Profile: the studies section shows for students and recent graduates; university and level are required for students.
@@ -125,6 +126,7 @@ export async function join(params) {
   const form = `<form class="form" data-form="signup" novalidate>${honeypot}
     <div class="row between"><h2 style="font-size:2.3rem">Create your account</h2><a href="#signin" style="font-weight:600">I already have one</a></div>
     <fieldset><legend>I am joining as</legend>${roleTabs(r, "I am joining as")}</fieldset>
+    <p class="small muted only-student" style="margin:-4px 0 0">Do you work at a university? <a href="#universities">See how we work with universities</a>.</p>
     <fieldset data-for="organisation" class="only-organisation"><legend class="visually-hidden">Your organisation</legend><div class="form-grid">
       ${field("org_name", "Organisation name", { required: true, full: true, attrs: 'maxlength="160" autocomplete="organization"' })}
       ${countrySelect("org_country", "Country where your organisation is based", "", { required: true, full: true, remote: false, hint: "Where your office or main team is. If you have no office, choose the country where you are registered or fiscally hosted." })}
@@ -136,7 +138,7 @@ export async function join(params) {
       ${field("name", "Full name", { required: true, attrs: 'autocomplete="name" maxlength="120" placeholder="First and last name"' })}
       ${field("headline", `<span class="only-professional">Your professional title</span><span class="only-student">Your title</span>`, { attrs: 'maxlength="160" placeholder="e.g. Finance consultant, UX researcher"', hint: "Optional. You can change it later." })}
     </div></fieldset>
-    <fieldset data-for="student" class="only-student"><legend class="visually-hidden">Your studies</legend>${studyFields({ university: linked?.name || "", university_id: linked?.id || "" }, unis, { locked: !!linked, signup: true })}</fieldset>
+    <fieldset data-for="student" class="only-student"><legend class="visually-hidden">Your studies</legend><p class="uni-status small" style="margin:0 0 4px">Students join a waiting list. We review your profile, then open places in phases from January 2027, in the order students registered, so there is a real project for everyone who starts.</p>${studyFields({ university: linked?.name || "", university_id: linked?.id || "" }, unis, { locked: !!linked, signup: true })}</fieldset>
     <fieldset data-for="any" class="only-any"><legend class="visually-hidden">Sign-in details</legend>
       <div class="form-grid">${field("email", "Email address", { type: "email", required: true, attrs: 'autocomplete="email" maxlength="254"' })}${field("password", "Password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"', hint: "At least 12 characters." })}${field("password2", "Repeat password", { type: "password", required: true, attrs: 'autocomplete="new-password" minlength="12" maxlength="128"' })}</div>
       <div class="checkbox-box" style="margin-top:18px">

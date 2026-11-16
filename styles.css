@@ -738,11 +738,11 @@ details.contrib[open] .c-toggle::after { transform: rotate(0deg); }
 .c-logo { position: relative; }
 .c-logo img { position: absolute; inset: 0; background: #fff; }
 /* How it works: path switch and the two audience sections */
-.path-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.path-switch button { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
-.path-switch button > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
-.path-switch button strong { font: 500 1.35rem var(--serif); }
-.path-switch button:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
+.path-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.path-switch :is(button, a) { text-decoration: none; display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+.path-switch :is(button, a) > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.path-switch :is(button, a) strong { font: 500 1.35rem var(--serif); }
+.path-switch :is(button, a):hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #bcd6cd; }
 .path-switch button svg:last-child { color: var(--teal); transition: transform 0.2s; transform: rotate(90deg); }
 .path-switch button:hover svg:last-child { transform: rotate(90deg) translateX(3px); }
 .path-section { scroll-margin-top: 96px; }
@@ -1872,3 +1872,44 @@ button.pg-tile[aria-pressed="true"] { outline: 3px solid var(--deep); outline-of
 .pg-wait[hidden] { display: none !important; }
 .pg-nth { display: inline-grid; place-items: center; min-width: 1.4em; height: 1.4em; border-radius: 99px; background: var(--mint); font-size: .72rem; }
 .pg-need-name { display: block; font-weight: 500; color: var(--muted); font-size: .76rem; max-width: 16ch; margin-inline: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- For universities (16 Nov 2026) ---------- */
+.uni .how-hero h1 { font-size: clamp(2.3rem, 4.4vw, 3.8rem); }
+.uni-status { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 12px 16px; background: var(--mint); border: 1px solid #bcd6cd; border-radius: 14px; }
+.uni-status svg { flex-shrink: 0; margin-top: 2px; }
+.uni-why .ms-why-head h2 { font: 500 clamp(1.6rem, 3vw, 2.3rem)/1.2 var(--serif); margin: 0; }
+.uni-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.uni-steps.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.uni-steps li { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.uni-steps p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+.uni-n { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink, #12352f); color: #fff; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+.uni-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.uni-grid .card { padding: 20px; }
+.uni-grid p { margin: 0; }
+.uni-timeline li { flex-direction: column; gap: 2px; }
+.uni-when { font-weight: 700; color: #0f6f63; }
+.uni-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uni-free { background: var(--mint); border-color: #bcd6cd; }
+.uni-free p { margin: 0; }
+.uni-today { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: center; padding: clamp(24px, 4vw, 40px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+.uni-today h2, .uni-today p { margin: 0; }
+.uni-nums { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.uni-nums li { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 14px; background: var(--mint); }
+.uni-nums strong { font: 500 2rem/1 var(--serif); }
+.uni-nums span { font-size: 0.85rem; color: var(--muted); }
+.uni-who { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; }
+.uni-who img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; }
+.uni-who h2, .uni-who p { margin: 0; }
+.uni-contact { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(24px, 4vw, 56px); align-items: start; scroll-margin-top: 96px; }
+.uni-contact p { margin: 0; }
+@media (max-width: 1000px) {
+  .uni-steps, .uni-steps.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uni-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uni-today, .uni-contact { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .uni-steps, .uni-steps.four, .uni-grid, .uni-two, .uni-nums { grid-template-columns: minmax(0, 1fr); }
+  .uni-who { grid-template-columns: minmax(0, 1fr); }
+  .uni-who img { width: 88px; height: 88px; }
+}
+.wait-pill { display: inline-flex; align-items: center; gap: 5px; }

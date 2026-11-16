@@ -64,6 +64,8 @@ export const professionalAreas = SKILL_GROUPS.map(([label, skills]) => ({ label,
 // Experience level (13 Nov 2026): public on the profile, so organisations can filter by it. Bands do not overlap.
 export const EXPERIENCE_LEVELS = [["student_early", "Student, early years"], ["student_final", "Student, final year or postgraduate"], ["graduate", "Recent graduate (last 2 years)"], ["y1_3", "1–3 years of work experience"], ["y4_7", "4–7 years of work experience"], ["y8_12", "8–12 years of work experience"], ["y13", "13 years or more"]];
 export const isStudentLevel = (v) => /^student_/.test(String(v || ""));
+// Waiting list (16 Nov 2026): students start in phases from January 2027. No date yet, or a date still ahead.
+export const waitingState = (p, now = new Date().toISOString().slice(0, 10)) => !p || !isStudentLevel(p.experience_level) ? "" : !p.starts_on ? "list" : p.starts_on > now ? p.starts_on : "";
 export const experienceLabel = (v) => EXPERIENCE_LEVELS.find(([k]) => k === v)?.[1] || "";
 // Level of study, private to the student and Handova.
 export const STUDY_LEVELS = [["bachelor", "Bachelor’s or undergraduate"], ["master", "Master’s"], ["phd", "PhD or doctorate"], ["other", "Other (diploma, certificate, exchange)"]];

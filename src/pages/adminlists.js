@@ -80,9 +80,10 @@ export async function adminList(kind, params) {
   if (kind === "students") {
     const studs = await result(db.rpc("admin_students")).catch(() => []);
     const linked = (x) => !!x.university_id;
-    filters = [["", "All", studs.length], ["partner", "At a partner university", studs.filter(linked).length], ["other", "Other universities", studs.filter((x) => !linked(x)).length], ["sharing", "Sharing progress", studs.filter((x) => x.share_with_university).length], ["no_profile", "No profile yet", studs.filter((x) => x.profile_status === "no_profile").length]];
-    rows = studs.filter((x) => (!show || (show === "partner" ? linked(x) : show === "other" ? !linked(x) : show === "sharing" ? x.share_with_university : x.profile_status === show)) && match(x.name, x.email, x.university_name, x.study_programme));
-    body = rows.map(studentRow).join("");
+    const waiting = (x) => /^student_/.test(x.experience_level || "") && (!x.starts_on || x.starts_on > new Date().toISOString().slice(0, 10));
+    filters = [["", "All", studs.length], ["partner", "At a partner university", studs.filter(linked).length], ["other", "Other universities", studs.filter((x) => !linked(x)).length], ["sharing", "Sharing progress", studs.filter((x) => x.share_with_university).length], ["no_profile", "No profile yet", studs.filter((x) => x.profile_status === "no_profile").length], ["waiting", "Waiting list", studs.filter(waiting).length]];
+    rows = studs.filter((x) => (!show || (show === "partner" ? linked(x) : show === "other" ? !linked(x) : show === "sharing" ? x.share_with_university : show === "waiting" ? waiting(x) : x.profile_status === show)) && match(x.name, x.email, x.university_name, x.study_programme));
+    body = `<p class="small muted">In registration order: number 1 signed up first. Open places in phases with “Open place”, following up to 5 per university and half for lower-income countries.</p>` + rows.map(studentRow).join("");
   }
 
   if (kind === "people") {
@@ -258,6 +259,7 @@ function uniRow(u) {
     <span class="small muted">${[u.country ? `<span data-no-i18n>${e(u.country)}</span>` : "", u.agreement_signed_on ? `agreement signed ${date(u.agreement_signed_on)}` : "", period].filter(Boolean).join(" · ")}</span>
     <span class="small">${places}${u.awaiting ? ` · ${u.awaiting} <span>still confirming their email</span>` : ""}${u.typed ? ` · ${u.typed} <span>typed this name but not linked</span>` : ""}</span>
     ${u.contact_name || u.contact_email ? `<span class="small muted" data-no-i18n>${e([u.contact_name, u.contact_email].filter(Boolean).join(" · "))}</span>` : ""}
+    ${u.interests ? `<span class="small"><span>Registered interest</span> <span data-no-i18n>${date(u.interest_at)}${u.interests > 1 ? ` (×${u.interests})` : ""}: ${e(u.last_interest || "")}</span></span>` : ""}
     ${u.status === "partner" ? `<span class="small muted"><span>Sign-up link:</span> <span data-no-i18n>${e(signupLink(u.code))}</span></span>` : ""}
   </div><div class="al-actions">${u.status === "partner" ? `<button class="btn secondary sm" type="button" data-action="copy-link" data-url="${e(signupLink(u.code))}">${icon("link", 16)}<span>Copy sign-up link</span></button>` : ""}${btn("Students", `#admin-list/students?q=${encodeURIComponent(u.name)}`, "secondary sm")}<button class="btn secondary sm" type="button" data-action="admin-uni" data-id="${e(u.id)}">Edit</button></div></div>`;
 }
@@ -269,7 +271,33 @@ function studentRow(x) {
     <div class="row" style="--gap:8px">${x.profile_status === "no_profile" ? `<strong data-no-i18n>${e(x.name || x.email)}</strong>` : `<a href="#profile/${e(x.user_id)}" style="font-weight:700" data-no-i18n>${e(x.name || x.email)}</a>`}${pill(label, tone)}${x.university_id ? pill("Partner university") : ""}${x.share_with_university ? pill("Shares progress") : ""}${x.email_confirmed ? "" : pill("Email not confirmed", "grey")}</div>
     <span class="small"><span data-no-i18n>${e(x.university_name || "")}</span>${x.university_name ? "" : "<span>University not given</span>"}${x.study_programme ? ` · <span data-no-i18n>${e(x.study_programme)}</span>` : ""}${level ? ` · ${level}` : ""}${ends ? ` · ${ends}` : ""}</span>
     <span class="small muted">${[experienceLabel(x.experience_level), `<span data-no-i18n>${e(x.email || "")}</span>`, `signed up ${date(x.signed_up_at)}`, `${Number(x.hours_approved || 0)} h approved`, `${x.contributions} ${x.contributions === 1 ? "contribution" : "contributions"}`].filter(Boolean).join(" · ")}</span>
-  </div><div class="al-actions">${x.profile_status === "no_profile" ? "" : btn("View profile", `#profile/${x.user_id}`, "secondary sm")}</div></div>`;
+    ${startLine(x)}
+  </div><div class="al-actions">${x.profile_status === "no_profile" ? "" : `${btn("View profile", `#profile/${x.user_id}`, "secondary sm")}${/^student_/.test(x.experience_level || "") ? `<button class="btn sm" type="button" data-action="admin-student-start" data-id="${e(x.user_id)}" data-name="${e(x.name)}" data-date="${e(x.starts_on || "")}">${x.starts_on ? "Change start" : "Open place"}</button>` : ""}`}</div></div>`;
+}
+// Where a student stands: queue number, and whether their place is open.
+function startLine(x) {
+  const now = new Date().toISOString().slice(0, 10);
+  const st = !/^student_/.test(x.experience_level || "") ? "" : !x.starts_on ? "<span>On the waiting list</span>" : x.starts_on > now ? `<span>Starts</span> <span data-no-i18n>${date(x.starts_on)}</span>` : `<span>Place open since</span> <span data-no-i18n>${date(x.starts_on)}</span>`;
+  return `<span class="small"><strong data-no-i18n>#${x.queue}</strong>${st ? ` · ${st}` : ""}</span>`;
+}
+// Open a student's place: today, a later date, or back to the waiting list.
+export function studentStartDialog(id, name, current) {
+  const today = new Date().toISOString().slice(0, 10);
+  openDialog("Open a student’s place", `<form class="form" data-form="admin-student-start" data-id="${e(id)}">
+    <p><strong data-no-i18n>${e(name)}</strong></p>
+    <p class="muted">From this date the student can apply to needs and be invited. They get a notification now.</p>
+    <div class="form-grid">${field("starts_on", "Start date", { type: "date", value: current || today, required: true, full: true })}</div>
+    ${formEnd("Save", `${current ? `<button class="btn secondary" type="button" data-action="admin-student-wait" data-id="${e(id)}">Back to the waiting list</button>` : ""}<button class="btn secondary" type="button" data-action="close">Cancel</button>`)}</form>`);
+}
+export async function submitStudentStart(form) {
+  await withForm(form, async (fd) => {
+    await result(db.rpc("admin_set_student_start", { p_user: form.dataset.id, p_date: val(fd, "starts_on") }));
+    closeDialog(); toast("Start date saved. The student has been notified."); go(location.hash);
+  });
+}
+export async function studentBackToList(id) {
+  try { await result(db.rpc("admin_set_student_start", { p_user: id, p_date: null })); closeDialog(); toast("Back on the waiting list."); go(location.hash); }
+  catch (err) { toast(errorMessage(err)); }
 }
 // Add or edit a university: the agreement, places and period, and the code in its sign-up link.
 const slug = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);

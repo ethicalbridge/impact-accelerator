@@ -1,4 +1,4 @@
-import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS, experienceLabel } from "./utils.js";
+import { e, initials, hashOf, date, plural, safeURL, SKILL_GROUPS, experienceLabel, waitingState } from "./utils.js";
 import { state } from "./core.js";
 import { langMenu, locale, t, tf } from "./i18n.js";
 
@@ -123,6 +123,8 @@ export const exampleNotice = (text = "Design preview. People, organisations and 
   `<div class="notice" role="note">${exampleBadge()}<span>${text}</span></div>`;
 export const tags = (arr = []) => (arr.length ? `<div class="tags">${arr.map((t) => `<span class="tag">${e(t)}</span>`).join("")}</div>` : "");
 export const pill = (text, tone = "") => `<span class="pill ${tone}">${e(text)}</span>`;
+// Waiting list badge for students who can't start yet (16 Nov 2026).
+export const waitingBadge = (p) => { const w = waitingState(p); return !w ? "" : `<span class="pill clay wait-pill">${icon("clock", 14)}${w === "list" ? "<span>On the waiting list</span>" : `<span>Starts</span> <span data-no-i18n>${date(w)}</span>`}</span>`; };
 export const eyebrow = (text) => `<span class="eyebrow">${text}</span>`;
 export const empty = (title, text, action = "") => `<div class="empty"><p class="empty-title">${title}</p><p class="muted">${text}</p>${action}</div>`;
 export const btn = (label, href, cls = "") => `<a class="btn ${cls}" href="${href}">${label}</a>`;
@@ -506,6 +508,7 @@ export function talentCard(p) {
       <span>${icon("language", 17)}${e((p.languages || []).map(t).join(" · ") || "Languages not given")}</span>
       <span>${icon("clock", 17)}${p.hours_available ? `${p.hours_available} hours a month available` : p.founder ? "Availability on request" : "Not available right now"}</span>
       ${experienceLabel(p.experience_level) ? `<span>${icon("chart", 17)}${experienceLabel(p.experience_level)}</span>` : ""}
+      ${waitingBadge(p)}
       ${p.study_label ? `<span data-no-i18n>${icon("doc", 17)}${e(p.study_label)}</span>` : ""}
     </div>
     ${tags((p.skills || []).slice(0, 4))}
@@ -629,7 +632,7 @@ export function footer(cfg) {
   return `<div class="wrap"><div class="ft-row">
     <a class="ft-brand" href="#home" aria-label="Handova home"><span class="ft-top">${mark(30, true)}<span class="ft-name">Handova</span></span><span class="ft-tag">Skills handed over. <b>Capability that stays.</b></span></a>
     <a class="ft-eb" href="https://ethicalbridge.org/" target="_blank" rel="noopener"><span>An initiative of</span><img src="assets/ethical-bridge-logo-light.webp" width="190" height="52" alt="Ethical Bridge" loading="lazy" decoding="async"><span class="visually-hidden">(opens in a new tab)</span></a>
-    <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a href="#contact">Contact</a><a class="ft-join" href="#join">Join free</a></nav>
+    <nav class="ft-nav" aria-label="Footer"><a href="#about/mission">About</a><a href="#how">How it works</a><a href="#needs">Needs</a><a href="#talent">Talent</a><a href="#about/faq">FAQ &amp; safety</a><a href="#universities">For universities</a><a href="#contact">Contact</a><a class="ft-join" href="#join">Join free</a></nav>
   </div><div class="ft-bottom"><span>© ${new Date().getFullYear()} Handova · <a href="mailto:${e(cfg.contactEmail)}">${e(cfg.contactEmail)}</a></span>
     <span class="ft-legal"><a href="#report">Report a concern</a><a href="#policies">Policies</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="#cookies">Cookies</a><button class="footer-action" type="button" data-action="cookie-settings">Cookie settings</button></span>
     <span class="ft-social">${social.map(([n, h]) => `<a href="${h}" rel="noopener" target="_blank" aria-label="Ethical Bridge on ${n} (opens in a new tab)">${icon(n.toLowerCase(), 17)}</a>`).join("")}</span>
