@@ -728,7 +728,7 @@ const rpcs = {
     const prof = (id) => D.profiles.find((p) => p.user_id === id), org = (id) => D.organisations.find((o) => o.id === id), need = (id) => D.needs.find((n) => n.id === id);
     const rem = (pred) => D.notifications.filter((x) => /(remind|^apply_by_|deadline_extend|finish_signup|unsent|followup)/.test(x.kind) && pred(x)).map((x) => ({ kind: x.kind, title: x.title, at: x.created_at, emailed: true }));
     const H = D.hours || [];
-    return {
+    const R = {
       generated_at: new Date().toISOString(),
       orgs: D.organisations.map((o) => ({ id: o.id, name: o.name, country: o.country, status: o.status, created_at: o.created_at, approved_at: o.approved_at || (o.status === "approved" ? o.created_at : null), contact_email: "org@example.test", needs: D.needs.filter((n) => n.organisation_id === o.id).length, first_need_at: D.needs.filter((n) => n.organisation_id === o.id).map((n) => n.created_at).sort()[0] || null, changes_waiting: false, reminders: [] })),
       needs: D.needs.map((n) => { const apps = D.applications.filter((a) => a.need_id === n.id); return { id: n.id, title: n.title, org_id: n.organisation_id, org: org(n.organisation_id)?.name, status: n.status, created_at: n.created_at, approved_at: n.approved_at || (n.status !== "pending" ? n.created_at : null), published_at: n.published_at || null, deadline: n.deadline, requested_deadline: n.requested_deadline || null, apps: apps.length, apps_pending: apps.filter((a) => a.status === "pending").length, first_app_at: apps.map((a) => a.created_at).sort()[0] || null, invites_pending: 0, matched: 2, chosen_at: D.engagements.filter((e) => e.need_id === n.id).map((e) => e.created_at).sort()[0] || null, reminders: rem((x) => x.ref === n.id) }; }),
@@ -739,6 +739,12 @@ const rpcs = {
       contribs: D.engagements.map((e) => { const h = H.filter((x) => x.engagement_id === e.id), sr = (k) => { const r = D.survey_responses.find((x) => x.engagement_id === e.id && x.kind === k); return r ? `${r.status}|${r.created_at || new Date().toISOString()}` : null; };
         return { id: e.id, need_id: e.need_id, need: need(e.need_id)?.title || e.scope?.need_title, org_id: e.organisation_id, org: org(e.organisation_id)?.name, pro_id: e.user_id, pro: prof(e.user_id)?.name, status: e.status, created_at: e.created_at, talent_signed_at: e.talent_signed_at || null, org_signed_at: e.org_signed_at || null, first_call_at: e.first_call_at || null, hours_first_at: h.map((x) => x.created_at).sort()[0] || null, hours_logged: h.reduce((t, x) => t + Number(x.hours), 0), hours_pending: h.filter((x) => x.status === "pending").reduce((t, x) => t + Number(x.hours), 0), hours_approved: h.filter((x) => x.status === "approved").reduce((t, x) => t + Number(x.hours), 0), delivered_at: e.talent_delivered_at || null, completed_at: e.completed_at || null, ended_at: e.ended_at || null, end_reason: e.end_reason || "", survey_pro: sr("professional"), survey_org: sr("organisation"), last_message_at: null, reminders: rem((x) => x.ref === e.id) }; }),
     };
+    // Dates behind the journey cards (16 Nov 2026): each send for review and each admin decision.
+    const minus = (d, h) => (d ? new Date(new Date(d).getTime() - h * 36e5).toISOString() : null);
+    for (const o of R.orgs) { o.account_at = minus(o.created_at, 0.3); o.sent = [o.created_at]; o.decisions = o.approved_at ? [{ a: "org_approved", at: o.approved_at }] : []; }
+    for (const n of R.needs) { n.sent = n.status === "draft" ? [] : [n.created_at]; n.decisions = n.approved_at ? [{ a: "need_open", at: n.approved_at }] : []; }
+    for (const p of R.pros) { p.signed_up_at = minus(p.signed_up_at, 30); p.sent = p.review_status === "draft" ? [] : [p.profile_at]; p.decisions = p.approved_at ? [{ a: "profile_approved", at: p.approved_at }] : []; }
+    return R;
   },
   survey_pending: () => {
     const out = [], has = (e, k) => D.survey_responses.some((r) => r.engagement_id === e.id && r.kind === k), recent = D.engagements.filter((x) => x.status === "completed" && !ago(x.completed_at, 60));

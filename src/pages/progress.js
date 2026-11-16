@@ -1,248 +1,296 @@
-// Handova only (13 Nov 2026): where every organisation, need, professional and contribution is, with the date of each
-// step, how long the current step has been waiting and on whom, and the reminders already sent. Built so the founder
-// can see bottlenecks and nobody waits forever. Data: one read-only snapshot from the admin_progress() function.
+// Handova only: where every organisation, need, professional and contribution is, how long each step took or has been
+// waiting and on whom, and the reminders already sent. Data: one read-only snapshot from the admin_progress() function.
+//
+// 16 Nov 2026 (after a panel of three data analysts): one set of step definitions feeds both the synthesis at the top
+// ("Where the journey slows down", the average per step) and one card per organisation, need, professional or
+// contribution below it. Each card opens with what it is waiting on now, a verdict (nudge today, your turn, reminded,
+// on track) and the reminders already sent on that step; then the steps it has reached, each with its own time against
+// the typical one. This replaces the separate "Waiting right now" list and the dot timelines.
 import { db, state, result, e } from "../core.js";
-import { icon, eyebrow, back, pill, empty } from "../ui.js";
+import { icon, eyebrow, back, pill } from "../ui.js";
 import { date } from "../utils.js";
 
-const DAY = 864e5;
-const days = (from, to = Date.now()) => (from ? Math.max(0, Math.floor((new Date(to) - new Date(from)) / DAY)) : null);
+const DAY = 864e5, HOUR = DAY / 24;
+// Dates come as ISO strings or as "2026-11-11 03:43:47.8+00" from text columns.
+const t = (x) => (x ? new Date(String(x).replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime() : null);
 const short = (d) => (d ? date(d, { day: "numeric", month: "short" }) : "");
-// How long each kind of wait may last before it turns amber, then red.
-const LIMITS = { handova: [2, 5], decide: [5, 10], sign: [3, 7], call: [7, 14], endorse: [5, 10], survey: [3, 7], setup: [7, 14], apps: [14, 30], deadline: [0, 3], work: [21, 42] };
-const sevOf = (d, kind) => { const [a, r] = LIMITS[kind] || [7, 14]; return d == null ? "ok" : d > r ? "red" : d > a ? "amber" : "ok"; };
-const WHO = { handova: "Handova", org: "Organisation", pro: "Professional", both: "Both sides", pros: "Professionals", setup: "Not finished signing up" };
-
-// What is waiting right now, on whom and since when: the list at the top of the page.
-function waits(d) {
-  const out = [], add = (who, kind, title, sub, since, link, reminders = [], limit = kind) => {
-    const n = days(since); out.push({ who, kind, title, sub, since, days: n, sev: sevOf(n, limit), link, reminders });
-  };
-  const today = new Date().toISOString().slice(0, 10);
-  for (const o of d.orgs) {
-    if (o.status === "pending") add("handova", "handova", o.name, "Organisation to review", o.created_at, `#admin-org/${o.id}`);
-    else if (o.status === "changes_requested") add("org", "setup", o.name, "Asked for more details", o.created_at, `#admin-org/${o.id}`, o.reminders);
-    else if (o.status === "approved" && !o.needs) add("org", "setup", o.name, "Approved, no need posted yet", o.approved_at, `#admin-org/${o.id}`, o.reminders);
-    if (o.changes_waiting) add("handova", "handova", o.name, "Changes to approve", null, `#admin-org/${o.id}`);
-  }
-  for (const n of d.needs) {
-    if (n.status === "pending") add("handova", "handova", n.title, `${n.org} · Need to review`, n.created_at, `#need/${n.id}`);
-    if (n.requested_deadline) add("handova", "handova", n.title, `${n.org} · New apply-by date to approve`, null, "#admin");
-    if (n.status === "open" && n.deadline && n.deadline < today && !n.requested_deadline) add("org", "deadline", n.title, `${n.org} · Apply-by date passed, no new date`, n.deadline, `#need/${n.id}`, n.reminders);
-    else if (n.status === "open" && !n.apps && !n.invites_pending) add("pros", "apps", n.title, `${n.org} · Live, no applications yet`, n.published_at || n.approved_at, `#need/${n.id}`, n.reminders);
-  }
-  for (const a of d.apps.filter((x) => x.status === "pending")) add("org", "decide", a.need, `${a.org} · ${a.pro || "A professional"} applied`, a.created_at, `#need/${a.need_id}`);
-  for (const i of d.invites.filter((x) => x.status === "pending")) add("pro", "decide", i.need, `${i.pro || "A professional"} · invited by ${i.org}`, i.created_at, `#need/${i.need_id}`);
-  for (const p of d.pros) {
-    if (p.closed_at) continue;
-    if (p.review_status === "pending") add("handova", "handova", p.name, "Profile to review", p.sent_at || p.profile_at, `#profile/${p.id}`);
-    else if (p.review_status === "changes_requested") add("pro", "setup", p.name, "Asked to update the profile", p.profile_at, `#profile/${p.id}`, p.reminders);
-    else if (p.review_status === "draft") add("setup", "setup", p.name, "Profile started, not sent for review", p.profile_at, `#profile/${p.id}`, p.reminders);
-    if (["name_mismatch", "in_review"].includes(p.id_status)) add("handova", "handova", p.name, "Identity check to review", null, "#admin");
-  }
-  // People who never finished signing up are counted apart: they are not part of any flow yet.
-  for (const s of d.signups) add("setup", "setup", s.email, s.confirmed ? "Signed up, nothing set up yet" : "Signed up, email not confirmed", s.signed_up_at, "#admin-list/people", s.reminders);
-  for (const c of d.contribs) {
-    const t = c.need, sub = `${c.org} · ${c.pro || "Professional"}`, link = `#agreement/${c.id}`;
-    if (c.status === "awaiting_signatures") {
-      const who = !c.org_signed_at && !c.talent_signed_at ? "both" : !c.org_signed_at ? "org" : "pro";
-      add(who, "sign", t, `${sub} · Agreement to sign`, c.created_at, link, c.reminders);
-    } else if (c.status === "active") {
-      const signed = [c.org_signed_at, c.talent_signed_at].filter(Boolean).sort().pop();
-      if (!c.first_call_at) add("both", "call", t, `${sub} · First call not recorded`, signed, link, c.reminders);
-      else if (c.delivered_at) add("org", "endorse", t, `${sub} · Delivered, waiting for the organisation to finish and endorse`, c.delivered_at, link, c.reminders);
-      else if (Number(c.hours_pending)) add("org", "decide", t, `${sub} · ${Number(c.hours_pending)} hours to review`, c.hours_first_at, link, c.reminders);
-      else add("pro", "work", t, `${sub} · Working on it`, c.first_call_at, link, c.reminders);
-    } else if (c.status === "completed") {
-      const missing = [!c.survey_pro && "pro", !c.survey_org && "org"].filter(Boolean);
-      if (missing.length) add(missing.length === 2 ? "both" : missing[0], "survey", t, `${sub} · Questionnaire not answered`, c.completed_at, link, c.reminders);
-    }
-  }
-  const rank = { red: 0, amber: 1, ok: 2 };
-  return out.sort((a, b) => rank[a.sev] - rank[b.sev] || (b.days ?? -1) - (a.days ?? -1));
-}
-
-// The journey, step by step (16 Nov 2026): the average time each step takes, grouped in the order things happen, with
-// whose turn it is (H Handova, O organisation, P professional). Steps still waiting count up to now, so the bars move
-// every day while something is stuck. "Sent for review" times come from the admin review alerts; "reviewed" is the
-// first admin decision after each send (approved or asked for changes).
-function speeds(d) {
-  const now = Date.now(), t = (x) => (x ? new Date(String(x).replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime() : null);
-  // rows: [from, to, stillWaiting]. A finished step counts its real time; one still waiting counts from `from` until now.
-  const avg = (rows) => { const v = rows.filter(([a, b, w]) => a && (b || w)).map(([a, b]) => Math.max(0, ((b ? t(b) : now) - t(a)) / DAY)); return v.length ? { avg: v.reduce((s, x) => s + x, 0) / v.length, n: v.length } : { avg: null, n: 0 }; };
-  const after = (list, at) => (list || []).find((x) => t(x.at ?? x) > t(at));
-  const sends = (x) => (x.sent || []).map(String);
-  // Each time something was sent → the first admin decision after it (or the approval date, for older records).
-  const reviews = (x, pending) => { const ss = sends(x); if (!ss.length) return [[x.created_at, x.approved_at, pending]];
-    return ss.map((s, i) => { const dcs = after(x.decisions, s); const end = dcs?.at || (x.approved_at && t(x.approved_at) > t(s) ? x.approved_at : null); return [s, end, !end && pending && i === ss.length - 1]; }); };
-  // Each "asked for changes" → the next time it was sent again.
-  const resends = (x, action, waiting) => (x.decisions || []).filter((a) => a.a === action).map((a) => { const nx = after(sends(x), a.at); return [a.at, nx || null, !nx && waiting]; });
-  const firstSent = (x) => sends(x)[0] || x.created_at;
-  const needsOf = (o) => d.needs.filter((n) => n.org_id === o.id);
-  const signedBoth = (c) => (c.org_signed_at && c.talent_signed_at ? [c.org_signed_at, c.talent_signed_at].sort().pop() : null);
-  const signing = (c) => c.status === "awaiting_signatures", live = (c) => c.status === "active" || signing(c);
-  const survey = (v) => (v ? String(v).split("|")[1] : null);
-  const proLive = (p) => !p.closed_at;
-  return [
-    ["Organisations join", [
-      ["Signs up → sends the organisation for review", "O", avg(d.orgs.map((o) => [o.account_at, firstSent(o), false]))],
-      ["Organisation sent → reviewed by Handova", "H", avg(d.orgs.flatMap((o) => reviews(o, o.status === "pending")))],
-      ["Asked for changes → sends the organisation again", "O", avg(d.orgs.flatMap((o) => resends(o, "org_changes_requested", o.status === "changes_requested")))],
-      ["Organisation approved → sends its first need", "O", avg(d.orgs.map((o) => { const ns = needsOf(o).map(firstSent).sort(); return [o.approved_at, ns[0] || null, o.status === "approved" && !ns.length]; }))],
-    ]],
-    ["Needs", [
-      ["Need sent → reviewed by Handova", "H", avg(d.needs.flatMap((n) => reviews(n, n.status === "pending")))],
-      ["Need sent back for changes → sent again", "O", avg(d.needs.flatMap((n) => resends(n, "need_draft", n.status === "draft")))],
-      ["Need live → first application", "P", avg(d.needs.map((n) => [n.published_at || n.approved_at, n.first_app_at, n.status === "open"]))],
-      ["First application → professional chosen", "O", avg(d.needs.map((n) => [n.first_app_at, n.chosen_at, n.status === "open"]))],
-    ]],
-    ["Professionals join", [
-      ["Signs up → sends the profile for review", "P", avg(d.pros.map((p) => { const s0 = sends(p)[0] || p.sent_at; return [p.signed_up_at, s0 || null, !s0 && !p.approved_at && proLive(p)]; }))],
-      ["Profile sent → reviewed by Handova", "H", avg(d.pros.flatMap((p) => { const ss = sends(p); return ss.length ? reviews(p, p.review_status === "pending") : p.sent_at ? [[p.sent_at, p.approved_at, p.review_status === "pending"]] : []; }))],
-      ["Asked for changes → sends the profile again", "P", avg(d.pros.flatMap((p) => resends(p, "profile_changes_requested", p.review_status === "changes_requested" && proLive(p))))],
-      ["Signs up → identity checked", "P", avg(d.pros.map((p) => [p.signed_up_at, p.id_verified_at, p.id_status !== "approved" && proLive(p)]))],
-      ["Profile approved → first application", "P", avg(d.pros.map((p) => [p.approved_at, p.first_app_at, !p.first_app_at && p.published && proLive(p)]))],
-    ]],
-    ["Working together", [
-      ["Professional chosen → professional signs the agreement", "P", avg(d.contribs.map((c) => [c.created_at, c.talent_signed_at, signing(c)]))],
-      ["Professional chosen → organisation signs the agreement", "O", avg(d.contribs.map((c) => [c.created_at, c.org_signed_at, signing(c)]))],
-      ["Agreement signed → first call", "OP", avg(d.contribs.map((c) => [signedBoth(c), c.first_call_at, live(c)]))],
-      ["First call → work delivered", "P", avg(d.contribs.map((c) => [c.first_call_at, c.delivered_at, live(c)]))],
-      ["Work delivered → finished and endorsed", "O", avg(d.contribs.map((c) => [c.delivered_at, c.completed_at, live(c)]))],
-      ["Finished → organisation answers the questionnaire", "O", avg(d.contribs.map((c) => [c.completed_at, survey(c.survey_org), c.status === "completed"]))],
-      ["Finished → professional answers the questionnaire", "P", avg(d.contribs.map((c) => [c.completed_at, survey(c.survey_pro), c.status === "completed"]))],
-    ]],
-  ];
-}
 const WHO_LETTER = { H: "Handova", O: "Organisation", P: "Professional" };
 const whoDots = (who) => [...who].map((k) => `<span class="pg-letter pg-letter-${k}" title="${WHO_LETTER[k]}"><span aria-hidden="true">${k}</span><span class="visually-hidden">${WHO_LETTER[k]}</span></span>`).join("");
 // "under 1 hour", "5 hours", "2.5 days", "12 days".
 const howLong = (dd) => { if (dd * 24 < 1) return "<span>under 1 hour</span>"; if (dd < 1) { const h = Math.round(dd * 24); return `${h} ${h === 1 ? "<span>hour</span>" : "<span>hours</span>"}`; } const v = dd < 10 ? Math.round(dd * 10) / 10 : Math.round(dd); return `${v} ${v === 1 ? "<span>day</span>" : "<span>days</span>"}`; };
 
-const remChips = (all = []) => { const list = all.filter((r) => r.kind !== "id_check"); return list.length
-  ? `<div class="pg-rem"><span class="small muted">${list.length === 1 ? "1 reminder sent" : `${list.length} <span>reminders sent</span>`}:</span> ${list.map((r) => `<span class="pg-chip" title="${e(r.title || "")}">${icon(r.emailed ? "mail" : "bell", 13)} ${short(r.at)}</span>`).join("")}</div>`
-  : ""; };
+// Every step, in the order things happen, with whose turn it is.
+const STEPS = {
+  o_signup: ["Signs up → sends the organisation for review", "O"],
+  o_review: ["Organisation sent → reviewed by Handova", "H"],
+  o_changes: ["Asked for changes → sends the organisation again", "O"],
+  o_first_need: ["Organisation approved → sends its first need", "O"],
+  n_review: ["Need sent → reviewed by Handova", "H"],
+  n_changes: ["Need sent back for changes → sent again", "O"],
+  n_first_app: ["Need live → first application", "P"],
+  n_chosen: ["First application → professional chosen", "O"],
+  p_send: ["Signs up → sends the profile for review", "P"],
+  p_review: ["Profile sent → reviewed by Handova", "H"],
+  p_changes: ["Asked for changes → sends the profile again", "P"],
+  p_id: ["Signs up → identity checked", "P"],
+  p_first_app: ["Profile approved → first application", "P"],
+  c_pro_sign: ["Professional chosen → professional signs the agreement", "P"],
+  c_org_sign: ["Professional chosen → organisation signs the agreement", "O"],
+  c_call: ["Agreement signed → first call", "OP"],
+  c_deliver: ["First call → work delivered", "P"],
+  c_finish: ["Work delivered → finished and endorsed", "O"],
+  c_q_org: ["Finished → organisation answers the questionnaire", "O"],
+  c_q_pro: ["Finished → professional answers the questionnaire", "P"],
+};
+const VIEWS = [
+  ["orgs", "Organisations join", ["o_signup", "o_review", "o_changes", "o_first_need"]],
+  ["needs", "Needs", ["n_review", "n_changes", "n_first_app", "n_chosen"]],
+  ["pros", "Professionals join", ["p_send", "p_review", "p_changes", "p_id", "p_first_app"]],
+  ["contribs", "Working together", ["c_pro_sign", "c_org_sign", "c_call", "c_deliver", "c_finish", "c_q_org", "c_q_pro"]],
+];
+// Which step an automatic reminder is about (by its kind); anything else goes to the step that was waiting when it was sent.
+const REMINDER_STEP = [
+  [/^(finish_signup|signup_reminder)/, ["o_signup", "p_send"]], [/^retention_org/, ["o_first_need"]], [/^profile_unsent/, ["p_send"]],
+  [/^retention_reminder/, ["p_first_app"]], [/^(need_reminder|reply_reminder)/, ["n_chosen"]], [/^apply_by_/, ["n_first_app", "n_chosen"]],
+  [/^sign_reminder/, ["c_pro_sign", "c_org_sign"]], [/^first_call/, ["c_call"]], [/^activity_reminder/, ["c_deliver"]],
+  [/^endorse_reminder/, ["c_finish"]], [/^survey/, ["c_q_org", "c_q_pro"]],
+];
 
-// One horizontal timeline: done steps show their date; the first missing step shows how long it has been waiting.
-function track(steps, limitFor, stopped = false) {
-  steps = steps.filter((s) => !s.skip);
-  // The current step is the first missing one with nothing done after it; a missing step before a done one was skipped.
-  // Only how far each one got is marked (founder decision, 13 Nov 2026); what is waiting is in the list above.
-  const lastDone = steps.map((s) => !!s.at).lastIndexOf(true), cur = -1;
-  const prevAt = lastDone >= 0 ? steps[lastDone].at : null;
-  return `<ol class="pg-track">${steps.map((s, i) => {
-    const done = !!s.at, isCur = i === cur, skipped = !done && i < lastDone, w = isCur ? days(prevAt) : null, sev = isCur ? sevOf(w, limitFor?.(s) || "setup") : "";
-    return `<li class="pg-step ${done ? "done" : isCur ? `current ${sev}` : skipped ? "skipped" : "todo"}"><span class="pg-dot" aria-hidden="true">${done ? icon("check", 12) : ""}</span><span class="pg-label">${s.label}</span><span class="pg-date">${done ? short(s.at) : skipped ? "<span>not recorded</span>" : isCur && w != null ? `${w} <span>${w === 1 ? "day waiting" : "days waiting"}</span>` : ""}${isCur && s.who ? `<span class="pg-who">${WHO[s.who]}</span>` : ""}</span></li>`;
-  }).join("")}</ol>`;
+// One step instance: [key, from, to, stillWaiting, label?]. A finished step counts its real time; one still waiting
+// counts from `from` until now.
+function journeys(d) {
+  const now = Date.now();
+  const after = (list, at) => (list || []).find((x) => t(x.at ?? x) > t(at));
+  const sends = (x) => (x.sent || []).map(String);
+  const firstSent = (x) => sends(x)[0] || x.created_at;
+  // Each time something was sent → the first admin decision after it (or the approval date, for older records).
+  const reviews = (key, x, pending) => { const ss = sends(x); if (!ss.length) return x.created_at ? [[key, x.created_at, x.approved_at, pending && !x.approved_at]] : [];
+    return ss.map((s, i) => { const dc = after(x.decisions, s); const end = dc?.at || (x.approved_at && t(x.approved_at) > t(s) ? x.approved_at : null); return [key, s, end, !end && pending && i === ss.length - 1, i ? "Sent again → reviewed by Handova" : null]; }); };
+  // Each "asked for changes" → the next time it was sent again.
+  // Older records may lack the decision: then the wait counts from the last time it was sent.
+  const resends = (key, x, action, waiting) => { const r = (x.decisions || []).filter((a) => a.a === action).map((a) => { const nx = after(sends(x), a.at); return [key, a.at, nx || null, !nx && waiting]; });
+    return waiting && !r.some((i) => i[3]) ? [...r, [key, sends(x).pop() || x.sent_at || x.created_at, null, true]] : r; };
+  const needsOf = (o) => d.needs.filter((n) => n.org_id === o.id).sort((a, b) => t(firstSent(a)) - t(firstSent(b)));
+  const signedBoth = (c) => (c.org_signed_at && c.talent_signed_at ? [c.org_signed_at, c.talent_signed_at].sort((a, b) => t(a) - t(b)).pop() : null);
+  const signing = (c) => c.status === "awaiting_signatures", live = (c) => c.status === "active" || signing(c);
+  const survey = (v) => (v ? String(v).split("|")[1] : null);
+  const today = new Date().toISOString().slice(0, 10);
+  const out = { orgs: [], needs: [], pros: [], contribs: [] };
+  for (const o of d.orgs) {
+    const ns = needsOf(o), live_ = o.status !== "suspended";
+    const steps = [
+      o.account_at && ["o_signup", o.account_at, firstSent(o), false],
+      ...reviews("o_review", o, o.status === "pending"),
+      ...resends("o_changes", o, "org_changes_requested", o.status === "changes_requested"),
+      o.approved_at && ["o_first_need", o.approved_at, ns.length ? firstSent(ns[0]) : null, live_ && o.status === "approved" && !ns.length],
+    ].filter(Boolean);
+    const extras = o.changes_waiting ? [{ who: "H", text: "Changes to the organisation to approve", since: null }] : [];
+    out.orgs.push({ x: o, steps, extras, needs: ns.map((n) => ({ title: n.title, at: firstSent(n), id: n.id })) });
+  }
+  for (const n of d.needs) {
+    const open = n.status === "open";
+    const steps = [
+      ...reviews("n_review", n, n.status === "pending"),
+      ...resends("n_changes", n, "need_draft", n.status === "draft"),
+      (n.published_at || n.approved_at) && ["n_first_app", n.published_at || n.approved_at, n.first_app_at, open && !n.first_app_at],
+      n.first_app_at && ["n_chosen", n.first_app_at, n.chosen_at, open && !n.chosen_at],
+    ].filter(Boolean);
+    const extras = [];
+    if (n.requested_deadline) extras.push({ who: "H", text: "New apply-by date to approve", since: null });
+    if (open && n.deadline && n.deadline < today && !n.requested_deadline) extras.push({ who: "O", text: "Apply-by date passed, no new date chosen", since: n.deadline });
+    out.needs.push({ x: n, steps, extras });
+  }
+  for (const p of d.pros) {
+    const on = !p.closed_at, s0 = sends(p)[0] || p.sent_at;
+    const rv = sends(p).length ? reviews("p_review", p, p.review_status === "pending") : p.sent_at ? [["p_review", p.sent_at, p.approved_at, p.review_status === "pending" && !p.approved_at]] : [];
+    const steps = [
+      ["p_send", p.signed_up_at, s0 || null, on && !s0 && !p.approved_at],
+      ...rv,
+      ...resends("p_changes", p, "profile_changes_requested", on && p.review_status === "changes_requested"),
+      ["p_id", p.signed_up_at, p.id_verified_at, on && p.id_status !== "approved"],
+      p.approved_at && ["p_first_app", p.approved_at, p.first_app_at, on && p.published && !p.first_app_at],
+    ].filter(Boolean);
+    const extras = [];
+    if (["name_mismatch", "in_review"].includes(p.id_status)) extras.push({ who: "H", text: "Identity check to review", since: null });
+    const inv = (d.invites || []).filter((i) => i.pro_id === p.id && i.status === "pending").sort((a, b) => t(a.created_at) - t(b.created_at));
+    if (on && inv.length) extras.push({ who: "P", text: inv.length === 1 ? "Invited to a need, no answer yet" : "Invited to needs, no answer yet", since: inv[0].created_at });
+    out.pros.push({ x: p, steps, extras });
+  }
+  for (const c of d.contribs) {
+    const both = signedBoth(c), done = c.status === "completed";
+    const steps = [
+      ["c_pro_sign", c.created_at, c.talent_signed_at, signing(c) && !c.talent_signed_at],
+      ["c_org_sign", c.created_at, c.org_signed_at, signing(c) && !c.org_signed_at],
+      both && ["c_call", both, c.first_call_at, live(c) && !c.first_call_at],
+      c.first_call_at && ["c_deliver", c.first_call_at, c.delivered_at, live(c) && !c.delivered_at],
+      c.delivered_at && ["c_finish", c.delivered_at, c.completed_at, live(c) && !c.completed_at],
+      c.completed_at && ["c_q_org", c.completed_at, survey(c.survey_org), done && !c.survey_org],
+      c.completed_at && ["c_q_pro", c.completed_at, survey(c.survey_pro), done && !c.survey_pro],
+    ].filter(Boolean);
+    const extras = live(c) && Number(c.hours_pending) ? [{ who: "O", text: `${Number(c.hours_pending)} <span>hours to review</span>`, since: c.hours_first_at }] : [];
+    out.contribs.push({ x: c, steps, extras });
+  }
+  // Durations, then the typical time per step (the average of every instance, finished or still waiting).
+  const all = [];
+  for (const k of Object.keys(out)) for (const j of out[k]) {
+    j.steps = j.steps.filter(([, from, to, w]) => from && (to || w)).map(([key, from, to, waiting, label]) => ({ key, from, to, waiting, label: label || STEPS[key][0], who: STEPS[key][1], dur: Math.max(0, ((to ? t(to) : now) - t(from)) / DAY), reminders: [] }));
+    all.push(...j.steps);
+  }
+  const typical = {}, mean = (v) => (v.length ? { avg: v.reduce((a, b) => a + b, 0) / v.length, n: v.length } : { avg: null, n: 0 });
+  // The synthesis counts waiting steps too; a verdict compares with finished ones only, so a step that is the only
+  // example of itself is not "typical" by definition.
+  for (const key of Object.keys(STEPS)) { typical[key] = mean(all.filter((s) => s.key === key).map((s) => s.dur)); typical[key].done = mean(all.filter((s) => s.key === key && !s.waiting).map((s) => s.dur)).avg; }
+  // Put each reminder on the step it is about: the step of its kind that was open when it was sent, else any open step
+  // that was not Handova's turn. Automatic identity prompts are not reminders about a stuck step.
+  for (const k of Object.keys(out)) for (const j of out[k]) {
+    j.loose = [];
+    for (const r of (j.x.reminders || []).filter((r) => r.kind !== "id_check")) {
+      const at = t(r.at), open = j.steps.filter((s) => t(s.from) <= at + 6e4 && at <= (s.to ? t(s.to) : now));
+      const keys = REMINDER_STEP.find(([re]) => re.test(r.kind))?.[1] || [];
+      const s = open.find((x) => keys.includes(x.key)) || open.find((x) => x.who !== "H");
+      (s ? s.reminders : j.loose).push(r);
+    }
+  }
+  return { out, typical };
 }
 
-function contribCard(c) {
-  const both = c.org_signed_at && c.talent_signed_at ? [c.org_signed_at, c.talent_signed_at].sort().pop() : null;
-  const ended = c.status === "ended";
-  const steps = [
-    { label: "Professional chosen", at: c.created_at },
-    { label: "Agreement signed", at: both, who: !c.org_signed_at && !c.talent_signed_at ? "both" : !c.org_signed_at ? "org" : "pro", lim: "sign" },
-    { label: "First call", at: c.first_call_at, who: "both", lim: "call" },
-    { label: "Hours logged", at: c.hours_first_at, who: "pro", lim: "work" },
-    { label: "Delivered", at: c.delivered_at, who: "pro", lim: "work" },
-    { label: "Finished and endorsed", at: c.completed_at, who: "org", lim: "endorse" },
-    { label: "Questionnaires", at: c.survey_pro && c.survey_org ? [c.survey_pro, c.survey_org].map((x) => x.split("|")[1]).sort().pop() : null, who: !c.survey_pro && !c.survey_org ? "both" : !c.survey_pro ? "pro" : "org", lim: "survey" },
-  ];
-  const state_ = ended ? pill("Ended early", "grey") : c.status === "completed" ? pill("Handed over", "") : c.status === "active" ? pill("In progress", "ochre") : pill("Agreement to sign", "ochre");
-  return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#agreement/${c.id}" class="pg-title">${e(c.need || "")}</a><span class="small muted">${e(c.org || "")} · ${e(c.pro || "")}${Number(c.hours_logged) ? ` · ${Number(c.hours_logged)} <span>hours logged</span>${Number(c.hours_pending) ? ` (${Number(c.hours_pending)} <span>to review</span>)` : ""}` : ""}${c.last_message_at ? ` · <span>last message</span> ${short(c.last_message_at)}` : ""}</span></div>${state_}</div>
-    ${ended ? `<p class="small muted">${short(c.ended_at)}${c.end_reason ? ` · ${e(c.end_reason)}` : ""}</p>` : track(steps, (s) => s.lim)}${remChips(c.reminders)}</article>`;
+// How one step compares with the typical time for it: "faster", "about typical", "2.5× typical".
+function compare(s, typ) {
+  if (typ?.avg == null || typ.n < 2 && s.dur === typ.avg) return { tone: "", text: "" };
+  const r = s.dur / Math.max(typ.avg, 1 / 24);
+  if (s.dur < 1 / 24 && typ.avg < 1 / 24) return { tone: "ok", text: "about typical" };
+  if (r < 0.5) return { tone: "fast", text: "faster" };
+  if (r <= 1.5) return { tone: "ok", text: "about typical" };
+  return { tone: r <= 3 ? "slow" : "late", text: `${r < 10 ? Math.round(r * 10) / 10 : Math.round(r)}× <span>typical</span>`, r };
 }
-function needCard(n) {
-  const steps = [
-    { label: "Sent", at: n.created_at },
-    { label: n.published_at && n.approved_at && n.published_at.slice(0, 10) !== n.approved_at.slice(0, 10) ? "Reopened" : "Live", at: n.published_at || n.approved_at, who: "handova", lim: "handova" },
-    { label: "First application", at: n.first_app_at, who: "pros", lim: "apps" },
-    { label: "Professional chosen", at: n.chosen_at, who: "org", lim: "decide" },
-  ];
-  // A closed need with someone chosen was filled; one closed without anyone chosen just stopped (nothing is waiting).
-  const s = n.status === "pending" ? pill("To review", "ochre") : n.status === "open" ? pill("Live", "") : n.status === "closed" && n.chosen_at ? pill("Filled", "") : pill(n.status === "closed" ? "Closed without a match" : n.status, "grey");
-  return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#need/${n.id}" class="pg-title">${e(n.title)}</a><span class="small muted">${e(n.org)} · ${n.apps} ${n.apps === 1 ? "<span>application</span>" : "<span>applications</span>"}${n.apps_pending ? ` (${n.apps_pending} <span>waiting for a decision</span>)` : ""} · ${n.matched} <span>matching professionals told</span>${n.deadline ? ` · <span>apply by</span> ${short(n.deadline)}` : ""}</span></div>${s}</div>
-    ${track(steps, (x) => x.lim, n.status === "closed" || n.status === "draft")}${remChips(n.reminders)}</article>`;
+
+// The verdict for one thing that is waiting, and the plain advice under it.
+function verdict(w, typ) {
+  const daysSo = w.dur ?? (w.since ? (Date.now() - t(w.since)) / DAY : 0);
+  const rem = w.reminders || [], last = rem.length ? t(rem[rem.length - 1].at) : null;
+  if (w.who.includes("H")) return { rank: 1, tone: daysSo > 5 ? "late" : daysSo > 2 ? "slow" : "you", label: "Your turn", advice: "Waiting on you, so no reminder goes out." };
+  const limit = Math.max(2 * (typ?.done ?? 1.5), 2);
+  if (last && Date.now() - last < 2 * DAY) return { rank: 2, tone: "slow", label: `<span>Reminded</span> ${short(rem[rem.length - 1].at)}`, advice: "Reminded recently. Give it a couple of days." };
+  if (daysSo > limit) return { rank: 0, tone: "late", label: "Nudge today", advice: rem.length >= 2 ? "Reminders have not worked yet. Try a personal message." : rem.length ? "Reminded once, no reply yet." : "No reminder sent yet." };
+  return { rank: 3, tone: "ok", label: "On track", advice: rem.length ? "" : "No reminder needed yet." };
 }
-function orgCard(o, allNeeds = []) {
-  const steps = [
-    { label: "Signed up", at: o.created_at },
-    { label: "Approved", at: o.approved_at, who: o.status === "changes_requested" ? "org" : "handova", lim: o.status === "changes_requested" ? "setup" : "handova" },
-  ];
-  // One step per need the organisation sent, oldest first (or one empty step when none yet).
-  const mine = allNeeds.filter((n) => n.org_id === o.id).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
-  if (!mine.length) steps.push({ label: "First need sent", at: null, who: "org", lim: "setup" });
-  mine.forEach((n, i) => steps.push({ label: `<span class="pg-nth">${i + 1}</span> <span>need sent</span><span class="pg-need-name" data-no-i18n>${e(n.title)}</span>`, at: n.created_at }));
-  const s = o.status === "approved" ? pill("Approved", "") : o.status === "pending" ? pill("To review", "ochre") : o.status === "changes_requested" ? pill("Asked for details", "ochre") : pill(o.status, "grey");
-  return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#admin-org/${o.id}" class="pg-title">${e(o.name)}</a><span class="small muted">${e(o.country || "")}${o.contact_email ? ` · <a href="mailto:${e(o.contact_email)}" data-no-i18n>${e(o.contact_email)}</a>` : ""} · ${o.needs} ${o.needs === 1 ? "<span>need</span>" : "<span>needs</span>"}${o.last_sign_in ? ` · <span>last signed in</span> ${short(o.last_sign_in)}` : ""}</span></div>${s}</div>
-    ${track(steps, (x) => x.lim)}${remChips(o.reminders)}</article>`;
+
+const remChips = (list) => list.map((r) => `<span class="pg-chip" title="${e(r.title || "")}">${icon(r.emailed ? "mail" : "bell", 13)} ${short(r.at)}${r.emailed ? "" : ` <span class="visually-hidden">(shown on screen only)</span>`}</span>`).join("");
+
+function stepRow(s, typ, scale, tone = "") {
+  const c = compare(s, typ), barTone = c.tone || tone, w = (x) => `${Math.max(1.5, Math.min(100, (x / scale) * 100))}%`;
+  return `<div class="jc-row${s.waiting ? " waiting" : ""}">
+    <span class="jc-label">${whoDots(s.who)}<span class="stack" style="--gap:1px;min-width:0"><span class="jc-step">${s.label}</span><span class="small muted">${s.waiting ? `<span>since</span> ${short(s.from)}` : `${short(s.from)} → ${short(s.to)}`}${s.reminders.length && !s.waiting ? ` · ${s.reminders.length} ${s.reminders.length === 1 ? "<span>reminder</span>" : "<span>reminders</span>"}` : ""}</span></span></span>
+    <span class="jc-track ${barTone}"><span class="jc-fill" style="width:${w(s.dur)}"></span>${typ?.avg != null ? `<span class="jc-tick" style="left:${w(typ.avg)}" title="Typical"></span>` : ""}</span>
+    <span class="jc-val"><strong>${howLong(s.dur)}${s.waiting ? " <span>so far</span>" : ""}</strong><span class="small muted">${typ?.avg != null ? `<span>typical</span> ${howLong(typ.avg)}` : "<span>no typical time yet</span>"}</span></span>
+    <span class="jc-cmp">${c.text ? `<span class="jc-chip ${c.tone}">${c.text}</span>` : ""}</span>
+  </div>`;
 }
-function proCard(p) {
-  const steps = [
-    { label: "Signed up", at: p.signed_up_at },
-    { label: "Profile sent", at: p.sent_at || (p.review_status !== "draft" ? p.profile_at : null), who: "pro", lim: "setup" },
-    { label: "Approved", at: p.approved_at, who: p.review_status === "changes_requested" ? "pro" : "handova", lim: p.review_status === "changes_requested" ? "setup" : "handova" },
-    { label: "Identity verified", at: p.id_verified_at, who: "pro", lim: "setup" },
-    { label: "First application", at: p.first_app_at, who: "pro", lim: "apps" },
-  ];
-  const s = p.closed_at ? pill("Closed", "grey") : p.review_status === "approved" ? pill("Approved", "") : p.review_status === "pending" ? pill("To review", "ochre") : pill(p.review_status === "draft" ? "Not sent" : "Asked to update", "ochre");
-  return `<article class="pg-card"><div class="pg-head"><div class="stack" style="--gap:2px;min-width:0"><a href="#profile/${p.id}" class="pg-title" data-no-i18n>${e(p.name)}</a><span class="small muted">${e(p.country || "")}${p.email ? ` · <a href="mailto:${e(p.email)}" data-no-i18n>${e(p.email)}</a>` : ""} · ${p.apps} ${p.apps === 1 ? "<span>application</span>" : "<span>applications</span>"} · ${p.contribs} ${p.contribs === 1 ? "<span>contribution</span>" : "<span>contributions</span>"}${p.last_sign_in ? ` · <span>last signed in</span> ${short(p.last_sign_in)}` : ""}</span></div>${s}</div>
-    ${track(steps, (x) => x.lim)}${remChips(p.reminders)}</article>`;
+
+function card(kind, j, typical) {
+  const x = j.x, waits = j.steps.filter((s) => s.waiting), past = j.steps.filter((s) => !s.waiting);
+  const items = [...waits.map((s) => ({ ...s, v: verdict(s, typical[s.key]) })), ...j.extras.map((x_) => ({ ...x_, extra: true, reminders: [], v: verdict({ ...x_, reminders: [] }, null) }))].sort((a, b) => a.v.rank - b.v.rank);
+  const top = items[0]?.v;
+  const scale = Math.max(1 / 24, ...j.steps.map((s) => Math.max(s.dur, typical[s.key]?.avg || 0)));
+  const status = {
+    orgs: () => (x.status === "approved" ? "Approved" : x.status === "pending" ? "Waiting for review" : x.status === "changes_requested" ? "Asked for changes" : x.status === "suspended" ? "Suspended" : x.status),
+    needs: () => (x.status === "pending" ? "Waiting for review" : x.status === "open" ? "Live" : x.status === "draft" ? "Sent back for changes" : x.chosen_at ? "Filled" : "Closed without a match"),
+    pros: () => (x.closed_at ? "Closed" : x.review_status === "approved" ? "Approved" : x.review_status === "pending" ? "Waiting for review" : x.review_status === "changes_requested" ? "Asked for changes" : "Not sent yet"),
+    contribs: () => (x.status === "completed" ? "Handed over" : x.status === "ended" ? "Ended early" : x.status === "active" ? "In progress" : "Agreement to sign"),
+  }[kind]();
+  const title = { orgs: [x.name, `#admin-org/${x.id}`, "Open organisation"], needs: [x.title, `#need/${x.id}`, "Open need"], pros: [x.name, `#profile/${x.id}`, "Open profile"], contribs: [x.need, `#agreement/${x.id}`, "Open contribution"] }[kind];
+  const meta = {
+    orgs: () => [e(x.country || ""), `${x.needs} ${x.needs === 1 ? "<span>need</span>" : "<span>needs</span>"}`, x.last_sign_in ? `<span>last signed in</span> ${short(x.last_sign_in)}` : ""],
+    needs: () => [`<span data-no-i18n>${e(x.org || "")}</span>`, `${x.apps} ${x.apps === 1 ? "<span>application</span>" : "<span>applications</span>"}${x.apps_pending ? ` (${x.apps_pending} <span>not answered</span>)` : ""}`, x.deadline ? `<span>apply by</span> ${short(x.deadline)}` : ""],
+    pros: () => [e(x.country || ""), `${x.apps} ${x.apps === 1 ? "<span>application</span>" : "<span>applications</span>"}`, x.last_sign_in ? `<span>last signed in</span> ${short(x.last_sign_in)}` : ""],
+    contribs: () => [`<span data-no-i18n>${e(x.org || "")} · ${e(x.pro || "")}</span>`, Number(x.hours_logged) ? `${Number(x.hours_logged)} <span>hours logged</span>` : "", x.last_message_at ? `<span>last message</span> ${short(x.last_message_at)}` : ""],
+  }[kind]().filter(Boolean).join(" · ");
+  const slow = j.steps.some((s) => (compare(s, typical[s.key]).r || 0) > 1.5);
+  const whos = [...new Set(items.flatMap((i) => [...i.who]))];
+  const tone = top ? top.tone : "done", stateKey = !top ? "done" : top.rank <= 1 ? "todo" : "waiting";
+  const nowBlock = items.length ? `<div class="jc-now"><span class="jc-kicker">Waiting now</span>${items.map((i) => i.extra
+    ? `<div class="jc-extra">${whoDots(i.who)}<span><strong>${i.text}</strong>${i.since ? ` <span class="small muted">· <span>since</span> ${short(i.since)}</span>` : ""}</span></div>`
+    : `${stepRow(i, typical[i.key], scale, i.v.tone === "late" ? "late" : "")}<div class="jc-advice">${i.reminders.length ? `<span class="pg-rem">${remChips(i.reminders)}</span>` : ""}<span class="small">${i.v.advice}</span></div>`).join("")}</div>` : "";
+  const pastRows = past.map((s) => stepRow(s, typical[s.key], scale)).join("");
+  const needsLine = kind === "orgs" && j.needs.length ? `<p class="jc-needs small"><span class="muted">${j.needs.length === 1 ? "Need sent:" : "Needs sent:"}</span> ${j.needs.map((n) => `<a class="pg-chip" href="#need/${n.id}"><span data-no-i18n>${e(n.title)}</span> · ${short(n.at)}</a>`).join("")}</p>` : "";
+  const pastBlock = past.length ? (items.length
+    ? `<div class="jc-past"><span class="jc-kicker">How it got here</span>${pastRows}</div>`
+    : `<details class="jc-past"><summary>${past.length === 1 ? "Show the step" : `<span>Show the</span> ${past.length} <span>steps</span>`}</summary>${pastRows}</details>`) : "";
+  return `<article class="jc jc-${tone}" data-state="${stateKey}" data-who="${whos.join(" ")}" data-slow="${slow ? 1 : 0}">
+    <div class="jc-head"><div class="stack" style="--gap:2px;min-width:0"><a class="jc-title" href="${title[1]}" data-no-i18n>${e(title[0] || "")}</a><span class="small muted">${meta}</span></div>${top ? `<span class="jc-verdict ${top.tone}">${top.label}</span>` : pill(status, "")}</div>
+    ${top ? `<p class="small muted jc-status">${status}</p>` : ""}${nowBlock}${pastBlock}${needsLine}
+    <div class="jc-foot small">${j.loose.length ? `<span class="muted">${j.loose.length} ${j.loose.length === 1 ? "<span>other reminder</span>" : "<span>other reminders</span>"}:</span> <span class="pg-rem">${remChips(j.loose)}</span> · ` : ""}<a href="${title[1]}">${title[2]}</a></div>
+  </article>`;
 }
 
 export async function progress() {
   if (!state.isAdmin) return { title: "Progress", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1></div>` };
   const d = await result(db.rpc("admin_progress"));
-  // Automatic "verify your identity" prompts are not reminders about a stuck step.
-  for (const k of ["orgs", "needs", "pros", "signups", "contribs"]) for (const x of d[k] || []) x.reminders = (x.reminders || []).filter((r) => r.kind !== "id_check");
-  const list = waits(d);
-  const groupsOf = (x) => x.who === "both" ? ["org", "pro"] : x.who === "pros" ? ["pro"] : [x.who];
-  const by = (w) => list.filter((x) => groupsOf(x).includes(w));
-  const tile = (w, label) => { const l = by(w), red = l.filter((x) => x.sev === "red").length, oldest = Math.max(0, ...l.map((x) => x.days || 0)); return `<button type="button" class="pg-tile ${w === "setup" ? "" : red ? "red" : l.some((x) => x.sev === "amber") ? "amber" : ""}" data-pg-filter="${w}" aria-pressed="false"><strong>${l.length}</strong><span>${label}</span><span class="small">${l.length ? `${red && w !== "setup" ? `${red} <span>overdue</span> · ` : ""}<span>oldest</span> ${oldest} ${oldest === 1 ? "<span>day</span>" : "<span>days</span>"}` : "<span>Nothing waiting</span>"}</span><span class="pg-tile-go small">${l.length ? "Show them" : ""}</span></button>`; };
-  const sp = speeds(d), rowsAll = sp.flatMap(([, r]) => r), max = Math.max(1, ...rowsAll.map(([, , x]) => x.avg || 0)), slowest = rowsAll.reduce((m, x) => ((x[2].avg || 0) > (m[2].avg || 0) ? x : m), rowsAll[0]);
+  const { out, typical } = journeys(d);
+  const rank = (j) => { const items = [...j.steps.filter((s) => s.waiting).map((s) => verdict(s, typical[s.key])), ...j.extras.map((x) => verdict({ ...x, reminders: [] }, null))]; return items.length ? Math.min(...items.map((v) => v.rank)) : 9; };
+  const oldest = (j) => Math.max(0, ...j.steps.filter((s) => s.waiting).map((s) => s.dur));
+  for (const k of Object.keys(out)) out[k].sort((a, b) => rank(a) - rank(b) || oldest(b) - oldest(a));
+  const html_ = Object.fromEntries(VIEWS.map(([k]) => [k, out[k].map((j) => card(k, j, typical)).join("")]));
+  const todo = (k) => out[k].filter((j) => rank(j) <= 1).length;
+
+  // Synthesis: the typical time for every step, grouped as the cards are.
+  const rowsAll = Object.keys(STEPS).map((k) => typical[k]), max = Math.max(1, ...rowsAll.map((x) => x.avg || 0));
+  const slowestKey = Object.keys(STEPS).reduce((m, k) => ((typical[k].avg || 0) > (typical[m].avg || 0) ? k : m), "o_signup");
+  // Tiles: how many cards have something waiting on each side; a click filters the cards below.
+  const waitingOn = (L) => Object.values(out).flat().filter((j) => j.steps.some((s) => s.waiting && s.who.includes(L)) || j.extras.some((x) => x.who.includes(L)));
+  const lateOn = (L) => waitingOn(L).filter((j) => rank(j) === 0 || (L === "H" && j.steps.some((s) => s.waiting && s.who === "H" && s.dur > 5))).length;
+  const tile = (L, label) => { const n = waitingOn(L).length, late = lateOn(L); return `<button type="button" class="pg-tile ${late ? "red" : ""}" data-pg-who="${L}" aria-pressed="false"><strong>${n}</strong><span class="pg-tile-who">${whoDots(L)}<span>${label}</span></span><span class="small">${n ? (late ? `${late} <span>to act on today</span>` : "<span>Nothing overdue</span>") : "<span>Nothing waiting</span>"}</span><span class="pg-tile-go small">${n ? "Show them" : ""}</span></button>`; };
   const active = d.contribs.filter((c) => ["awaiting_signatures", "active"].includes(c.status));
+  const legend = `<span class="pg-legend"><span class="small muted">Whose turn:</span>${Object.keys(WHO_LETTER).map((k) => `<span class="pg-legend-item">${whoDots(k)}<span class="small">${WHO_LETTER[k]}</span></span>`).join("")}</span>`;
+
   const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:28px">
     ${back("Back to admin", "#admin")}
-    <div class="stack" style="--gap:10px">${eyebrow("Admin")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Progress and bottlenecks</h1><p class="lead" style="max-width:none">Where every organisation, need, professional and contribution is, how long each step has been waiting and on whom, and the reminders already sent. Amber means slower than usual, red means overdue.</p><p class="small muted"><span>Updated</span> ${date(d.generated_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p></div>
-    <div class="pg-tiles">${tile("handova", "waiting on Handova")}${tile("org", "waiting on organisations")}${tile("pro", "waiting on professionals")}${tile("setup", "unfinished sign-ups")}<button type="button" class="pg-tile" data-pg-goto="contribs"><strong>${active.length}</strong><span>contributions in progress</span><span class="small">${d.contribs.filter((c) => c.status === "completed").length} <span>handed over so far</span></span><span class="pg-tile-go small">${d.contribs.length ? "See their timelines" : ""}</span></button></div>
-    <section class="card stack" style="--gap:14px"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:10px"><h2 style="font-size:1.6rem">Where the journey slows down</h2><span class="pg-legend"><span class="small muted">Whose turn:</span>${Object.keys(WHO_LETTER).map((k) => `<span class="pg-legend-item">${whoDots(k)}<span class="small">${WHO_LETTER[k]}</span></span>`).join("")}</span></div><p class="small muted">Average time each step takes, in the order things happen; in brackets, how many were counted. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.</p>
-      ${sp.map(([group, rows]) => `<div class="pg-bars"><h3 class="pg-bars-h">${group}</h3>${rows.map(([label, who, x]) => `<div class="pg-bar${x === slowest[2] && x.avg ? " slow" : ""}"><span class="pg-bar-label"><span class="pg-letters">${whoDots(who)}</span><span>${label}</span></span><span class="pg-bar-track"><span style="width:${x.avg == null ? 0 : Math.max(3, (x.avg / max) * 100)}%"></span></span><span class="pg-bar-val">${x.avg == null ? `<span class="small muted" style="font-weight:400">no data yet</span>` : `${howLong(x.avg)} <span class="small muted" style="font-weight:400">(${x.n})</span>`}</span></div>`).join("")}</div>`).join("")}</section>
-    <section class="card stack" style="--gap:12px" id="pg-waiting"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:8px"><h2 style="font-size:1.6rem">Waiting right now</h2><span class="small muted"><span data-pg-count>${list.length}</span> <span>shown</span></span></div>
-      <div class="pg-filters" role="group" aria-label="Filter">${[["all", "Everyone"], ["handova", "On Handova"], ["org", "On organisations"], ["pro", "On professionals"], ["setup", "Unfinished sign-ups"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-filter="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}<span class="pg-sep" aria-hidden="true"></span>${[["any", "Any wait"], ["late", "Slow or overdue"], ["red", "Overdue only"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-sev="${k}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div>
-      <p class="small muted">Oldest and most overdue first.</p>
-      ${list.length ? `<div class="pg-waits">${list.map((x) => `<a class="pg-wait ${x.sev}" href="${x.link}" data-groups="${groupsOf(x).join(" ")}" data-sev="${x.sev}"><span class="pg-wait-days">${x.days == null ? "–" : x.days}<small>${x.days === 1 ? "day" : "days"}</small></span><span class="stack" style="--gap:2px;min-width:0"><strong data-no-i18n>${e(x.title || "")}</strong><span class="small muted">${e(x.sub)}</span>${x.reminders?.length ? `<span class="small muted">${x.reminders.length} ${x.reminders.length === 1 ? "<span>reminder sent</span>" : "<span>reminders sent</span>"} · <span>last</span> ${short(x.reminders[x.reminders.length - 1].at)}</span>` : ""}</span><span class="pg-who-pill">${WHO[x.who]}</span></a>`).join("")}<p class="small muted" data-pg-none hidden>Nothing matches this filter.</p></div>` : empty("Nothing is waiting", "Everyone is moving. Well done.")}</section>
-    <section class="stack" style="--gap:16px"><h2 style="font-size:1.6rem">Timelines</h2>
-      <div class="pg-tabs" role="tablist">${[["contribs", "Contributions", d.contribs.length], ["needs", "Needs", d.needs.length], ["orgs", "Organisations", d.orgs.length], ["pros", "Professionals", d.pros.length]].map(([k, l, n], i) => `<button type="button" role="tab" class="pg-tab" data-pg-tab="${k}" aria-selected="${i === 0}">${l} <span class="muted">(${n})</span></button>`).join("")}</div>
-      <div data-pg-panel="contribs" class="stack" style="--gap:12px">${d.contribs.length ? d.contribs.map(contribCard).join("") : empty("No contributions yet", "")}</div>
-      <div data-pg-panel="needs" class="stack" style="--gap:12px" hidden>${d.needs.map(needCard).join("")}</div>
-      <div data-pg-panel="orgs" class="stack" style="--gap:12px" hidden>${d.orgs.map((o) => orgCard(o, d.needs)).join("")}</div>
-      <div data-pg-panel="pros" class="stack" style="--gap:12px" hidden>${d.pros.map(proCard).join("")}</div>
+    <div class="stack" style="--gap:10px">${eyebrow("Admin")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">Progress and bottlenecks</h1><p class="lead" style="max-width:none">How long each step takes, where every organisation, need, professional and contribution is, whose turn it is, and the reminders already sent.</p><p class="small muted"><span>Updated</span> ${date(d.generated_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p></div>
+    <div class="pg-tiles">${tile("H", "waiting on Handova")}${tile("O", "waiting on organisations")}${tile("P", "waiting on professionals")}<a class="pg-tile" href="#admin-list/people?show=unfinished"><strong>${d.signups.length}</strong><span>unfinished sign-ups</span><span class="small">Accounts with nothing set up yet</span><span class="pg-tile-go small">${d.signups.length ? "See them" : ""}</span></a><button type="button" class="pg-tile" data-pg-goto="contribs"><strong>${active.length}</strong><span>contributions in progress</span><span class="small">${d.contribs.filter((c) => c.status === "completed").length} <span>handed over so far</span></span><span class="pg-tile-go small">${d.contribs.length ? "See them" : ""}</span></button></div>
+    <section class="card stack" style="--gap:14px"><div class="row between" style="align-items:baseline;flex-wrap:wrap;gap:10px"><h2 style="font-size:1.6rem">Where the journey slows down</h2>${legend}</div><p class="small muted">Average time each step takes, in the order things happen; in brackets, how many were counted. Steps still waiting count up to today, so this updates every day. The longest bar is the bottleneck.</p>
+      ${VIEWS.map(([k, group, keys]) => `<div class="pg-bars"><h3 class="pg-bars-h"><a href="#pg-one" data-pg-goto="${k}">${group}</a></h3>${keys.map((key) => { const x = typical[key]; return `<div class="pg-bar${key === slowestKey && x.avg ? " slow" : ""}"><span class="pg-bar-label"><span class="pg-letters">${whoDots(STEPS[key][1])}</span><span>${STEPS[key][0]}</span></span><span class="pg-bar-track"><span style="width:${x.avg == null ? 0 : Math.max(3, (x.avg / max) * 100)}%"></span></span><span class="pg-bar-val">${x.avg == null ? `<span class="small muted" style="font-weight:400">no data yet</span>` : `${howLong(x.avg)} <span class="small muted" style="font-weight:400">(${x.n})</span>`}</span></div>`; }).join("")}</div>`).join("")}</section>
+    <section class="stack" style="--gap:16px" id="pg-one"><div class="stack" style="--gap:6px"><h2 style="font-size:1.6rem">One by one</h2><p class="small muted" style="max-width:none">The same steps, for each one. At the top of each card: what it is waiting on now, for how long, and the reminders already sent. Below: the steps it has reached. The bar is its own time; the black line is the typical time.</p></div>
+      <div class="pg-tabs" role="tablist">${VIEWS.map(([k, l], i) => `<button type="button" role="tab" class="pg-tab" data-pg-tab="${k}" aria-selected="${i === 0}">${l} <span class="muted">(${out[k].length})</span>${todo(k) ? ` <span class="pg-todo" title="To do today">${todo(k)}</span>` : ""}</button>`).join("")}</div>
+      <div class="pg-filters" role="group" aria-label="Filter"><span class="small muted">Whose turn</span>${[["all", "Anyone"], ["H", "Handova"], ["O", "Organisation"], ["P", "Professional"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-who="${k}" aria-pressed="${i === 0}">${k === "all" ? "" : whoDots(k)}<span>${l}</span></button>`).join("")}<span class="pg-sep" aria-hidden="true"></span><span class="small muted">Show</span>${[["all", "All"], ["todo", "To do today"], ["waiting", "Waiting"], ["slow", "Slower than typical"], ["done", "Nothing waiting"]].map(([k, l], i) => `<button type="button" class="pg-tab" data-pg-show="${k}" aria-pressed="${i === 0}">${l} <span class="muted" data-pg-n="${k}"></span></button>`).join("")}</div>
+      <div class="pg-key small"><span><span class="jc-key-bar"></span> <span>its own time</span></span><span><span class="jc-key-tick"></span> <span>typical time</span></span><span><span class="jc-key-bar waiting"></span> <span>still waiting, counts up to today</span></span><span>${icon("mail", 13)} <span>reminder emailed</span></span><span>${icon("bell", 13)} <span>reminder on screen only</span></span></div>
+      ${VIEWS.map(([k], i) => `<div data-pg-panel="${k}" class="stack" style="--gap:12px"${i ? " hidden" : ""}>${html_[k] || ""}<p class="small muted" data-pg-none hidden>Nothing matches this filter.</p></div>`).join("")}
     </section>
   </div></div>`;
+
   const after = () => {
-    let who = "all", sev = "any";
+    let tab = "orgs", who = "all", show = "all";
+    const panel = () => document.querySelector(`[data-pg-panel="${tab}"]`);
     const apply = () => {
-      let n = 0;
-      document.querySelectorAll(".pg-wait").forEach((a) => { const ok = (who === "all" || a.dataset.groups.split(" ").includes(who)) && (sev === "any" || (sev === "red" ? a.dataset.sev === "red" : a.dataset.sev !== "ok")); a.hidden = !ok; if (ok) n++; });
-      const c = document.querySelector("[data-pg-count]"); if (c) c.textContent = n;
-      const none = document.querySelector("[data-pg-none]"); if (none) none.hidden = n > 0;
-      document.querySelectorAll("[data-pg-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pgFilter === who)));
-      document.querySelectorAll("[data-pg-sev]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pgSev === sev)));
+      const cards = [...(panel()?.querySelectorAll(".jc") || [])];
+      const okWho = (c) => who === "all" || c.dataset.who.split(" ").includes(who);
+      const okShow = (c, s) => s === "all" || (s === "todo" ? c.dataset.state === "todo" : s === "waiting" ? c.dataset.state !== "done" : s === "slow" ? c.dataset.slow === "1" : c.dataset.state === "done");
+      let n = 0; cards.forEach((c) => { const ok = okWho(c) && okShow(c, show); c.hidden = !ok; if (ok) n++; });
+      document.querySelectorAll("[data-pg-n]").forEach((s) => { s.textContent = cards.filter((c) => okWho(c) && okShow(c, s.dataset.pgN)).length; });
+      const none = panel()?.querySelector("[data-pg-none]"); if (none) none.hidden = n > 0;
+      document.querySelectorAll(".pg-filters [data-pg-who]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pgWho === who)));
+      document.querySelectorAll(".pg-tile[data-pg-who]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pgWho === who)));
+      document.querySelectorAll("[data-pg-show]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pgShow === show)));
     };
-    document.querySelectorAll("[data-pg-filter]").forEach((b) => b.addEventListener("click", () => {
-      const fromTile = b.classList.contains("pg-tile");
-      who = fromTile && who === b.dataset.pgFilter ? "all" : b.dataset.pgFilter; apply();
-      if (fromTile) document.getElementById("pg-waiting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const setTab = (k) => {
+      tab = k;
+      document.querySelectorAll("[data-pg-tab]").forEach((x) => x.setAttribute("aria-selected", String(x.dataset.pgTab === k)));
+      document.querySelectorAll("[data-pg-panel]").forEach((p) => { p.hidden = p.dataset.pgPanel !== k; });
+      apply();
+    };
+    const toSection = () => document.getElementById("pg-one")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelectorAll("[data-pg-tab]").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.pgTab)));
+    document.querySelectorAll(".pg-filters [data-pg-who]").forEach((b) => b.addEventListener("click", () => { who = b.dataset.pgWho; apply(); }));
+    document.querySelectorAll("[data-pg-show]").forEach((b) => b.addEventListener("click", () => { show = b.dataset.pgShow; apply(); }));
+    // A tile shows what is waiting on that side: the first view with something waiting on it.
+    document.querySelectorAll(".pg-tile[data-pg-who]").forEach((b) => b.addEventListener("click", () => {
+      const L = b.dataset.pgWho;
+      if (who === L) { who = "all"; show = "all"; setTab(tab); return; }
+      who = L; show = "waiting";
+      const first = VIEWS.map(([k]) => k).find((k) => [...document.querySelectorAll(`[data-pg-panel="${k}"] .jc`)].some((c) => c.dataset.state !== "done" && c.dataset.who.split(" ").includes(L)));
+      setTab(first || tab); toSection();
     }));
-    document.querySelectorAll("[data-pg-sev]").forEach((b) => b.addEventListener("click", () => { sev = b.dataset.pgSev; apply(); }));
-    document.querySelectorAll("[data-pg-goto]").forEach((b) => b.addEventListener("click", () => {
-      document.querySelector(`[data-pg-tab="${b.dataset.pgGoto}"]`)?.click();
-      document.querySelector("[data-pg-tab]")?.closest("section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }));
-    document.querySelectorAll("[data-pg-tab]").forEach((b) => b.addEventListener("click", () => {
-      document.querySelectorAll("[data-pg-tab]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-      document.querySelectorAll("[data-pg-panel]").forEach((p) => { p.hidden = p.dataset.pgPanel !== b.dataset.pgTab; });
-    }));
+    document.querySelectorAll("[data-pg-goto]").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); who = "all"; show = "all"; setTab(b.dataset.pgGoto); toSection(); }));
+    apply();
   };
   return { title: "Progress and bottlenecks", html, after };
 }
