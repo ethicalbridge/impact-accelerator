@@ -192,11 +192,26 @@ export async function universities() {
   const to = new URLSearchParams(location.hash.split("?")[1] || "").get("to");
   return { title: "For universities", description: "A free 3-month pilot from January 2027: remote projects for your students with verified organisations worldwide.", html,
     after: () => {
+      fitTitle();
       // On phones the safety answers start closed (tap a question to open it), so the form is nearer.
       const phone = matchMedia("(max-width: 640px)").matches;
       document.querySelectorAll(".uni-q").forEach((d) => { if (phone) d.removeAttribute("open"); else d.addEventListener("toggle", () => { if (!d.open && !matchMedia("(max-width: 640px)").matches) d.open = true; }); });
       if (to) setTimeout(() => document.getElementById(to)?.scrollIntoView({ block: "start" }), 60);
     } };
+}
+
+// The hero title fills the full width in two lines on wider screens: the largest size (up to 80px) that still fits in two.
+let fitBound = false;
+function fitTitle() {
+  const h = document.querySelector(".uni-hero h1");
+  if (!h) return;
+  h.style.fontSize = "";
+  if (!matchMedia("(min-width: 900px)").matches) return;
+  const lines = () => Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight));
+  let lo = 32, hi = 80;
+  while (hi - lo > 0.5) { const mid = (lo + hi) / 2; h.style.fontSize = mid + "px"; if (lines() <= 2) lo = mid; else hi = mid; }
+  h.style.fontSize = lo + "px";
+  if (!fitBound) { fitBound = true; let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(fitTitle, 120); }); document.fonts?.ready.then(fitTitle); }
 }
 
 export async function submitInterest(form) {
