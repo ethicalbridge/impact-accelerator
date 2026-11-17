@@ -728,6 +728,8 @@ const rpcs = {
     D.survey_responses.push({ id: uid(), engagement_id: e.id, kind: a.p_kind, respondent: me(), status: a.p_status, short_form: !!a.p_short, q_version: String(a.p_version || "").slice(0, 20), lang: a.p_lang == null ? null : String(a.p_lang).slice(0, 8), answers, created_at: now() });
   },
   // Contributions finished in the last 60 days; the short form if a full one was answered in the last 90 days.
+  // What was asked and what changed on review cards (17 Nov 2026): tests seed D.review_rounds directly.
+  admin_review_rounds: () => D.review_rounds || [],
   // Admin Progress page snapshot (13 Nov 2026), built from the mock tables.
   admin_progress: () => {
     const prof = (id) => D.profiles.find((p) => p.user_id === id), org = (id) => D.organisations.find((o) => o.id === id), need = (id) => D.needs.find((n) => n.id === id);
