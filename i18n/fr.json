@@ -4776,4 +4776,11 @@
 "What you asked on":"Ce que vous avez demandé le",
 "Work experience":"Expérience professionnelle",
 "You asked for changes on":"Vous avez demandé des modifications le",
-"empty":"vide"}
+"empty":"vide",
+"New organisations appear here. The ones you asked for details are further down, under “Waiting for changes”.":"Les nouvelles organisations apparaissent ici. Celles à qui vous avez demandé des précisions sont plus bas, dans « En attente de modifications ».",
+"Waiting for changes":"En attente de modifications",
+"You asked these organisations to change something. Nothing to do until they reply: an organisation moves back to “Organisations awaiting review” once it updates its details, and a need moves back to “Needs awaiting review” once it is sent again.":"Vous avez demandé à ces organisations de modifier quelque chose. Rien à faire tant qu’elles n’ont pas répondu : une organisation revient dans « Organisations en attente de vérification » dès qu’elle met à jour ses informations, et un besoin revient dans « Besoins en attente de vérification » dès qu’il est renvoyé.",
+"Ethical Bridge page they gave:":"Page Ethical Bridge indiquée :",
+"Approve anyway":"Approuver quand même",
+"What you asked:":"Ce que vous avez demandé :"
+}
