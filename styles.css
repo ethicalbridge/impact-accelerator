@@ -2135,3 +2135,20 @@ a.pg-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(18, 6
 .al-interest ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .al-interest li { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .al-interest-msg { margin: 4px 0 0; white-space: pre-wrap; }
+
+/* Need cards (17 Nov 2026): smaller and all the same size. The logo band is shorter, the title and the expected output
+   always take two lines (cut there; the full text is on the need page), skills stay on one line, at most three, and the hours and skills sit at
+   the bottom so cards in a row line up. */
+.need-card { display: flex; flex-direction: column; height: 100%; }
+.need-card .org-cover { aspect-ratio: auto; height: 116px; flex: none; }
+.need-card .org-cover-tile { width: 80px; height: 80px; padding: 8px; border-radius: 18px; }
+.need-card .org-cover-tile img { border-radius: 10px; }
+.need-card .card-body { flex: 1; gap: 10px; padding: 18px 20px 22px; }
+.need-card .card-title { font-size: 1.3rem; line-height: 1.2; min-height: 2.4em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.need-card .need-card-out { font-size: .92rem; line-height: 1.45; min-height: 2.9em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.need-card .tags { flex-wrap: nowrap; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.need-card .tags > * { flex: none; }
+.need-card .need-card-foot { margin-top: auto; }
+.need-card > .cover { height: 116px; aspect-ratio: auto; flex: none; }
+.need-card > .h-strip { height: 116px; padding: 12px 18px; align-items: center; flex: none; }
+.need-card .org-cover-initials .avatar { width: 80px; height: 80px; }
