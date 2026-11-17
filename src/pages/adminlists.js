@@ -5,6 +5,9 @@ import { date, experienceLabel, STUDY_LEVELS } from "../utils.js";
 import { config } from "../config.js";
 import { loadReports, sortReports, reportSummary, targetLink, refOf, REASONS } from "./admin.js";
 
+// Where a need is, from draft to handed over. Shared with the overview on the Admin page so the two never drift apart.
+// `prog` is the public_need_progress rows; without them (the rpc failed) the stage falls back to the need's status.
+export const needStage = (n, prog = []) => ["draft", "pending"].includes(n.status) ? n.status : prog.find((p) => p.need_id === n.id)?.state || (n.status === "open" ? "open" : "closed");
 const STAFF = { none: "Volunteers only", "1-5": "1–5 paid staff", "6-20": "6–20 paid staff", "21-50": "21–50 paid staff", "50+": "More than 50 paid staff" };
 export const LISTS = {
   people: "Everyone who signed up",
@@ -122,7 +125,7 @@ export async function adminList(kind, params) {
       result(db.rpc("public_need_progress")).catch(() => []),
     ]);
     // Where each need is (27 Oct 2026): review, open, applications, chosen, in progress, handed over, apply-by date passed.
-    for (const n of needs) { const p = prog.find((x) => x.need_id === n.id); n.stage = n.status === "draft" || n.status === "pending" ? n.status : p?.state || (n.status === "open" ? "open" : "closed"); n.applicants = p?.applicants || 0; }
+    for (const n of needs) { n.stage = needStage(n, prog); n.applicants = prog.find((x) => x.need_id === n.id)?.applicants || 0; }
     const by = (s) => needs.filter((n) => n.stage === s).length;
     filters = [["", "All", needs.length], ["pending", "Waiting for review", by("pending")], ["draft", "Drafts", by("draft")], ["open", "Open, no applications yet", by("open")], ["applications", "Open, professionals applied", by("applications")], ["deadline_passed", "Apply-by date passed", by("deadline_passed")], ["chosen", "Professional chosen", by("chosen")], ["in_progress", "In progress", by("in_progress")], ["handed_over", "Handed over", by("handed_over")], ["closed", "Closed", by("closed")]];
     rows = needs.filter((n) => (!show || n.stage === show) && match(n.title, n.organisation?.name));

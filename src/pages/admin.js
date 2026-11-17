@@ -73,7 +73,7 @@ export async function admin() {
   if (!state.user) return { redirect: "#signin?next=%23admin" };
   if (!state.isAdmin && state.needsMfa) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Enter your sign-in code</h1><p class="lead">Admin access needs the code from your authenticator app.</p><div class="row"><button class="btn" type="button" data-action="mfa-code">Enter code</button></div></div>` };
   if (!state.isAdmin) return { title: "Admin", html: `<div class="wrap page-head">${eyebrow("Admin")}<h1>Administrators only</h1><p class="lead">Your account doesn’t have admin access.</p></div>` };
-  const [orgs, profiles, reportsAll, engagements, needs, allOrgs, allProfiles, sigs, idQueue, idDocs, needQueue, orgMembers] = await Promise.all([
+  const [orgs, profiles, reportsAll, engagements, needs, allOrgs, allProfiles, sigs, idQueue, idDocs, needQueue, orgMembers, needProg] = await Promise.all([
     result(db.from("organisations").select("*").in("status", ["pending", "changes_requested"]).order("created_at")),
     result(db.from("profiles").select(PROFILE_COLS).eq("review_status", "pending").order("updated_at")),
     loadReports(),
@@ -88,6 +88,8 @@ export async function admin() {
     // Needs sent for review. A need can only open once its organisation is approved.
     result(db.from("needs").select("id,title,description,output,skills,languages,hours,places,deadline,updated_at,organisation_id,safeguarding,organisation:organisations(name,status,country)").eq("status", "pending").order("updated_at")).catch(() => []),
     result(db.from("organisation_members").select("organisation_id,full_name,role")).catch(() => []),
+    // The stage of every published need, for the overview's needs chart (17 Nov 2026).
+    result(db.rpc("public_need_progress")).catch(() => []),
   ]);
   // Waiting on the organisation (17 Nov 2026): organisations asked for details and needs sent back to draft with a note.
   // They are no longer "to review", so they get their own section lower down instead of sitting in the review queues.
@@ -132,7 +134,7 @@ export async function admin() {
   const deadlineAsks = await result(db.from("needs").select("id,title,deadline,requested_deadline,organisation:organisations(name)").not("requested_deadline", "is", null)).catch(() => []);
   // Everyone who signed up and the stage they are at (27 Oct 2026).
   const everyone = await result(db.rpc("admin_people")).catch(() => []);
-  const { PEOPLE_GROUPS } = await import("./adminlists.js");
+  const { needStage } = await import("./adminlists.js");
   // Finished work still waiting for the organisation's endorsement.
   const waitingEndorse = await result(db.rpc("admin_endorsements_waiting")).catch(() => []);
   const docName = (uid) => idDocs.find((x) => x.user_id === uid && x.document_name)?.document_name || "";
@@ -180,7 +182,8 @@ export async function admin() {
   // Each number opens what it counts (16 Nov 2026): with items to review it jumps to them on this page, otherwise it opens the list.
   const orgReview = orgs.filter((o) => o.status === "pending").length + orgChanges.length, orgWaiting = orgs.filter((o) => o.status === "changes_requested").length;
   const waitedFor = (d) => { const n = Math.floor((Date.now() - Date.parse(d)) / 864e5); return pill(n < 1 ? "Today" : n === 1 ? "1 day" : `${n} days`, n > 14 ? "ochre" : "grey"); };
-  const tile = (n, section, href, inner) => n ? `<button class="stat stat-link" type="button" data-action="goto-focus" data-target="${section}">${inner}${icon("arrow", 18)}</button>` : `<a class="stat stat-link" href="${href}">${inner}${icon("arrow", 18)}</a>`;
+  // The tile takes the clay tone while its own count is above 0, like the clay "waiting for your review" marks below it.
+  const tile = (n, section, href, inner, shown = n) => { const cls = `stat stat-link ${shown ? "hot" : "calm"}`; return n ? `<button class="${cls}" type="button" data-action="goto-focus" data-target="${section}">${inner}${icon("arrow", 18)}</button>` : `<a class="${cls}" href="${href}">${inner}${icon("arrow", 18)}</a>`; };
   const needCard = (n) => { const orgOk = n.organisation?.status === "approved"; return `<div class="list-row review-row"><div class="stack" style="--gap:4px;min-width:0"><strong>${e(n.title)}</strong><span class="small muted">${e(n.organisation?.name || "")}${n.organisation?.country ? " · " + e(n.organisation.country) : ""} · ${n.hours} hours · ${n.places || 1} ${(n.places || 1) === 1 ? "person" : "people"} ${n.updated_at ? ` · sent ${date(n.updated_at)}` : ""}</span>${deadlineWarn(n)}${roundBox("need", n.id)}<p class="small">${e((n.description || "").slice(0, 400))}${(n.description || "").length > 400 ? "…" : ""}</p><p class="small" style="white-space:pre-line"><strong>What they will receive:</strong> ${e(n.output)}</p><span class="small muted">${e([(n.skills || []).join(", "), (n.languages || []).join(", ")].filter(Boolean).join(" · "))}</span>${safetyReview({ ...(n.safeguarding || {}), ...(safetyNotes.find((x) => x.need_id === n.id) || {}) })}<a class="small" href="#need/${n.id}">Open the full need</a>${orgOk ? "" : `<span class="small" style="color:var(--clay-ink);font-weight:600">The organisation is not approved yet. Approve it first; then this need can go live.</span>`}</div><div class="review-actions">${orgOk ? `<button class="btn sm" type="button" data-action="admin-need" data-id="${n.id}" data-decision="approved">Approve</button>` : `<button class="btn sm" type="button" disabled title="Approve the organisation first">Approve</button>`}<button class="btn secondary sm" type="button" data-action="admin-need" data-id="${n.id}" data-decision="changes_requested">Ask for changes</button></div></div>`; };
   const reportCard = (r) => `<div class="list-row review-row"><div class="stack" style="--gap:6px;min-width:0">${reportSummary(r)}${r.admin_note ? `<p class="small muted" style="white-space:pre-line"><span>Handova note:</span> <span data-no-i18n>${e(r.admin_note)}</span></p>` : ""}${targetLink(r) ? `<a class="small" href="${targetLink(r)}">Open what was reported</a>` : ""}</div><div class="review-actions">${r.status === "open" ? `<button class="btn sm" type="button" data-action="admin-report" data-id="${r.id}" data-status="reviewing">Reviewing</button>` : ""}<button class="btn secondary sm" type="button" data-action="admin-case" data-id="${r.id}">Case record…</button>${protectBtns(r)}<button class="btn secondary sm" type="button" data-action="admin-report-resolve" data-id="${r.id}">Resolve…</button></div></div>`;
   // Protective actions for what was reported (Safeguarding Policy, section 12). Each asks for a reason.
@@ -196,7 +199,7 @@ export async function admin() {
   const html = `<div class="wrap" style="padding-block:var(--page-top) var(--section-gap)"><div class="stack" style="--gap:26px">
     <div class="row between" style="align-items:flex-end;flex-wrap:wrap;gap:12px"><div>${eyebrow("Admin")}<h1 style="font-size:clamp(2.2rem,4vw,3.4rem)">What needs your attention</h1></div><a class="btn" href="#admin-progress">${icon("chart", 18)}<span>Progress and bottlenecks</span></a></div>
     <div class="al-switch"><nav aria-label="Admin lists"><span class="al-switch-label">Lists</span>${[["All", "#admin-list/people"], ["Organisations", "#admin-list/organisations"], ["Professionals", "#admin-list/professionals"], ["Students", "#admin-list/students"], ["Universities", "#admin-list/universities"], ["Needs", "#admin-list/needs"], ["Contributions", "#admin-list/contributions"], ["Follow-ups", "#admin-list/followups"]].map(([label, href]) => `<a href="${href}">${label}</a>`).join("")}<a class="al-report" href="#admin-list/reports">${icon("flag", 15)}<span>Reports</span></a><a href="#admin-list/activity">Activity log</a><a class="al-quest" href="#admin-responses">${icon("chart", 15)}<span>Questionnaire answers</span></a></nav></div>
-    <div class="grid-4 admin-stats">${tile(orgReview || orgWaiting, orgChanges.length ? "adm-orgchanges" : orgReview ? "adm-orgs" : "adm-waiting", "#admin-list/organisations", `<strong>${orgReview}</strong><span>organisations to review${orgChanges.length ? ` <span>(${orgChanges.length === 1 ? "including 1 change to approve" : `<span>including</span> ${orgChanges.length} <span>changes to approve</span>`})</span>` : ""}${orgWaiting ? ` <span>(+${orgWaiting} waiting for their changes)</span>` : ""}</span>`)}${tile(needQueue.length + deadlineAsks.length || needsBack.length, needQueue.length ? "adm-needs" : deadlineAsks.length ? "adm-deadlines" : "adm-waiting", "#admin-list/needs", `<strong>${needQueue.length + deadlineAsks.length}</strong><span>needs to review${deadlineAsks.length ? ` <span>(${deadlineAsks.length === 1 ? "including 1 new apply-by date" : `<span>including</span> ${deadlineAsks.length} <span>new apply-by dates</span>`})</span>` : ""}${needsBack.length ? ` <span>(+${needsBack.length} sent back to update)</span>` : ""}</span>`)}${tile(profiles.length, "adm-profiles", "#admin-list/professionals", `<strong>${profiles.length}</strong><span>profiles to review</span>`)}${tile(0, "", `#admin-list/reports${reports.length ? "?show=open" : ""}`, `<strong>${reports.length}</strong><span>open reports</span>`)}${tile(0, "", "#admin-list/contributions?show=active", `<strong>${count(engagements, (x) => x.status === "active")}</strong><span>contributions in progress</span>`)}</div>
+    ${overview({ tiles: `${tile(orgReview || orgWaiting, orgChanges.length ? "adm-orgchanges" : orgReview ? "adm-orgs" : "adm-waiting", "#admin-list/organisations", `<strong>${orgReview}</strong><span>organisations to review${orgChanges.length ? ` <span>(${orgChanges.length === 1 ? "including 1 change to approve" : `<span>including</span> ${orgChanges.length} <span>changes to approve</span>`})</span>` : ""}${orgWaiting ? ` <span>(+${orgWaiting} waiting for their changes)</span>` : ""}</span>`, orgReview)}${tile(needQueue.length + deadlineAsks.length || needsBack.length, needQueue.length ? "adm-needs" : deadlineAsks.length ? "adm-deadlines" : "adm-waiting", "#admin-list/needs", `<strong>${needQueue.length + deadlineAsks.length}</strong><span>needs to review${deadlineAsks.length ? ` <span>(${deadlineAsks.length === 1 ? "including 1 new apply-by date" : `<span>including</span> ${deadlineAsks.length} <span>new apply-by dates</span>`})</span>` : ""}${needsBack.length ? ` <span>(+${needsBack.length} sent back to update)</span>` : ""}</span>`, needQueue.length + deadlineAsks.length)}${tile(profiles.length, "adm-profiles", "#admin-list/professionals", `<strong>${profiles.length}</strong><span>profiles to review</span>`)}${tile(0, "", `#admin-list/reports${reports.length ? "?show=open" : ""}`, `<strong>${reports.length}</strong><span>open reports</span>`, reports.length)}`, everyone, allOrgs, allProfiles, needs: needs.map((n) => ({ ...n, stage: needStage(n, needProg) })), engagements, reportsAll, browserErrors })}
     ${videoReqs.length ? `<section class="card"><h2 style="font-size:1.7rem;margin-bottom:8px">Video-call identity checks</h2><p class="small muted">These professionals asked to show their ID on a video call instead of using Didit. Email them to agree a time, then confirm here.</p>${videoReqs.map((v) => `<div class="list-row review-row"><div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${v.user_id}" style="font-weight:700" data-no-i18n>${e(nameOf(v.user_id))}</a>${emailOf(v.user_id) ? `<a class="small" href="mailto:${e(emailOf(v.user_id))}?subject=${encodeURIComponent("Handova identity check: video call")}" data-no-i18n>${e(emailOf(v.user_id))}</a>` : ""}<span class="small muted">asked ${date(v.requested_at)}</span></div><div class="review-actions"><button class="btn sm" type="button" data-action="admin-id-video" data-id="${v.user_id}">Confirm identity…</button><button class="btn secondary sm" type="button" data-action="admin-id-video-decline" data-id="${v.user_id}" data-name="${e(nameOf(v.user_id))}">Couldn’t verify…</button></div></div>`).join("")}</section>` : ""}
     ${signals.length ? `<section class="card" style="border-color:var(--ochre-line)"><h2 style="font-size:1.7rem;margin-bottom:8px">Integrity signals</h2><p class="small muted">Patterns worth a look, not findings: the same identity on two accounts, both sides signing from one internet address, hours above the estimate, or an organisation acting against a professional after they reported a concern. Once you mark one as checked, it stays hidden unless something new happens.</p>${signals.map((g) => `<div class="list-row"><div class="stack" style="--gap:2px;min-width:0"><strong>${e(g.title)}</strong><span class="small muted" data-no-i18n>${e(g.detail || "")}</span></div><div class="row" style="--gap:8px">${g.link ? `<a class="btn secondary sm" href="${e(g.link)}">Open</a>` : ""}${g.signal_key ? `<button class="btn secondary sm" type="button" data-action="admin-signal-ok" data-id="${e(g.signal_key)}" data-title="${e(g.title)}">Checked, nothing wrong…</button>` : ""}</div></div>`).join("")}</section>` : ""}
     ${suspended.length ? `<section class="card"><h2 style="font-size:1.7rem;margin-bottom:8px">Suspended or removed</h2>${suspended.map((x) => { const hidden = hiddenCv.filter((h) => h.user_id === x.user_id && h.hidden_by_handova).length; return `<div class="list-row review-row"><div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${x.user_id}" style="font-weight:700" data-no-i18n>${e(nameOf(x.user_id))}</a><span class="small muted">${x.removed ? "Removed" : "Suspended"} ${date(x.suspended_at)} · <span data-no-i18n>${e(x.reason)}</span></span>${hidden ? `<span class="small muted">${hidden === 1 ? "1 impact CV entry hidden" : `${hidden} impact CV entries hidden`}</span>` : ""}</div><div class="review-actions"><button class="btn secondary sm" type="button" data-action="admin-lift" data-id="${x.user_id}" data-hidden="${hidden}" data-removed="${x.removed ? "1" : ""}">Lift…</button></div></div>`; }).join("")}</section>` : ""}
@@ -218,22 +221,115 @@ export async function admin() {
       ${profilesBack.length ? `<div class="wfc-box"><h3 class="wfc-title">Profiles asked for changes <span class="wfc-count">${profilesBack.length}</span></h3>${profilesBack.map((p) => `<div class="list-row review-row"><div class="review-main">${avatarFor(p, 48)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${e(p.user_id)}" style="font-weight:700" data-no-i18n>${e(p.name)}</a><span class="small muted"><span data-no-i18n>${e(p.headline || "")}</span>${p.country ? " · " + e(p.country) : ""}</span>${roundBox("profile", p.user_id)}</div></div><div class="review-actions">${waitedFor(p.updated_at)}<a class="btn secondary sm" href="#profile/${e(p.user_id)}">Open the profile</a></div></div>`).join("")}</div>` : ""}
       </div>
     </section>` : ""}
-    ${everyone.length ? `<section class="card"><div class="row between" style="align-items:baseline;margin-bottom:6px"><h2 style="font-size:1.7rem">Where everyone is</h2><a href="#admin-list/people" style="font-weight:700">Everyone who signed up (${everyone.length})</a></div><p class="small muted" style="margin-bottom:10px">Every account by stage, from sign-up to contributing. Open a line to see who and what they still need to do.</p><div class="al-numbers">${Object.entries(PEOPLE_GROUPS).map(([k, [label, f]]) => `<a class="al-num" href="#admin-list/people?show=${k}"><span class="al-num-l">${label}</span><strong>${everyone.filter(f).length}</strong>${icon("arrow", 18)}</a>`).join("")}</div></section>` : ""}
-    <section class="card"><h2 style="font-size:1.7rem;margin-bottom:6px">Handova in numbers</h2><p class="small muted" style="margin-bottom:10px">Live figures. Open any line to see the records behind it.</p><div class="al-numbers">
-      ${[["Registered organisations", allOrgs.length, `${count(allOrgs, (o) => o.status === "approved")} approved · ${count(allOrgs, (o) => o.status === "pending")} under review${count(allOrgs, (o) => o.status === "suspended") ? ` · ${count(allOrgs, (o) => o.status === "suspended")} suspended` : ""}`, "#admin-list/organisations"],
-        ["Registered professionals", allProfiles.length, `${count(allProfiles, (p) => p.review_status === "approved" && p.published)} approved and public`, "#admin-list/professionals"],
-        ["Approved professionals", count(allProfiles, (p) => p.review_status === "approved" && p.published), "", "#admin-list/professionals?show=approved"],
-        ["Open needs", count(needs, (n) => n.status === "open"), `${needs.length} needs in total`, "#admin-list/needs?show=open"],
-        ["Contributions started", engagements.length, "", "#admin-list/contributions"],
-        ["Contributions completed", count(engagements, (x) => x.status === "completed"), "", "#admin-list/contributions?show=completed"],
-        ["Ended early", count(engagements, (x) => x.status === "ended"), "", "#admin-list/contributions?show=ended"],
-        ["Six-month follow-ups answered “still in use”", `${count(engagements, (x) => x.followup_in_use === true)} of ${count(engagements, (x) => x.followup_in_use !== null && x.followup_in_use !== undefined)}`, "", "#admin-list/followups"], ["Reports", reportsAll.length, `${count(reportsAll, (r) => r.status !== "resolved")} open · ${count(reportsAll, (r) => r.child_case)} child cases`, "#admin-list/reports"],
-        ["Activity log", "", "Every admin decision, with the time and the note", "#admin-list/activity"]]
-        .map(([label, n, sub, href]) => `<a class="al-num" href="${href}"><span class="stack" style="--gap:2px"><span class="al-num-l">${label}</span>${sub ? `<span class="small muted">${sub}</span>` : ""}</span><strong>${n}</strong>${icon("arrow", 18)}</a>`).join("")}
-      <div class="al-num"><span class="stack" style="--gap:2px"><span class="al-num-l">Browser errors, last 7 days</span><span class="small muted">${browserErrors === null ? "Not set up yet" : "Only the error text, page and app version are kept"}</span></span><strong>${browserErrors ?? "–"}</strong><span></span></div>
-    </div></section>
   </div></div>`;
   return { title: "Admin", html };
+}
+
+// Handova in numbers, at the top of the Admin page (17 Nov 2026): one block instead of tiles at the top and lists at the
+// bottom. First what is waiting for Handova, then where accounts, needs and contributions are. At this scale every mark
+// carries its raw count and opens the records behind it: no percentages, pies or trend lines, and zeros stay visible.
+// Tones mean the same in every chart: clay = waiting on Handova, ochre = waiting on them, teal = approved or done, grey = stopped.
+const ACCOUNT_SEGS = [
+  ["unfinished", "ochre", ["unconfirmed", "no_profile", "not_sent", "org_not_started"], "Not set up", "Not finished"],
+  ["review", "clay", ["pending", "org_pending"], "Waiting for your review", "Waiting for your review"],
+  ["changes", "hatch", ["changes", "org_changes"], "Details requested", "Changes requested"],
+  ["approved", "teal", ["public", "org_approved"], "Approved", "Approved"],
+  ["stopped", "grey", ["suspended", "closed", "rejected", "unpublished", "org_suspended", "org_rejected"], "Stopped", "Stopped"],
+];
+const NEED_ROWS = [["draft", "Drafts", "grey"], ["pending", "Waiting for review", "clay"], ["open", "Open, no applications yet", "ochre"], ["applications", "Open, professionals applied", "ochre"], ["deadline_passed", "Apply-by date passed", "ochre"], ["chosen", "Professional chosen", "teal"], ["in_progress", "In progress", "teal"], ["handed_over", "Handed over", "teal"], ["closed", "Closed", "grey"]];
+const LIVE_WAITING = ["open", "applications", "deadline_passed", "chosen"];
+const CONTRIB_GROUPS = [["awaiting_signatures", "Awaiting signatures", "ochre"], ["active", "In progress", "outline"], ["completed", "Completed", "teal"], ["ended", "Ended early", "grey"]];
+const ORG_STATUS = [["approved", "approved"], ["pending", "under review"], ["changes_requested", "changes requested"], ["suspended", "suspended"], ["rejected", "not approved"]];
+const UNIT_LIMIT = 60;
+
+// A unit strip: one cell per account or contribution, grouped, with the count above each group. Above UNIT_LIMIT it
+// becomes a proportional bar on the same count scale. Every group is a link; its name is read out with its count.
+function unitStrip(groups, max, prop) {
+  return `<div class="ao-strip${prop ? " prop" : ""}" style="--max:${Math.max(1, max)}">${groups.filter((g) => g.n).map((g) => `<a class="ao-grp t-${g.tone}" href="${g.href}" style="--n:${g.n}"><span class="ao-grp-n">${g.n}</span> <span class="visually-hidden">${g.label}</span><span class="ao-cells" aria-hidden="true">${prop ? "" : "<i></i>".repeat(g.n)}</span></a>`).join("")}</div>`;
+}
+const legend = (groups) => `<ul class="ao-legend">${groups.map((g) => `<li><a class="t-${g.tone}${g.n ? "" : " zero"}" href="${g.href}"><span class="ao-sw" aria-hidden="true"></span><span>${g.label}</span> <strong>${g.n}</strong></a></li>`).join("")}</ul>`;
+
+function overview({ tiles, everyone, allOrgs, allProfiles, needs, engagements, reportsAll, browserErrors }) {
+  const count = (arr, f) => arr.filter(f).length;
+  const sp = (t) => `<span>${t}</span>`;
+
+  // Chart 1: sign-up to approval, one row per side.
+  const people = everyone.filter((x) => x.stage !== "admin");
+  const isOrg = (x) => String(x.stage || "").startsWith("org_") || x.role === "organisation";
+  const sides = [["org", "Organisations", people.filter(isOrg)], ["pro", "Professionals", people.filter((x) => !isOrg(x))]].map(([key, label, list]) => {
+    const groups = ACCOUNT_SEGS.map(([k, tone, stages, orgLabel, proLabel]) => ({ tone, label: key === "org" ? orgLabel : proLabel, n: count(list, (x) => stages.includes(x.stage)),
+      href: `#admin-list/people?show=${k === "approved" ? (key === "org" ? "organisations" : "professionals") : k}` }));
+    return { key, label, groups, total: groups.reduce((a, g) => a + g.n, 0) };
+  });
+  const maxAccounts = Math.max(...sides.map((s) => s.total));
+  const prop = maxAccounts > UNIT_LIMIT;
+  const orgParts = ORG_STATUS.map(([k, l]) => [count(allOrgs, (o) => o.status === k), l]).filter(([n]) => n);
+  const known = ORG_STATUS.map(([k]) => k);
+  const otherOrgs = count(allOrgs, (o) => !known.includes(o.status));
+  if (otherOrgs) orgParts.push([otherOrgs, "other"]);
+  const approvedPros = count(allProfiles, (p) => p.review_status === "approved" && p.published);
+  const caption = {
+    org: `<a href="#admin-list/organisations"><strong>${allOrgs.length}</strong> ${sp(allOrgs.length === 1 ? "organisation record" : "organisation records")}</a>${orgParts.length ? `<span class="small muted">${orgParts.map(([n, l]) => `<span class="ao-nw">${n} ${sp(l)}</span>`).join(" · ")}</span>` : ""}`,
+    pro: `<a href="#admin-list/professionals"><strong>${allProfiles.length}</strong> ${sp(allProfiles.length === 1 ? "registered professional" : "registered professionals")}</a><a class="small" href="#admin-list/professionals?show=approved"><strong>${approvedPros}</strong> ${sp("approved and public")}</a>`,
+  };
+  const noneYet = { org: "No organisation accounts yet", pro: "No professional accounts yet" };
+  const accountRows = everyone.length ? sides.map((s) => `<div class="ao-row">
+      <div class="ao-row-l"><strong>${s.label}</strong><span class="small muted">${s.total} ${sp(s.total === 1 ? "account" : "accounts")}</span></div>
+      <div class="ao-track">${s.total ? unitStrip(s.groups, maxAccounts, prop) : `<p class="small muted ao-none">${noneYet[s.key]}</p>`}</div>
+      <div class="ao-cap">${caption[s.key]}</div>
+      ${s.total ? `<div class="ao-leg">${legend(s.groups)}</div>` : ""}</div>`).join("")
+    : `<p class="small ao-none" style="color:var(--clay-ink);font-weight:600">Account stages couldn’t load.</p><div class="ao-cap">${caption.org}</div><div class="ao-cap">${caption.pro}</div>`;
+  const activity = [["applied", "Waiting on an application", (x) => x.applications_waiting > 0], ["working", "Working on a contribution", (x) => x.contributions_active > 0]];
+  const accounts = `<section class="ao-panel ao-accounts" aria-labelledby="ao-acc-h">
+    <div class="ao-ph"><div><h3 id="ao-acc-h">Sign-up to approval</h3><p class="small muted">Where each account is, one square per account.</p></div><a class="ao-more" href="#admin-list/people">${sp("Everyone who signed up")} (${everyone.length})</a></div>
+    <div class="ao-rows">${accountRows}</div>
+    ${everyone.length ? `<div class="ao-chips"><span class="small muted">Right now, at any stage:</span>${activity.map(([k, l, f]) => `<a class="ao-chip" href="#admin-list/people?show=${k}">${sp(l)} <strong>${count(everyone, f)}</strong></a>`).join("")}</div>` : ""}
+    <p class="small muted ao-note">Accounts are people who signed up; records are organisations or profiles created.</p>
+  </section>`;
+
+  // Chart 2: needs, from draft to handed over, on one shared scale.
+  const byStage = Object.fromEntries(NEED_ROWS.map(([k]) => [k, count(needs, (n) => n.stage === k)]));
+  const maxNeeds = Math.max(1, ...Object.values(byStage));
+  const live = LIVE_WAITING.map((k) => [k, byStage[k]]).sort((a, b) => b[1] - a[1]);
+  const most = live[0][1] >= 2 && live[0][1] > live[1][1] ? live[0][0] : "";
+  const openNeeds = count(needs, (n) => n.status === "open");
+  const needsChart = `<section class="ao-panel" aria-labelledby="ao-needs-h">
+    <div class="ao-ph"><div><h3 id="ao-needs-h">Needs, from draft to handed over</h3><p class="small muted">How many needs are at each stage, in journey order.</p></div></div>
+    ${needs.length ? `<div class="ao-bars">${NEED_ROWS.map(([k, label, tone]) => { const n = byStage[k]; return `<a class="ao-bar t-${tone}${n ? "" : " zero"}${k === most ? " most" : ""}" href="#admin-list/needs?show=${k}"><span class="ao-bar-l">${sp(label)}${k === most ? ` <span class="pill ochre ao-flag">Most waiting</span>` : ""}</span><span class="ao-bar-t" aria-hidden="true"><span style="width:${n ? Math.max(2, (n / maxNeeds) * 100) : 100}%"></span></span><strong class="ao-bar-v">${n}</strong></a>`; }).join("")}</div>` : `<p class="small muted ao-none">No needs yet</p>`}
+    <p class="ao-foot"><a href="#admin-list/needs?show=open"><strong>${openNeeds}</strong> ${sp(openNeeds === 1 ? "open need" : "open needs")}</a> · <a href="#admin-list/needs"><strong>${needs.length}</strong> ${sp(needs.length === 1 ? "need in total" : "needs in total")}</a></p>
+  </section>`;
+
+  // Chart 3: contributions, one square per contribution.
+  const started = engagements.length;
+  const capped = started >= 200;
+  const cg = CONTRIB_GROUPS.map(([k, label, tone]) => ({ tone, label, n: count(engagements, (x) => x.status === k), href: `#admin-list/contributions?show=${k}` }));
+  const answered = count(engagements, (x) => x.followup_in_use !== null && x.followup_in_use !== undefined);
+  const inUse = count(engagements, (x) => x.followup_in_use === true);
+  const notYet = count(engagements, (x) => x.status === "completed" && x.followup_in_use == null);
+  const contribChart = `<section class="ao-panel" aria-labelledby="ao-con-h">
+    <div class="ao-ph"><div><h3 id="ao-con-h">Contributions</h3><p class="small muted">Where each contribution is, one square per contribution.</p></div><a class="ao-more" href="#admin-list/contributions"><strong>${capped ? "200+" : started}</strong> ${sp(started === 1 ? "contribution started" : "contributions started")}</a></div>
+    ${started ? `<div class="ao-track">${unitStrip(cg, started, started > UNIT_LIMIT)}</div>` : `<p class="small muted ao-none">No contributions yet</p>`}
+    ${legend(cg)}
+    <p class="ao-foot small">${answered ? `<a href="#admin-list/followups">${sp("Six-month follow-ups:")} <strong>${inUse}</strong> ${sp("of")} <strong>${answered}</strong> ${sp("answered say still in use")}</a>` : `<a href="#admin-list/followups">No follow-ups answered yet</a>`}${notYet ? ` · <a href="#admin-list/followups?show=due">${notYet} ${sp("not answered yet")}</a>` : ""}</p>
+  </section>`;
+
+  // Strip 4: safety and site health.
+  const openReports = count(reportsAll, (r) => r.status !== "resolved");
+  const health = `<section class="ao-panel" aria-labelledby="ao-health-h">
+    <div class="ao-ph"><h3 id="ao-health-h">Safety and site health</h3></div>
+    <div class="ao-minis">
+      <a class="ao-mini${openReports ? " hot" : ""}" href="#admin-list/reports${openReports ? "?show=open" : ""}"><span class="ao-mini-t"><span class="ao-mini-l">Reports, all time</span><span class="small muted">${openReports} ${sp("open")} · ${count(reportsAll, (r) => r.child_case)} ${sp("child cases")}</span></span><strong>${reportsAll.length}</strong>${icon("arrow", 16)}</a>
+      <div class="ao-mini"><span class="ao-mini-t"><span class="ao-mini-l">Browser errors, last 7 days</span><span class="small muted">${browserErrors === null ? "Not set up yet" : "Only the error text, page and app version are kept"}</span></span><strong>${browserErrors ?? "–"}</strong><span></span></div>
+      <a class="ao-mini" href="#admin-list/activity"><span class="ao-mini-t"><span class="ao-mini-l">Activity log</span><span class="small muted">Every admin decision, with the time and the note</span></span><span></span>${icon("arrow", 16)}</a>
+    </div>
+  </section>`;
+
+  return `<section class="card adm-overview" aria-labelledby="ao-h">
+    <div class="ao-head"><h2 id="ao-h">Handova in numbers</h2><p class="small muted">Live figures. Open any line to see the records behind it.</p></div>
+    <section class="ao-review" aria-labelledby="ao-review-h"><h3 class="ao-kicker" id="ao-review-h">Waiting for your review</h3><div class="grid-4 admin-stats">${tiles}</div></section>
+    ${accounts}
+    <div class="ao-cols">${needsChart}<div class="ao-side">${contribChart}${health}</div></div>
+  </section>`;
 }
 
 // Professionals need at least two weeks to apply (27 Oct 2026): flag a close or passed apply-by date before approving.
