@@ -4782,5 +4782,10 @@
 "You asked these organisations to change something. Nothing to do until they reply: an organisation moves back to “Organisations awaiting review” once it updates its details, and a need moves back to “Needs awaiting review” once it is sent again.":"Vous avez demandé à ces organisations de modifier quelque chose. Rien à faire tant qu’elles n’ont pas répondu : une organisation revient dans « Organisations en attente de vérification » dès qu’elle met à jour ses informations, et un besoin revient dans « Besoins en attente de vérification » dès qu’il est renvoyé.",
 "Ethical Bridge page they gave:":"Page Ethical Bridge indiquée :",
 "Approve anyway":"Approuver quand même",
-"What you asked:":"Ce que vous avez demandé :"
+"What you asked:":"Ce que vous avez demandé :",
+"You asked for changes on these. Nothing to do until they reply: each one moves back to its review list above once they update it and send it again.":"Vous avez demandé des modifications pour ceux-ci. Rien à faire tant qu’ils n’ont pas répondu : chacun revient dans sa liste de vérification ci-dessus dès qu’il est mis à jour et renvoyé.",
+"Organisations asked for details":"Organisations à qui vous avez demandé des précisions",
+"Needs sent back to update":"Besoins renvoyés pour mise à jour",
+"Open the profile":"Ouvrir le profil",
+"Profiles asked for changes":"Profils à qui vous avez demandé des modifications"
 }
