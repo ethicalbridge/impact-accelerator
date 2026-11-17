@@ -44,15 +44,15 @@ import{b as r,c as v,g as G,k as z,l as P,o as k,q as K,r as q,u as N,x as f}fro
     <span class="hs-end">${n}<span class="hs-cap">${r(String(t.name||"").split(" ")[0])}</span></span>
     <i class="hs-line"></i><span class="hs-mark">${F(30)}<span class="hs-cap">handed over</span></span><i class="hs-line"></i>
     <span class="hs-end">${i}<span class="hs-cap">${r(o.name||"")}</span></span>
-  </div>`}function Be(e={},{banner:a=!1}={}){let t=e.logo||e.logo_url,n=t?`<span class="org-cover-tile"><img src="${r(t)}" alt="" loading="lazy"></span>`:`<span class="org-cover-initials">${M(e.name||"Organisation",a?120:96)}</span>`;return`<div class="org-cover${a?" banner":""}" aria-hidden="true">${n}</div>`}var se={open:["Open \xB7 no applications yet",""],applications:["Open \xB7 professionals applied",""],deadline_passed:["Applications closed","grey"],chosen:["Professional chosen","ochre"],in_progress:["In progress","ochre"],handed_over:["Handed over",""],closed:["Closed","grey"]};function la(e){let a=e.organisation||{},t=$e(e.skills,e.title),n=[a.city||e.location,a.country||e.country].filter(Boolean).join(", ");return`<a class="card flush card-link${e.handed?" handed":""}" href="${e.handed?`#organisations/${r(e.org_id)}`:`#need/${r(e.id)}`}">
+  </div>`}function Be(e={},{banner:a=!1}={}){let t=e.logo||e.logo_url,n=t?`<span class="org-cover-tile"><img src="${r(t)}" alt="" loading="lazy"></span>`:`<span class="org-cover-initials">${M(e.name||"Organisation",a?120:96)}</span>`;return`<div class="org-cover${a?" banner":""}" aria-hidden="true">${n}</div>`}var se={open:["Open \xB7 no applications yet",""],applications:["Open \xB7 professionals applied",""],deadline_passed:["Applications closed","grey"],chosen:["Professional chosen","ochre"],in_progress:["In progress","ochre"],handed_over:["Handed over",""],closed:["Closed","grey"]};function la(e){let a=e.organisation||{},t=$e(e.skills,e.title),n=[a.city||e.location,a.country||e.country].filter(Boolean).join(", ");return`<a class="card flush card-link need-card${e.handed?" handed":""}" href="${e.handed?`#organisations/${r(e.org_id)}`:`#need/${r(e.id)}`}">
   ${e.handed?Te(e):e.example&&!(a.logo||a.logo_url)?fe(t):Be(a)}
   <div class="card-body">
     <div class="row between">${e.handed?`<span class="small muted">Handed over by ${r(e.contributor.name.split(" ")[0])}</span>`:e.example?D():`<span class="small muted">Posted ${k(e.published_at||e.created_at,{day:"numeric",month:"short"})}</span>`}${e.handed?"":x(...se[e.progress]||(e.status==="open"?se.open:["Closed","grey"]))}</div>
     <span class="small muted">${r(a.name||"Organisation")}${n?" \xB7 "+r(n):""}</span>
-    <h3 class="card-title">${r(e.title)}</h3>
-    <p class="muted">${r(String(e.output||"").split(/\n+/).map(o=>o.trim()).filter(Boolean).join(" \xB7 "))}</p>
-    <div class="meta"><span>${p("clock",17)}${q(e.hours,"hour")}${e.handed?" delivered":""}</span><span>${p("globe",17)}Remote</span><span>${p("language",17)}${r((e.languages||[]).map(b).join(" \xB7 "))}</span></div>
-    ${V((e.skills||[]).slice(0,4))}
+    <h3 class="card-title" title="${r(e.title)}">${r(e.title)}</h3>
+    <p class="muted need-card-out">${r(String(e.output||"").split(/\n+/).map(o=>o.trim()).filter(Boolean).join(" \xB7 "))}</p>
+    <div class="meta need-card-foot"><span>${p("clock",17)}${q(e.hours,"hour")}${e.handed?" delivered":""}</span><span>${p("globe",17)}Remote</span><span>${p("language",17)}${r((e.languages||[]).map(b).join(" \xB7 "))}</span></div>
+    ${V((e.skills||[]).slice(0,3))}
   </div></a>`}function ca(e){return`<a class="card card-link" href="#profile/${r(e.slug||e.user_id)}">
   <div class="stack" style="--gap:14px">
     <div class="row between">${re(e,64)}${e.founder?x("Founder"):e.example?D():e.inactive_since?x("Inactive","grey"):""}</div>

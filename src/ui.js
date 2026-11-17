@@ -488,15 +488,15 @@ export function needCard(n) {
   const org = n.organisation || {};
   const kind = coverKind(n.skills, n.title);
   const place = [org.city || n.location, org.country || n.country].filter(Boolean).join(", ");
-  return `<a class="card flush card-link${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
+  return `<a class="card flush card-link need-card${n.handed ? " handed" : ""}" href="${n.handed ? `#organisations/${e(n.org_id)}` : `#need/${e(n.id)}`}">
   ${n.handed ? handoverStrip(n) : n.example && !(org.logo || org.logo_url) ? cover(kind) : orgCover(org)}
   <div class="card-body">
     <div class="row between">${n.handed ? `<span class="small muted">Handed over by ${e(n.contributor.name.split(" ")[0])}</span>` : n.example ? exampleBadge() : `<span class="small muted">Posted ${date(n.published_at || n.created_at, { day: "numeric", month: "short" })}</span>`}${n.handed ? "" : pill(...(NEED_STATE[n.progress] || (n.status === "open" ? NEED_STATE.open : ["Closed", "grey"])))}</div>
     <span class="small muted">${e(org.name || "Organisation")}${place ? " · " + e(place) : ""}</span>
-    <h3 class="card-title">${e(n.title)}</h3>
-    <p class="muted">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
-    <div class="meta"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).map(t).join(" · "))}</span></div>
-    ${tags((n.skills || []).slice(0, 4))}
+    <h3 class="card-title" title="${e(n.title)}">${e(n.title)}</h3>
+    <p class="muted need-card-out">${e(String(n.output || "").split(/\n+/).map((s) => s.trim()).filter(Boolean).join(" · "))}</p>
+    <div class="meta need-card-foot"><span>${icon("clock", 17)}${plural(n.hours, "hour")}${n.handed ? " delivered" : ""}</span><span>${icon("globe", 17)}Remote</span><span>${icon("language", 17)}${e((n.languages || []).map(t).join(" · "))}</span></div>
+    ${tags((n.skills || []).slice(0, 3))}
   </div></a>`;
 }
 
