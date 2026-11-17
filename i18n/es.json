@@ -4794,5 +4794,10 @@
 "You asked these organisations to change something. Nothing to do until they reply: an organisation moves back to “Organisations awaiting review” once it updates its details, and a need moves back to “Needs awaiting review” once it is sent again.":"Pediste a estas organizaciones que cambien algo. No hay nada que hacer hasta que respondan: una organización vuelve a «Organizaciones pendientes de revisión» cuando actualiza sus datos, y una necesidad vuelve a «Necesidades pendientes de revisión» cuando se envía de nuevo.",
 "Ethical Bridge page they gave:":"Página de Ethical Bridge que indicaron:",
 "Approve anyway":"Aprobar de todos modos",
-"What you asked:":"Lo que pediste:"
+"What you asked:":"Lo que pediste:",
+"You asked for changes on these. Nothing to do until they reply: each one moves back to its review list above once they update it and send it again.":"Pediste cambios en estos. No hay nada que hacer hasta que respondan: cada uno vuelve a su lista de revisión de arriba cuando lo actualizan y lo envían de nuevo.",
+"Organisations asked for details":"Organizaciones a las que pediste detalles",
+"Needs sent back to update":"Necesidades devueltas para actualizar",
+"Open the profile":"Abrir el perfil",
+"Profiles asked for changes":"Perfiles a los que pediste cambios"
 }
