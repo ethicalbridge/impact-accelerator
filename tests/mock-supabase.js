@@ -846,6 +846,8 @@ const rpcs = {
     adminAction(a.p_approve ? "org_changes_approved" : "org_changes_declined", "organisation", o.id, { changes: pc, note: a.p_note, name: o.name });
   },
   // 20261027000100: the state of every published need, later apply-by dates, unfinished sign-ups.
+  // Home hero (18 Nov 2026): public endorsements from handovers.
+  public_endorsements: () => D.engagements.filter((x) => x.status === "completed" && x.endorsement).map((x) => ({ need_title: x.scope?.need_title, organisation: x.scope?.organisation, organisation_country: x.scope?.organisation_country || "", endorsement: x.endorsement, endorsed_by_role: x.endorsed_by_role || "", user_id: x.user_id, still_in_use: x.followup_in_use ?? null, completed: x.completed_at })),
   public_need_progress: () => D.needs.filter((n) => ["open", "closed"].includes(n.status) && n.approved_at && orgApproved(n.organisation_id)).map((n) => {
     const eng = (st) => D.engagements.some((x) => x.need_id === n.id && x.status === st);
     const state = n.status === "open" ? (n.deadline && n.deadline < today() ? "deadline_passed" : D.applications.some((a) => a.need_id === n.id && a.status === "pending") ? "applications" : "open")
