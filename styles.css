@@ -2276,3 +2276,7 @@ a.ao-mini:hover { border-color: var(--teal); background: var(--mint-2); color: v
   .ao-bar-t { grid-column: 1 / -1; grid-row: 2; height: 12px; }
   .ao-mini strong { font-size: 1.4rem; }
 }
+.hv-float .hv-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.hv-float .avatar, .hv-float .hv-orglogo { flex: none; }
+.hv-float .hv-clamp { margin-top: 2px; }
+.hv-float .hv-state { display: block; margin-top: 2px; color: var(--teal); font-weight: 600; }

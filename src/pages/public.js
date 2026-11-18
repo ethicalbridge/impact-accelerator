@@ -152,7 +152,36 @@ export function home() {
       <div class="hv-cta-mark" aria-hidden="true">${mark(220, true, "draw")}</div>
     </div>
   </section>`;
-  return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals and students give a few focused hours. Free for everyone.", html: homeHero() + rest, rest };
+  return { title: "Skills handed over. Capability that stays.", description: "Local organisations publish the help they need. Skilled professionals and students give a few focused hours. Free for everyone.", html: homeHero() + rest, rest, after: liveStage };
+}
+
+// The hero cards show real people, needs and handovers (18 Nov 2026), picked at random on every visit: an approved
+// professional (preferably with a photo), a published organisation need with its logo and where it stands, and a public
+// endorsement from a handover. The labelled samples stay as the first paint and if anything cannot load.
+async function liveStage() {
+  const stage = document.querySelector(".hv-stage"); if (!stage) return;
+  const pick = (list) => (list.length ? list[Math.floor(Math.random() * list.length)] : null);
+  const [people, needsAll, ends] = await Promise.all([
+    approvedTalent("user_id,name,headline,photo_url").catch(() => null),
+    publishedNeeds().catch(() => null),
+    result(db.rpc("public_endorsements")).catch(() => []),
+  ]);
+  const swap = (sel, html) => { const el = stage.querySelector(sel); if (el && html) el.innerHTML = html; };
+  const withPhoto = (people || []).filter((p) => p.photo_url && safeURL(p.photo_url));
+  const p = pick(withPhoto.length ? withPhoto : people || []);
+  if (p) swap(".f2", `${avatarFor(p, 44)}<div><strong data-no-i18n>${e(p.name)}</strong> ${roleTag("Talent")}<span class="small muted hv-clamp" data-no-i18n>${e(p.headline || "")}</span></div>`);
+  const live = (needsAll || []).filter((n) => n.organisation?.name && ["open", "applications", "chosen", "in_progress", "handed_over"].includes(n.progress));
+  const n = pick(live.filter((x) => x.organisation.logo_url && safeURL(x.organisation.logo_url)).length ? live.filter((x) => x.organisation.logo_url && safeURL(x.organisation.logo_url)) : live);
+  if (n) {
+    const o = n.organisation, place = [o.city, o.country].filter(Boolean).join(", ");
+    const logo = o.logo_url && safeURL(o.logo_url) ? `<img src="${e(safeURL(o.logo_url))}" width="44" height="44" alt="" referrerpolicy="no-referrer">` : avatar(o.name, 44);
+    swap(".f1", `<span class="hv-orglogo">${logo}</span><div style="min-width:0"><strong data-no-i18n>${e(o.name)}</strong> ${roleTag("Organisation")}<span class="small muted hv-clamp" data-no-i18n>${e(n.title)}</span><span class="small hv-state"><span>${(NEED_STATE[n.progress] || NEED_STATE.open)[0]}</span>${place ? ` · <span data-no-i18n>${e(place)}</span>` : ""}</span></div>`);
+  }
+  const q = pick(ends || []);
+  if (q) {
+    const text = String(q.endorsement).trim(), cut = text.length > 150 ? `${text.slice(0, 150).replace(/\s+\S*$/, "")}…` : text;
+    swap(".f4", `<div class="row between" style="gap:10px"><span class="small" style="color:var(--teal);font-weight:700;display:inline-flex;gap:6px">${icon("shield", 16)}<span>${q.still_in_use ? "Handed over · still in use" : "Handed over and endorsed"}</span></span></div><p class="serif" style="font-size:1.02rem;margin-top:6px" data-no-i18n>“${e(cut)}”</p><p class="small muted" style="margin-top:4px"><span data-no-i18n>${e([q.endorsed_by_role, q.organisation].filter(Boolean).join(", "))}</span>${q.organisation_country ? ` · <span data-no-i18n>${e(q.organisation_country)}</span>` : ""}</p>`);
+  }
 }
 
 // What one entry on an impact CV looks like. Invented and labelled "Example", like the other samples.
