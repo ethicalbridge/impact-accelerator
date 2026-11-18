@@ -52,7 +52,7 @@ export const exampleProfile = {
     { organisation: "Universidade Federal de Uberlândia", title: "Specialisation", field: "Public and Private International Law", start: "2013", end: "2013", country: "Brazil", description: "" },
     { organisation: "Universidad Nacional de Cuyo", title: "Bachelor", field: "Law", start: "2008", end: "2013", country: "Argentina", description: "" },
   ],
-  website: "", linkedin: "https://www.linkedin.com/in/julietacastineiradedios/", photo_url: "", photo: "assets/julieta-castineira-de-dios.jpg", contributions: 0,
+  website: "", linkedin: "https://www.linkedin.com/in/julietacastineiradedios/", photo_url: "", photo: "assets/julieta-castineira-de-dios-2026-11.jpg", contributions: 0,
 };
 
 // The founder's pre-Handova handovers were removed before the soft launch (19 Oct 2026): only work reviewed on Handova appears.
