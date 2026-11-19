@@ -148,7 +148,7 @@ export async function universities() {
     <section class="stack" style="--gap:20px">
       <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
       <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<details class="card uni-q" open><summary><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong>${icon("chevron", 18)}</summary><p class="muted small">${d}</p></details>`).join("")}</div>
-      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a></p>
+      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a> · <a href="assets/handova-safety-and-policies.pdf" download style="font-weight:700">${icon("download", 14)} Safety and policies brief (PDF)</a></p>
     </section>
 
     <section class="uni-who">
