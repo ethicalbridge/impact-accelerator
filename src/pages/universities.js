@@ -10,7 +10,9 @@ import { MS_STATS } from "./public.js";
 import { exampleProfile } from "../examples.js";
 import { date } from "../utils.js";
 
-const PDF = "assets/handova-for-universities.pdf";
+// The 2-page summary and the safety brief exist in English, Spanish and Portuguese; French readers get English.
+const inLang = (base) => (["es", "pt"].includes(getLang()) ? `assets/${base}-${getLang()}.pdf` : `assets/${base}.pdf`);
+const pdf = () => inLang("handova-for-universities");
 const UPDATED = "2026-11-16";
 
 const STUDENT_LINK = "https://handova.org/#join?role=student";
@@ -98,7 +100,7 @@ export async function universities() {
     <div class="how-hero">
       <div class="stack" style="--gap:16px"><p class="lead">Handova gives your students short, remote projects for small, locally led organisations verified by Ethical Bridge, the global directory of ethical organisations behind Handova. Free for students, with no travel costs.</p>
         <p class="uni-status">${icon("calendar", 18, "#0f6f63")}<span><strong>A free 3-month Founding Partner pilot from January 2027:</strong> 5 to 10 students, nothing to pay, no obligation. We are taking up to 3 universities, invited in the order they register.</span></p>
-        <div class="row">${toForm("Register interest")}<a class="btn secondary lg" href="${PDF}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
+        <div class="row">${toForm("Register interest")}<a class="btn secondary lg" href="${pdf()}" download>${icon("download", 18)}<span>2-page summary (PDF)</span></a></div>
         <p class="uni-trust small"><a href="#about/ethical-bridge">${icon("shield", 15)}<span>Run by Ethical Bridge LLC</span></a><a href="#privacy">${icon("lock", 15)}<span>EU and UK GDPR representatives</span></a><a href="#policies">${icon("doc", 15)}<span>Public policies</span></a></p>
       </div>
       <div class="how-facts">${FACTS.map(([ic, t, d]) => `<div class="how-fact"><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><div><strong>${t}</strong><span>${d}</span></div></div>`).join("")}</div>
@@ -148,7 +150,7 @@ export async function universities() {
     <section class="stack" style="--gap:20px">
       <div class="stack" style="--gap:8px">${eyebrow("Safety, supervision and credit")}<h2>What your partnerships office will ask.</h2></div>
       <div class="uni-grid">${SAFETY.map(([ic, t, d]) => `<details class="card uni-q" open><summary><span class="icon-tile">${icon(ic, 22, "#0f6f63")}</span><strong>${t}</strong>${icon("chevron", 18)}</summary><p class="muted small">${d}</p></details>`).join("")}</div>
-      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a> · <a href="assets/handova-safety-and-policies.pdf" download style="font-weight:700">${icon("download", 14)} Safety and policies brief (PDF)</a></p>
+      <p class="small"><a href="#policies" style="font-weight:700">Read our policies ${icon("arrow", 14)}</a> · <a href="#privacy" style="font-weight:700">Privacy notice ${icon("arrow", 14)}</a> · <a href="${inLang("handova-safety-and-policies")}" download style="font-weight:700">${icon("download", 14)} Safety and policies brief (PDF)</a></p>
     </section>
 
     <section class="uni-who">
@@ -162,7 +164,7 @@ export async function universities() {
       <div class="stack" style="--gap:12px">${eyebrow("Register interest")}<h2>Let’s talk about your students.</h2>
         <p class="lead">Tell us a little about your university and your students. We reply within two working days.</p>
         <p>Prefer email? Write to <a href="mailto:${e(config.contactEmail)}">${e(config.contactEmail)}</a>.</p>
-        <a class="small" href="${PDF}" download style="font-weight:700">${icon("download", 16)} Download the 2-page summary (PDF)</a>
+        <a class="small" href="${pdf()}" download style="font-weight:700">${icon("download", 16)} Download the 2-page summary (PDF)</a>
         <div class="stack uni-after" style="--gap:10px">${eyebrow("What happens next")}
           <ol class="uni-after-steps">${AFTER.map(([t, d], i) => `<li><span class="uni-n">${i + 1}</span><div><strong>${t}</strong><span class="muted small">${d}</span></div></li>`).join("")}</ol></div></div>
       <form class="form card" data-form="uni-interest">
