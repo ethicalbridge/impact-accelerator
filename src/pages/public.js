@@ -20,7 +20,8 @@ async function publishedNeeds() {
   const by = Object.fromEntries((prog || []).map((x) => [x.need_id, x]));
   return rows.map((n) => ({ ...n, progress: by[n.id]?.state || (n.status === "open" ? (n.deadline && n.deadline < today() ? "deadline_passed" : "open") : "closed"), applicants: by[n.id]?.applicants || 0 }));
 }
-const isOpen = (n) => n.progress === "open" || n.progress === "applications";
+// open_more (24 Nov 2026): one professional is already chosen or working, and the need has more places.
+const isOpen = (n) => ["open", "applications", "open_more"].includes(n.progress);
 // The needs list shows open needs first, then needs in progress; needs already closed come in their own section below.
 const IN_PROGRESS = ["chosen", "in_progress"];
 const CLOSED = ["handed_over", "deadline_passed"];
@@ -170,7 +171,7 @@ async function liveStage() {
   const withPhoto = (people || []).filter((p) => p.photo_url && safeURL(p.photo_url));
   const p = pick(withPhoto.length ? withPhoto : people || []);
   if (p) swap(".f2", `${avatarFor(p, 44)}<div><strong data-no-i18n>${e(p.name)}</strong> ${roleTag("Talent")}<span class="small muted hv-clamp" data-no-i18n>${e(p.headline || "")}</span></div>`);
-  const live = (needsAll || []).filter((n) => n.organisation?.name && ["open", "applications", "chosen", "in_progress", "handed_over"].includes(n.progress));
+  const live = (needsAll || []).filter((n) => n.organisation?.name && ["open", "applications", "open_more", "chosen", "in_progress", "handed_over"].includes(n.progress));
   const n = pick(live.filter((x) => x.organisation.logo_url && safeURL(x.organisation.logo_url)).length ? live.filter((x) => x.organisation.logo_url && safeURL(x.organisation.logo_url)) : live);
   if (n) {
     const o = n.organisation, place = [o.city, o.country].filter(Boolean).join(", ");
