@@ -50,7 +50,7 @@ const VIEWS = [
 ];
 // Which step an automatic reminder is about (by its kind); anything else goes to the step that was waiting when it was sent.
 const REMINDER_STEP = [
-  [/^(finish_signup|signup_reminder)/, ["o_signup", "p_send"]], [/^retention_org/, ["o_first_need"]], [/^profile_unsent/, ["p_send"]],
+  [/^(finish_signup|signup_reminder)/, ["o_signup", "p_send"]], [/^changes_reminder/, ["o_changes", "n_changes", "p_changes"]], [/^retention_org/, ["o_first_need"]], [/^profile_unsent/, ["p_send"]],
   [/^retention_reminder/, ["p_first_app"]], [/^(need_reminder|reply_reminder)/, ["n_chosen"]], [/^apply_by_/, ["n_first_app", "n_chosen"]],
   [/^sign_reminder/, ["c_pro_sign", "c_org_sign"]], [/^first_call/, ["c_call"]], [/^activity_reminder/, ["c_deliver"]],
   [/^endorse_reminder/, ["c_finish"]], [/^survey/, ["c_q_org", "c_q_pro"]],
