@@ -236,8 +236,8 @@ const ACCOUNT_SEGS = [
   ["approved", "teal", ["public", "org_approved"], "Approved", "Approved"],
   ["stopped", "grey", ["suspended", "closed", "rejected", "unpublished", "org_suspended", "org_rejected"], "Stopped", "Stopped"],
 ];
-const NEED_ROWS = [["draft", "Drafts", "grey"], ["pending", "Waiting for review", "clay"], ["open", "Open, no applications yet", "ochre"], ["applications", "Open, professionals applied", "ochre"], ["deadline_passed", "Apply-by date passed", "ochre"], ["chosen", "Professional chosen", "teal"], ["in_progress", "In progress", "teal"], ["handed_over", "Handed over", "teal"], ["closed", "Closed", "grey"]];
-const LIVE_WAITING = ["open", "applications", "deadline_passed", "chosen"];
+const NEED_ROWS = [["draft", "Drafts", "grey"], ["pending", "Waiting for review", "clay"], ["open", "Open, no applications yet", "ochre"], ["applications", "Open, professionals applied", "ochre"], ["open_more", "Open, more places left", "ochre"], ["deadline_passed", "Apply-by date passed", "ochre"], ["chosen", "Professional chosen", "teal"], ["in_progress", "In progress", "teal"], ["handed_over", "Handed over", "teal"], ["closed", "Closed", "grey"]];
+const LIVE_WAITING = ["open", "applications", "open_more", "deadline_passed", "chosen"];
 const CONTRIB_GROUPS = [["awaiting_signatures", "Awaiting signatures", "ochre"], ["active", "In progress", "outline"], ["completed", "Completed", "teal"], ["ended", "Ended early", "grey"]];
 const ORG_STATUS = [["approved", "approved"], ["pending", "under review"], ["changes_requested", "changes requested"], ["suspended", "suspended"], ["rejected", "not approved"]];
 const UNIT_LIMIT = 60;
