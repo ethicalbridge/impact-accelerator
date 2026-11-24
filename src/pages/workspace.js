@@ -377,7 +377,7 @@ async function needPage(o, approved, { needs, apps, invites, engs, hours }, id, 
   let meta;
   if (st === "progress") meta = working.map((x) => parts([`With ${first(x)}`, `${x.scope?.hours || n.hours} hours agreed`, signedOn(x) ? `agreement signed ${date(signedOn(x))}` : "agreement not signed yet"])).join("<br>");
   else if (st === "done") meta = parts([`With ${mine.filter((x) => x.status === "completed").map(first).join(", ")}`, `finished ${date(mine.find((x) => x.status === "completed")?.completed_at)}`]);
-  else meta = parts([`${n.hours} hours`, `${plural(n.places || 1, "person", "people")} needed`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"]);
+  else meta = parts([`${n.hours} hours`, n.deadline ? `apply by ${date(n.deadline)}` : "no fixed deadline"]);
 
   // ---- Next step: the one thing to do now ----
   const appRow = (a) => `<div class="todo-row" style="align-items:flex-start"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;min-width:0">${avatar(a.person?.name || "?", 44)}<div class="stack" style="--gap:4px;min-width:0"><a href="#profile/${a.user_id}" style="font-weight:700">${e(a.person?.name || "Professional")}</a><span class="small muted">${[e(a.person?.headline || ""), e(a.person?.country || ""), (a.person?.languages || []).length ? e(tf("Works in {langs}", { langs: a.person.languages.map((l) => t(l)).join(", ") })) : ""].filter(Boolean).join(" · ")}</span><p class="prose clamp-4" style="font-size:.97rem" data-no-i18n>${e(a.message)}</p>${a.conflict_note ? `<div class="small notice declared-link" role="note"><strong>Declared link:</strong><span data-no-i18n>${e(a.conflict_note)}</span><span>Agree with Handova how it is managed before you accept.</span></div>` : ""}</div></div><div class="todo-actions"><button class="btn sm" type="button" data-action="app-accept" data-id="${a.id}">Accept</button><button class="btn secondary sm" type="button" data-action="app-decline" data-id="${a.id}">Decline</button>${btn("Message", `#conversation-for/${a.need_id}/${a.user_id}`, "secondary sm")}</div></div>`;
@@ -515,7 +515,7 @@ export async function acceptDialog(kind, id) {
   const row = await result(db.from(table).select("id,conflict_note").eq("id", id).maybeSingle()).catch(() => null);
   const note = row?.conflict_note || "";
   const link = note ? `<div class="small notice declared-link" role="note"><strong>Declared link:</strong><span data-no-i18n>${e(note)}</span></div><div class="checkbox-box">${check("conflict_managed", "We agreed with Handova how this is managed.", false, true)}</div><p class="small muted">Not agreed yet? Write to hello@handova.org before you accept, and we’ll agree it with you.</p>` : "";
-  if (kind === "app") decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. When all places are filled, the need stops taking applications and anyone still waiting is told.", "app-accept", id, link, "Accept");
+  if (kind === "app") decisionDialog("Accept this application?", "This creates a contribution agreement for both of you to sign. Each need is for one professional, so the need stops taking applications and anyone else who applied is told.", "app-accept", id, link, "Accept");
   else decisionDialog("Accept this invitation?", "This creates a contribution agreement. You both sign it before any work starts.", "invite-accept", id, link, "Accept");
 }
 
@@ -603,7 +603,7 @@ function needForm(n, o, approved, langs, full = false) {
     ${dropdown("location", "Time zone", TIMEZONES, n.location || "", { empty: "Any time zone" })}
     <input type="hidden" name="country" value="${e(o.country || n.country || "")}">
     ${field("deadline", "Apply by (optional)", { value: n.deadline, type: "date", attrs: `min="${fromToday(14)}"`, hint: "At least two weeks from today, so professionals have time to apply." })}
-    ${select("places", "People needed", [["1", "1 person"], ["2", "2 people"], ["3", "3 people"]], String(n.places || 1))}
+    ${/* One need, one professional (24 Nov 2026): no "people needed" choice; choosing someone closes the need. */""}
     <input type="hidden" name="status" value="${e(n.status || "pending")}">
     ${safetyQuestions(n.safeguarding || {})}
   </div>${needButtons(n, full)}</form>`;
@@ -699,7 +699,7 @@ export async function submitNeed(form) {
     const success = val(fd, "success").replace(/\s+/g, " ");
     const description = joinSuccess(val(fd, "description"), success);
     if (description.length > 6000) throw fieldError(form.querySelector('[name="description"]'), "The challenge and “Success looks like” together must stay under 6,000 characters. Please shorten one of them.");
-    const row = { title: val(fd, "title"), description, output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: Number(val(fd, "places") || 1), status: val(fd, "status"), no_vulnerable_contact: true, safeguarding };
+    const row = { title: val(fd, "title"), description, output: val(fd, "output"), skills: list(val(fd, "skills")), languages: languages(val(fd, "languages")), hours: Number(val(fd, "hours")), arrangement: "Remote", location: val(fd, "location"), country: val(fd, "country"), deadline: val(fd, "deadline") || null, places: 1, status: val(fd, "status"), no_vulnerable_contact: true, safeguarding };
     // Sensitive explanations live in their own table (org members and Handova only), not on the public need.
     const notes = { personal_data_note: safeguarding.personal_data_note || "", leak_risk_note: safeguarding.leak_risk_note || "" };
     delete safeguarding.personal_data_note; delete safeguarding.leak_risk_note;
