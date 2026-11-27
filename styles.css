@@ -2280,3 +2280,6 @@ a.ao-mini:hover { border-color: var(--teal); background: var(--mint-2); color: v
 .hv-float .avatar, .hv-float .hv-orglogo { flex: none; }
 .hv-float .hv-clamp { margin-top: 2px; }
 .hv-float .hv-state { display: block; margin-top: 2px; color: var(--teal); font-weight: 600; }
+.rr-rem { display: flex; gap: 8px; align-items: flex-start; margin: 0; color: var(--ink); }
+.rr-rem > svg { flex: none; margin-top: 3px; color: var(--ochre-ink); }
+.rr-rem .pg-chip { margin-right: 2px; background: var(--paper); }
