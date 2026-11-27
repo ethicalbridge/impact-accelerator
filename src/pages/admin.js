@@ -170,7 +170,11 @@ export async function admin() {
   const roundBox = (type, id) => {
     const r = roundFor(type, id); if (!r) return "";
     const asked = `<details class="rr-asked"><summary><span>What you asked on</span> ${date(r.asked_at)}</summary><p class="small" style="white-space:pre-line" data-no-i18n>${e(r.note || "")}</p>${r.note ? "" : `<p class="small muted">No note was saved with this request.</p>`}</details>`;
-    if (!r.resent_at) return `<div class="rr wait"><strong class="rr-head">${icon("clock", 16)} <span><span>You asked for changes on</span> ${date(r.asked_at)}<span>. Waiting for them to send it back.</span></span></strong>${asked}</div>`;
+    // Reminders for this round (27 Nov 2026): each one sent, and when the next goes out (after 3 days, then every 4, at most 3).
+    const sent = r.reminders || [];
+    const remLine = `<p class="small rr-rem">${icon("mail", 15)} <span>${sent.length ? `<span>${sent.length === 1 ? "Reminder sent:" : "Reminders sent:"}</span> ${sent.map((x) => `<span class="pg-chip" title="${x.emailed ? "Emailed" : "On screen only"}">${icon(x.emailed ? "mail" : "bell", 13)} ${date(x.at, { day: "numeric", month: "short" })}</span>`).join(" ")}` : "<span>No reminder sent yet.</span>"}
+      ${r.reminders_off ? " <span>Reminders are off for this one.</span>" : r.next_reminder ? ` <span>${sent.length ? "Next reminder:" : "First reminder:"}</span> <strong>${date(r.next_reminder, { day: "numeric", month: "short" })}</strong>` : r.alert_at ? ` <span>All 3 reminders sent. You get an alert on</span> <strong>${date(r.alert_at, { day: "numeric", month: "short" })}</strong>` : ""}</span></p>`;
+    if (!r.resent_at) return `<div class="rr wait"><strong class="rr-head">${icon("clock", 16)} <span><span>You asked for changes on</span> ${date(r.asked_at)}<span>. Waiting for them to send it back.</span></span></strong>${remLine}${asked}</div>`;
     const ch = r.changes || [];
     return `<div class="rr back"><strong class="rr-head">${icon("pen", 16)} <span><span>Sent back on</span> ${date(r.resent_at)}<span>, after you asked for changes.</span></span></strong>
       ${ch.length ? `<p class="small rr-sub">${ch.length === 1 ? "What they changed:" : `<span>What they changed</span> (${ch.length}):`}</p><ul class="rr-changes">${ch.map((c) => `<li><span class="rr-field">${FIELD[c.field] || c.field}</span><span class="rr-before"><span class="rr-tag">Before</span>${shown(c.field, c.before)}</span><span class="rr-after"><span class="rr-tag">Now</span>${shown(c.field, c.after)}</span></li>`).join("")}</ul>`
